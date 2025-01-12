@@ -7,12 +7,27 @@ module Control.Concurrent.Component where
 
 import Colog (Message, WithLog, logError)
 import Control.Applicative (liftA2)
-import Control.Arrow
-import Control.Category
+import Control.Arrow (
+  Arrow (arr, first, second, (&&&), (***)),
+  ArrowApply (app),
+  ArrowChoice (left, right, (+++), (|||)),
+  ArrowLoop (loop),
+ )
+import Control.Category (Category (id, (.)))
 import Control.Monad (forever)
 import Data.Functor (void)
 import Data.String (fromString)
-import UnliftIO
+import UnliftIO (
+  Concurrently (..),
+  Exception (displayException),
+  MonadUnliftIO,
+  STM,
+  SomeException (SomeException),
+  atomically,
+  catch,
+  throwIO,
+  try,
+ )
 import UnliftIO.Concurrent (forkIO)
 import Prelude hiding ((.))
 

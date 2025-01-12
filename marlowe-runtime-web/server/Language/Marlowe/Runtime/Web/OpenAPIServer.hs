@@ -16,6 +16,7 @@ import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.Trans as Trans
 import Data.Aeson (ToJSON (toJSON), Value (Array))
 import Data.Aeson.Lens (atKey, key, members)
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict.InsOrd as IOHM
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -74,19 +75,25 @@ import Data.OpenApi.Internal (OpenApiSpecVersion (..))
 import Data.String (fromString)
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text as Text
+import qualified Data.Text.Encoding as T
 import Data.Version (makeVersion, showVersion)
 import GHC.Exts (toList)
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import qualified Language.Marlowe.Runtime.Web.API as Web
+import Network.HTTP.Media ((//), (/:))
 import qualified Paths_marlowe_runtime_web
 import Servant (
+  Accept,
   Get,
   HasServer (ServerT),
   JSON,
+  MimeRender (mimeRender),
   Proxy (..),
+  (:<|>) ((:<|>)),
+  (:>),
   type (:>),
  )
+import Servant.API (Accept (contentType))
 import Servant.OpenApi (toOpenApi)
 import Servant.Pagination (AcceptRanges, ContentRange, Ranges)
 
@@ -128,7 +135,19 @@ instance ToJSON OpenApiWithEmptySecurity where
       & toJSON
       & key "paths" . members . members . atKey "security" %~ (<|> Just (Array mempty))
 
-type API = "openapi.json" :> Get '[JSON] OpenApiWithEmptySecurity
+data HTML = HTML
+
+instance Accept HTML where
+  contentType _ = "text" // "html" /: ("charset", "utf-8")
+
+newtype Html = Html {getHtml :: LBS.ByteString}
+
+instance MimeRender HTML Html where
+  mimeRender _ = getHtml
+
+type API =
+  "openapi.json" :> Get '[JSON] OpenApiWithEmptySecurity
+    :<|> "openapi.html" :> Get '[HTML] Html
 
 data OpenApiLintIssue = OpenApiLintIssue
   { trace :: Text
@@ -137,7 +156,7 @@ data OpenApiLintIssue = OpenApiLintIssue
   deriving (Show, Eq)
 
 showStackTrace :: [Text] -> Text
-showStackTrace = Text.concat . List.intersperse "/" . List.reverse
+showStackTrace = T.concat . List.intersperse "/" . List.reverse
 
 newtype OpenApiLintEnvironment = OpenApiLintEnvironment
   { schemaDefinitions :: Definitions Schema
@@ -252,7 +271,7 @@ lintOpenApi oa = schemaDefinitionLints <> pathParametersLints <> pathOperationLi
 
     lintRequestBody :: [Text] -> RequestBody -> [OpenApiLintIssue]
     lintRequestBody stacktrace request = do
-      (show -> Text.pack -> mediaType, bodyContent :: MediaTypeObject) <- toList $ Optics.view content request
+      (show -> T.pack -> mediaType, bodyContent :: MediaTypeObject) <- toList $ Optics.view content request
       lintMediaTypeObject (mediaType : stacktrace) bodyContent
 
     lintHeader :: [Text] -> Data.OpenApi.Header -> [OpenApiLintIssue]
@@ -262,7 +281,7 @@ lintOpenApi oa = schemaDefinitionLints <> pathParametersLints <> pathOperationLi
     lintResponse :: [Text] -> Response -> [OpenApiLintIssue]
     lintResponse stacktrace res = do
       let responseContentLints = do
-            (show -> Text.pack -> mediaType, responseContent :: MediaTypeObject) <- toList $ Optics.view content res
+            (show -> T.pack -> mediaType, responseContent :: MediaTypeObject) <- toList $ Optics.view content res
             lintMediaTypeObject (mediaType : "content" : stacktrace) responseContent
           responseHeadersLints = do
             (headerName, headerRef -> maybeHeader) <- toList $ Optics.view headers res
@@ -276,13 +295,13 @@ lintOpenApi oa = schemaDefinitionLints <> pathParametersLints <> pathOperationLi
 
     pathParametersLints :: [OpenApiLintIssue]
     pathParametersLints = do
-      (Text.pack -> path, endpoint) <- toList $ Optics.view paths oa
+      (T.pack -> path, endpoint) <- toList $ Optics.view paths oa
       param :: Param <- Maybe.mapMaybe paramRef $ Optics.view parameters endpoint
       lintParam ["parameters", path, "paths"] param
 
     pathOperationLints :: [OpenApiLintIssue]
     pathOperationLints = do
-      (Text.pack -> path, endpoint) <- toList $ Optics.view paths oa
+      (T.pack -> path, endpoint) <- toList $ Optics.view paths oa
       (operationName :: Text, operation :: Operation) <-
         zip
           ["get", "put", "post", "delete", "options", "head", "patch", "trace"]
@@ -309,7 +328,7 @@ lintOpenApi oa = schemaDefinitionLints <> pathParametersLints <> pathOperationLi
               Maybe.maybeToList $ responseRef =<< Optics.view (responses . default_) operation
             lintResponse ["default", "responses", operationName, path, "paths"] defaultResponse
         , do
-            (show -> Text.pack -> httpCode, responseRef -> maybeRes) <- toList $ Optics.view (responses . responses) operation
+            (show -> T.pack -> httpCode, responseRef -> maybeRes) <- toList $ Optics.view (responses . responses) operation
             lintResponse [httpCode, "responses", operationName, path, "paths"] =<< Maybe.maybeToList maybeRes
         ]
 
@@ -335,5 +354,24 @@ openApi =
            ]
       & openapi .~ OpenApiSpecVersion (makeVersion [3, 1, 0])
 
+rapiDoc :: Html
+rapiDoc =
+  Html $
+    LBS.fromStrict $
+      T.encodeUtf8 $
+        T.unlines
+          [ "<!DOCTYPE html>"
+          , "<html>"
+          , "<head>"
+          , "<title>Marlowe Runtime REST API</title>"
+          , -- We use external CDN but the file is preserved in the repo as well in `marlowe-runtime-web/static/rapidoc-9.3.6.min.js`
+            "<script src=\"https://cdn.jsdelivr.net/npm/rapidoc@9.3.6/dist/rapidoc-min.min.js\"></script>"
+          , "</head>"
+          , "<body>"
+          , "<rapi-doc id=\"thedoc\" spec-url=\"/openapi.json\" regular-font=\"Open Sans\" mono-font=\"Roboto Mono\" show-header=\"false\"></rapi-doc>"
+          , "</body>"
+          , "</html>"
+          ]
+
 server :: (Applicative m) => ServerT API m
-server = pure openApi
+server = pure openApi :<|> pure rapiDoc

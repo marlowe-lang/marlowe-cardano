@@ -47,7 +47,6 @@ library
     , base >=4.9 && <5
     , cardano-api
     , plutus-tx ^>=1.31
-    , time
 
   ghc-options:      -fprint-potential-instances
 
