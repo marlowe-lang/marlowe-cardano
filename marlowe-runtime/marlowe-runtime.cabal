@@ -1,6 +1,6 @@
 cabal-version: 3.4
 name:          marlowe-runtime
-version:       1.0.0
+version:       1.0.1
 synopsis:
   Runtime system for running Marlowe financial contracts on the Cardano Computation Layer
 
@@ -241,7 +241,7 @@ library gen
     , marlowe-chain-sync:gen ==1.0.0
     , marlowe-chain-sync:plutus-compat
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:sync-api
     , marlowe-runtime:tx-api
     , marlowe-test ==0.2.1.0
@@ -287,7 +287,7 @@ library indexer
     , marlowe-cardano ==0.2.1.0
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:sync-api
     , mtl >=2.2 && <3
     , nonempty-containers ^>=0.3.4
@@ -332,7 +332,7 @@ library sync-api
     , marlowe-cardano ==0.2.1.0
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , ouroboros-consensus ^>=0.20
     , ouroboros-network-api ^>=0.7.3
     , plutus-ledger-api ^>=1.31
@@ -364,7 +364,7 @@ library contract-api
     , marlowe-chain-sync ==1.0.0
     , marlowe-object ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , plutus-ledger-api ^>=1.31
     , text ^>=2.0
     , typed-protocols ^>=0.1
@@ -406,7 +406,7 @@ library contract
     , marlowe-chain-sync ==1.0.0
     , marlowe-object ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:contract-api
     , marlowe-runtime:sync-api
     , plutus-ledger-api ^>=1.31
@@ -469,7 +469,7 @@ library sync
     , marlowe-cardano ==0.2.1.0
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:schema
     , marlowe-runtime:sync-api
     , plutus-ledger-api ^>=1.31
@@ -500,7 +500,7 @@ library tx-api
     , marlowe-cardano ==0.2.1.0
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:sync-api
     , network-uri >=2.6 && <3
     , nonempty-containers ^>=0.3.4
@@ -548,7 +548,7 @@ library tx
     , marlowe-chain-sync ==1.0.0
     , marlowe-chain-sync:plutus-compat
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:contract-api
     , marlowe-runtime:sync-api
     , marlowe-runtime:tx-api
@@ -583,7 +583,7 @@ library proxy-api
     , base >=4.9 && <5
     , binary ^>=0.8.8
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime:contract-api ==1.0.0
+    , marlowe-runtime:contract-api ==1.0.1
     , marlowe-runtime:sync-api
     , marlowe-runtime:tx-api
     , typed-protocols ^>=0.1
@@ -599,7 +599,7 @@ library proxy
     , eventuo11y >=0.9 && <0.11
     , eventuo11y-extras ==0.1.1.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime:contract-api ==1.0.0
+    , marlowe-runtime:contract-api ==1.0.1
     , marlowe-runtime:proxy-api
     , marlowe-runtime:sync-api
     , marlowe-runtime:tx-api
@@ -631,7 +631,7 @@ library runtime
     , marlowe-chain-sync:chain-indexer
     , marlowe-chain-sync:libchainsync
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:contract
     , marlowe-runtime:indexer
     , marlowe-runtime:proxy
@@ -653,7 +653,7 @@ library config
   build-depends:
     , base >=4.9 && <5
     , marlowe-chain-sync ==1.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , network >=3.1 && <4
     , optparse-applicative ^>=0.16.1
     , split ^>=0.2.3
@@ -680,7 +680,7 @@ executable marlowe-indexer
     , hs-opentelemetry-sdk ^>=0.0.3
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:indexer
     , mtl >=2.2 && <3
     , network >=3.1 && <4
@@ -713,7 +713,7 @@ executable marlowe-sync
     , hs-opentelemetry-sdk ^>=0.0.3
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime:sync ==1.0.0
+    , marlowe-runtime:sync ==1.0.1
     , marlowe-runtime:sync-api
     , mtl >=2.2 && <3
     , network >=3.1 && <4
@@ -742,7 +742,7 @@ executable marlowe-tx
     , hs-opentelemetry-sdk ^>=0.0.3
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:contract-api
     , marlowe-runtime:sync-api
     , marlowe-runtime:tx
@@ -772,7 +772,7 @@ executable marlowe-contract
     , hs-opentelemetry-sdk ^>=0.0.3
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime:config ==1.0.0
+    , marlowe-runtime:config ==1.0.1
     , marlowe-runtime:contract
     , marlowe-runtime:contract-api
     , marlowe-runtime:sync-api
@@ -801,7 +801,7 @@ executable marlowe-proxy
     , eventuo11y-otel ^>=0.1
     , hs-opentelemetry-sdk ^>=0.0.3
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime:config ==1.0.0
+    , marlowe-runtime:config ==1.0.1
     , marlowe-runtime:contract-api
     , marlowe-runtime:proxy
     , marlowe-runtime:proxy-api
@@ -835,7 +835,7 @@ executable marlowe-runtime
     , marlowe-chain-sync:chain-indexer
     , marlowe-chain-sync:libchainsync
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:contract
     , marlowe-runtime:indexer
     , marlowe-runtime:proxy-api
@@ -900,7 +900,7 @@ test-suite marlowe-runtime-test
     , marlowe-chain-sync:plutus-compat
     , marlowe-object:gen
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:contract-api
     , marlowe-runtime:gen
     , marlowe-runtime:sync
@@ -944,7 +944,7 @@ test-suite indexer-test
     , marlowe-cardano ==0.2.1.0
     , marlowe-chain-sync ==1.0.0
     , marlowe-chain-sync:plutus-compat
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:gen
     , marlowe-runtime:indexer
     , marlowe-runtime:sync-api

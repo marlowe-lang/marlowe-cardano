@@ -3,7 +3,7 @@
     <img src="./doc/image/logo.svg" alt="Logo" height="75">
   </a>
   <br>
-  Implementation of Marlowe On Cardano (Runtime) 
+  Implementation of Marlowe On Cardano (Runtime)
 </h2>
   <p align="center">
     <a href="https://github.com/input-output-hk/marlowe-cardano/releases"><img src="https://img.shields.io/github/v/release/input-output-hk/marlowe-cardano?style=for-the-badge" /></a>
@@ -14,13 +14,13 @@
   <a href="https://discord.com/invite/cmveaxuzBn"><img src="https://img.shields.io/discord/826816523368005654?label=Chat%20on%20Discord"></a>
 </div>
 
-> [!IMPORTANT] 
-> This Marlowe repository will soon be moved to https://github.com/marlowe-lang. The new repositories will be administered by an independent vehicle, a not-for-profit organization currently being set up by the transition team.<br> 
+> [!IMPORTANT]
+> This Marlowe repository will soon be moved to https://github.com/marlowe-lang. The new repositories will be administered by an independent vehicle, a not-for-profit organization currently being set up by the transition team.<br>
 > This will allow us to ensure community representation and stewardship. Future developments and support for Marlowe are transitioning to a community-driven model initially led by [Simon Thompson](https://github.com/simonjohnthompson), [Nicolas Henin](https://github.com/nhenin) and [Tomasz Rybarczyk](https://github.com/paluh). <br>
 > See [here](https://github.com/marlowe-lang/.github/blob/main/profile/transition.md) for details.
 
 
-Marlowe-Cardano is an implementation of Marlowe for the Cardano blockchain, built on top of Plutus.
+marlowe-cardano is an implementation of Marlowe for the Cardano blockchain, built on top of Plutus.
 
 This repository contains:
 
@@ -105,7 +105,7 @@ See the link:./cabal.project[cabal project file] to see the other packages that 
 
 This repository uses nix to provide the development and build environment.
 
-For instructions on how to install and configure nix (including how to enable access to our binary caches), refer to link:https://github.com/input-output-hk/iogx/blob/main/doc/nix-setup-guide.md. 
+For instructions on how to install and configure nix (including how to enable access to our binary caches), refer to link:https://github.com/input-output-hk/iogx/blob/main/doc/nix-setup-guide.md.
 
 If you already have nix installed and configured, you may enter the development shell by running `nix develop`.
 

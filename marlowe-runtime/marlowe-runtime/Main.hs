@@ -167,7 +167,7 @@ run Options{..} = bracket (Pool.acquire 100 (Just 5000000) (fromString databaseU
           runExceptT $
             queryNodeLocalState localNodeConnectInfo VolatileTip $
               QueryInEra $
-                QueryInShelleyBasedEra ShelleyBasedEraBabbage QueryGenesisParameters
+                QueryInShelleyBasedEra ShelleyBasedEraConway QueryGenesisParameters
 
     flip runComponent_ () proc _ -> do
       MarloweRuntime{..} <-

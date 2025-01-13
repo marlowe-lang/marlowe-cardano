@@ -1,0 +1,109 @@
+cabal-version: 3.4
+name:          marlowe-runtime-cli
+version:       0.0.6
+synopsis:      A command line interface for the Marlowe Runtime.
+bug-reports:   https://github.com/input-output-hk/marlowe-cardano/issues
+license:       Apache-2.0
+author:        Jamie Bertram
+maintainer:    jamie.bertram@iohk.io
+stability:     experimental
+category:      Language
+license-files:
+  LICENSE
+  NOTICE
+
+source-repository head
+  type:     git
+  location: https://github.com/input-output-hk/marlowe-cardano
+  subdir:   marlowe-runtime-cli
+
+common lang
+  default-language:   Haskell2010
+  default-extensions:
+    BlockArguments
+    DeriveAnyClass
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveLift
+    DeriveTraversable
+    DerivingStrategies
+    DerivingVia
+    EmptyCase
+    ExplicitForAll
+    GeneralizedNewtypeDeriving
+    LambdaCase
+    NamedFieldPuns
+    NumericUnderscores
+    OverloadedStrings
+    RecordWildCards
+    ScopedTypeVariables
+    StandaloneDeriving
+    TupleSections
+    TypeApplications
+
+  ghc-options:
+    -Wall -Wnoncanonical-monad-instances -Wunused-packages
+    -Wincomplete-uni-patterns -Wincomplete-record-updates
+    -Wredundant-constraints -Widentities
+
+executable marlowe-runtime-cli
+  import:          lang
+  hs-source-dirs:  app
+  main-is:         Main.hs
+  other-modules:
+    Language.Marlowe.Runtime.CLI.Command
+    Language.Marlowe.Runtime.CLI.Command.Apply
+    Language.Marlowe.Runtime.CLI.Command.Create
+    Language.Marlowe.Runtime.CLI.Command.Export
+    Language.Marlowe.Runtime.CLI.Command.Load
+    Language.Marlowe.Runtime.CLI.Command.Log
+    Language.Marlowe.Runtime.CLI.Command.Query
+    Language.Marlowe.Runtime.CLI.Command.Query.Store
+    Language.Marlowe.Runtime.CLI.Command.Submit
+    Language.Marlowe.Runtime.CLI.Command.Tx
+    Language.Marlowe.Runtime.CLI.Command.Withdraw
+    Language.Marlowe.Runtime.CLI.Env
+    Language.Marlowe.Runtime.CLI.Monad
+    Paths_marlowe_runtime_cli
+
+  autogen-modules: Paths_marlowe_runtime_cli
+  build-depends:
+    , aeson
+    , aeson-pretty
+    , ansi-terminal
+    , base >=4.9 && <5
+    , base16
+    , bytestring
+    , cardano-api
+    , containers
+    , errors
+    , marlowe-cardano
+    , marlowe-chain-sync
+    , marlowe-client
+    , marlowe-object
+    , marlowe-protocols
+    , marlowe-runtime
+    , marlowe-runtime:config
+    , marlowe-runtime:contract-api
+    , marlowe-runtime:proxy-api
+    , marlowe-runtime:sync-api
+    , marlowe-runtime:tx-api
+    , monad-control
+    , mtl
+    , network
+    , optparse-applicative
+    , pipes
+    , plutus-ledger-api
+    , stm
+    , stm-delay
+    , text
+    , time
+    , transformers
+    , transformers-base
+    , unliftio
+    , wl-pprint
+    , yaml
+
+  if !os(windows)
+    build-depends: unix

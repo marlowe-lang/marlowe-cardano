@@ -35,6 +35,7 @@ common lang
     ExplicitForAll
     GeneralizedNewtypeDeriving
     LambdaCase
+    MultiParamTypeClasses
     NamedFieldPuns
     NumericUnderscores
     OverloadedStrings
@@ -130,7 +131,7 @@ library
     , marlowe-client ==1.0.0
     , marlowe-object ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime:contract-api
     , marlowe-runtime:proxy-api
     , marlowe-runtime:sync-api
@@ -172,18 +173,20 @@ library server
     , aeson ^>=2.2
     , async-components ==0.1.1.0
     , base >=4.9 && <5
+    , bytestring >=0.10.12 && <0.12
     , co-log ^>=0.6
     , eventuo11y >=0.9 && <0.11
     , eventuo11y-extras ==0.1.1.0
     , eventuo11y-otel
     , hs-opentelemetry-sdk
+    , http-media ^>=0.8
     , http-types
     , insert-ordered-containers >=0.2.5 && <0.3
     , lens >=5.2 && <6
     , lens-aeson ^>=1.2
     , marlowe-chain-sync ==1.0.0
     , marlowe-protocols ==0.3.0.0
-    , marlowe-runtime ==1.0.0
+    , marlowe-runtime ==1.0.1
     , marlowe-runtime-web ==1.0.0
     , marlowe-runtime:proxy-api
     , marlowe-runtime:sync-api
