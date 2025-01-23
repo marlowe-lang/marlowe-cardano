@@ -35,7 +35,7 @@ spec:
         value: {{ $.Values.otelExporter.url }}:{{ $.Values.otelExporter.port }}
       - name: OTEL_SERVICE_NAME
         value: marlowe-sync-{{ $network }}-{{ $instanceName }}
-      cpu: "0.5"
+      cpu: "1"
       image: {{ $instance.repo }}/{{ $instance.org }}/marlowe-sync:{{ $instance.tag }}
       imagePullPolicy: Always
       memory: 1024Mi
