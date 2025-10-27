@@ -71,7 +71,7 @@ jobs:
           MARLOWE_RT_TEST_SUBMIT_CONFIRMATION_BLOCKS: 0
       - if: ${{ failure() && steps.cache-results.outputs.cache-hit != 'true' }}
         name: Upload failed test directories as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: workspaces
           path: |
