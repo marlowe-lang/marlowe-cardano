@@ -47,7 +47,7 @@ jobs:
           nix build --dry-run --json .#integration-tests > test-store-path.json
       - name: Cache test results
         id: cache-results
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # Use run_attempt in the cache key so that explicitly re-running the
           # tests will force the test to run again.
