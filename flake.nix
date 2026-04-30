@@ -46,7 +46,7 @@
   outputs = inputs@{ self, nixpkgs, ... }: inputs.iogx.lib.mkFlake {
     inherit inputs;
     repoRoot = ./.;
-    systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" "aarch64-linux" ];
+    systems = [ "x86_64-linux" "aarch64-darwin" "aarch64-linux" ];
     flake = _:
       let
         inherit (nixpkgs) lib;
