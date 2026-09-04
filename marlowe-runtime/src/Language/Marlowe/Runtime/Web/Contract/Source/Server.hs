@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Language.Marlowe.Runtime.Web.Contract.Source.Server
   ( post
@@ -24,7 +25,8 @@ import Language.Marlowe.Object.Link (LinkError (UnknownSymbol, DuplicateLabel, T
 import Language.Marlowe.Object.Types (ContractHash (ContractHash, unContractHash), Label, ObjectBundle)
 import Language.Marlowe.Object.Types qualified as O
 import Language.Marlowe.Runtime.ChainSync.Api qualified as Chain
-import Language.Marlowe.Runtime.Contract.Api qualified as Api
+import Language.Marlowe.Runtime.Core.Api qualified as Api
+import Language.Marlowe.Runtime.Core.Api (MarloweVersionTag (V1))
 import Language.Marlowe.Runtime.Contract.Store qualified as Store
 import Language.Marlowe.Runtime.Contract.TransferServer qualified as TS
 import Language.Marlowe.Runtime.Web.Adapter.Servant qualified as Adapter
@@ -61,9 +63,9 @@ loadContract
   :: forall resp
    . Web.ContractSourceId
   -> UVerbT
-      resp
-      ServerM
-      Api.ContractWithAdjacency
+       resp
+       ServerM
+       (Api.ContractWithAdjacency 'V1)
 loadContract sourceId = do
   liftIO $ putStrLn $ "Loading contract handler: " <> show sourceId
   loadContract' <- lift $ view getContractSourceL

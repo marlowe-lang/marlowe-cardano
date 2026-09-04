@@ -715,6 +715,9 @@ fromCoreCurrencySymbol = CurrencySymbol . PV2.fromBuiltin . PV2.unCurrencySymbol
 toCoreCurrencySymbol :: CurrencySymbol -> PV2.CurrencySymbol
 toCoreCurrencySymbol = PV2.CurrencySymbol . PV2.toBuiltin . unCurrencySymbol
 
+fromCoreContractHash :: BuiltinByteString -> ContractHash
+fromCoreContractHash = ContractHash . PV2.fromBuiltin
+
 newtype ContractHash = ContractHash {unContractHash :: ByteString}
   deriving newtype (Eq, Ord, Binary)
   deriving (Show, ToJSON, FromJSON) via EncodeBase16
@@ -723,11 +726,6 @@ instance Variations ContractHash where
   -- 28 bytes
   variations = LNE.fromList
     [ContractHash "0123456789abcdef0123456789abcdef0123456789abcdef012345670123456789ab0123456789ab0123456789ab"]
-
-fromCoreContractHash :: BuiltinByteString -> ContractHash
-fromCoreContractHash = ContractHash . PV2.fromBuiltin
-
--- newtype Base16 = Base16 {unBase16 :: ByteString}
 --   deriving newtype (Eq, Ord, Variations)
 -- 
 -- instance Show Base16 where

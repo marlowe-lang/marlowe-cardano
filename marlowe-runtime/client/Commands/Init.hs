@@ -16,8 +16,10 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Data.Yaml qualified as Yaml
+import qualified Marlowe.Plutus.Semantics.Types as Semantics
 import Language.Marlowe.Runtime.Web.Client (postContract)
-import Language.Marlowe.Runtime.Web.Contract.API (PostContractsRequest(PostContractsRequest, accounts, contract, metadata, minUTxODeposit, roles, tags, threadTokenName, version), ContractOrSourceId(ContractOrSourceId), ContractSourceId(ContractSourceId))
+import Language.Marlowe.Runtime.Web.Contract.API (PostContractsRequest(PostContractsRequest, accounts, contract, metadata, minUTxODeposit, roles, tags, threadTokenName, version), ContractOrSourceId(ContractOrSourceId))
+import Language.Marlowe.Runtime.Web.Contract.Source.API (ContractSourceId)
 import Language.Marlowe.Runtime.Web.Core.Address qualified as Web
 import Language.Marlowe.Runtime.Web.Core.MarloweVersion (MarloweVersion (V1))
 import Language.Marlowe.Runtime.Web.Core.Tx qualified as Web
@@ -25,6 +27,7 @@ import Language.Marlowe.Runtime.Web.Tx.API (CreateTxEnvelope, CardanoTx)
 import Options.Applicative ( Parser, ParserInfo, help, info, long, metavar, optional, progDesc, short, showDefault, strOption, switch, value)
 import Servant.Client (ClientError)
 import System.FilePath ((</>))
+import Language.Marlowe.Runtime.Web.Contract.Source.API (contractSourceIdFromText)
 
 fundingAddressParser :: Parser (C.Address C.ShelleyAddr)
 fundingAddressParser = Addr.mkAddressParser $ Addr.AddressParserConfig
@@ -114,13 +117,18 @@ runInitCommand cmd = do
     _ -> do
       emitError cmd.messageFormat ("Failed to query the cardano-node for necessary information." :: String)
 
-  contractRef <- case (cmd.contractFile, cmd.contractSourceId) of
-    (Just _, Just _) -> emitError cmd.messageFormat "Please specify exactly one of --contract-file or --contract-source-id."
+  let
+    errBoth :: String -> IO (Either Semantics.Contract ContractSourceId)
+    errBoth msg = do
+      emitError cmd.messageFormat msg
+      pure (Left (error "unreachable" :: Semantics.Contract))
+  contractRef <- case (cmd.contractFile :: Maybe FilePath, cmd.contractSourceId :: Maybe T.Text) of
+    (Just _, Just _) -> errBoth "Please specify exactly one of --contract-file or --contract-source-id."
     (Just f, Nothing) -> Right <$> decodeFileStrict cmd.messageFormat f
-    (Nothing, Just sidStr) -> case Yaml.parseJSON (Yaml.String sidStr) of
-      Yaml.Success (sid :: ContractSourceId) -> pure (Right sid)
-      _ -> emitError cmd.messageFormat $ "Invalid contract source id: " <> sidStr
-    (Nothing, Nothing) -> emitError cmd.messageFormat "Please specify either --contract-file or --contract-source-id."
+    (Nothing, Just sidStr) -> case contractSourceIdFromText sidStr of
+      Just cid -> pure $ Right cid
+      Nothing -> errBoth $ "Invalid contract source id: " <> T.unpack sidStr <> ". It must be a 32-byte hex-encoded string."
+    (Nothing, Nothing) -> errBoth "Please specify either --contract-file or --contract-source-id."
   let
     ServantClientRunner runWebClient = cmd.servantClientRunner
     stakeCredential = Nothing

@@ -50,6 +50,7 @@ import Language.Marlowe.Runtime.ChainSync.Api (paymentCredential, fromCardanoScr
 import Language.Marlowe.Runtime.ChainSync.Api qualified as Core
 -- import Language.Marlowe.Runtime.ChainSync.Api (DatumHash(..)) -- removed for now
 import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1))
+import qualified Marlowe.Plutus.Semantics as V1
 import Language.Marlowe.Runtime.Core.Api qualified as Core
 import Language.Marlowe.Runtime.Core.ScriptRegistry ( MarloweScripts(MarloweScripts, marloweScript, payoutScript, marloweScriptUTxOs, payoutScriptUTxOs), GetAllScripts(GetAllScripts), ReferenceScriptUtxo(ReferenceScriptUtxo, txOutRef, script, txOut), fromCardanoScriptInAnyLang, ScriptInPlutus, GetCurrentScripts(GetCurrentScripts) )
 import Language.Marlowe.Runtime.Core.ScriptRegistry qualified as ScriptRegistry
@@ -62,7 +63,7 @@ import Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetContractState (GetC
 import Language.Marlowe.Runtime.Transaction.Api (LoadHelpersContextError, RoleTokensConfig, InitError(InitEraHistoryNotInitialized), ApplyInputsError(ApplyInputsEraHistoryNotInitialized))
 import Language.Marlowe.Runtime.Transaction.Api qualified as T
 import Language.Marlowe.Runtime.Transaction.BuildConstraints (MkRoleTokenMintingPolicy)
-import Language.Marlowe.Runtime.Transaction.Builders (execInit, execApplyInputs, LoadMarloweContext, Connector(Connector))
+import Language.Marlowe.Runtime.Transaction.Builders (execInit, execApplyInputs, LoadMarloweContext)
 import Language.Marlowe.Runtime.Transaction.Constraints (MarloweContext(MarloweContext), MintingSeed(MintingSeed))
 import Language.Marlowe.Runtime.Transaction.Constraints qualified as Constraints
 import Language.Marlowe.Runtime.Web.Server (runServer, runServerMExtract, serverWithOpenApi, ServerDependencies(..), RuntimeAPIWithOpenAPI)
@@ -94,7 +95,7 @@ import System.Exit (die)
 import Text.Read qualified as T
 import Language.Marlowe.Runtime.Contract.TransferServer qualified as TransferServer
 import Servant.Pipes ()
-import Language.Marlowe.Runtime.Web.Contract.Source.Server (fromSourceId)
+import Language.Marlowe.Runtime.Web.Contract.Source.Server (fromSourceId, toSourceId)
 import qualified Language.Marlowe.Runtime.Contract.Store as Store
 
 newtype Port = Port Int
@@ -246,9 +247,10 @@ mkInitContract
   -- hard error: we refuse to fall back to a stale value because that would
   -- silently mask configuration drift between the indexer and the runtime.
   -> GetCurrentScripts
+  -> GetContractSource m
   -> UseRoleTokenDevelScript
   -> InitContract m
-mkInitContract (networkId, systemStart, protocolParams) fetchEraHistory getCurrentScripts useRoleTokenDevelScript =
+mkInitContract (networkId, systemStart, protocolParams) fetchEraHistory getCurrentScripts getContractSource useRoleTokenDevelScript =
   \stakeCredential walletContext threadTokenName roleTokensConfig transactionMetadata optMinAda accounts contract -> do
     eraHistory <- fetchEraHistory
     case eraHistory of
@@ -260,7 +262,7 @@ mkInitContract (networkId, systemStart, protocolParams) fetchEraHistory getCurre
         execInit
           (mkRoleTokensPolicy useRoleTokenDevelScript)
           C.ConwayEra
-          Connector
+          (getContractSource . toSourceId)
           getCurrentScripts
           solveConstraints
           protocolParams
@@ -289,8 +291,10 @@ mkApplyInputs
   -> GetContractState m
   -> GetAllScripts
   -> m SlotNo
+  -> (V1.TransactionInput -> m (Maybe V1.TransactionInput))
+  -> GetContractSource m
   -> ApplyInputs m
-mkApplyInputs (networkId, systemStart, protocolParams) fetchEraHistory getContractState getAllScripts getCurrentSlotNo =
+mkApplyInputs (networkId, systemStart, protocolParams) fetchEraHistory getContractState getAllScripts getCurrentSlotNo merkleizeInputs getContractSource =
   \walletContext contractId transactionMetadata invalidBefore invalidHereafter inputs -> do
     eraHistory <- fetchEraHistory
     case eraHistory of
@@ -305,9 +309,10 @@ mkApplyInputs (networkId, systemStart, protocolParams) fetchEraHistory getContra
             getAllScripts
           analysisTimeout = 60
         execApplyInputs
+          merkleizeInputs
           C.ConwayEra
           protocolParams
-          Connector
+          (getContractSource . toSourceId)
           getCurrentSlotNo
           systemStart
           eh
@@ -354,6 +359,18 @@ mkGetContractSource store hash = do
   liftIO $ putStrLn ("Get contract source wrapper" :: String)
   store.getContract (fromSourceId hash)
 
+merkleizeInputsWrapper
+  :: forall m
+   . MonadIO m
+  => ContractStore.ContractStore m
+  -> V1.TransactionInput -> m (Maybe V1.TransactionInput)
+merkleizeInputsWrapper store tx = do
+  liftIO $ putStrLn ("Merklize inputs wrapper" :: String)
+  result <- store.merkleizeInputs undefined undefined tx
+  case result of
+    Right tx' -> pure $ Just tx'
+    Left _ -> pure Nothing
+
 queryLedgerInfo :: C.NetworkId -> C.LocalNodeConnectInfo -> IO LedgerInfo
 queryLedgerInfo networkId connectInfo = do
   rawQueryResult <- C.executeLocalStateQueryExpr connectInfo C.VolatileTip $
@@ -396,6 +413,7 @@ mkServerDependencies
   -> GetCurrentScripts
   -> ServerM (ServerDependencies ServerM)
 mkServerDependencies pool ledgerInfo getAllScripts getCurrentScripts = do
+  contractStore <- mkServerMStore
   let
     dbQueries :: DatabaseQueries ServerM
     dbQueries =
@@ -416,6 +434,7 @@ mkServerDependencies pool ledgerInfo getAllScripts getCurrentScripts = do
       ledgerInfo
       fetchEraHistory
       getCurrentScripts
+      (mkGetContractSource contractStore)
       (UseRoleTokenDevelScript True)
 
     applyInputs = mkApplyInputs
@@ -424,9 +443,8 @@ mkServerDependencies pool ledgerInfo getAllScripts getCurrentScripts = do
       (getContractState dbQueries)
       getAllScripts
       getCurrentSlotNo
-
-  -- The in-memory contract store (STM-backed).
-  contractStore <- mkServerMStore
+      (merkleizeInputsWrapper contractStore)
+      (mkGetContractSource contractStore)
 
   let deps :: ServerDependencies ServerM
       deps =

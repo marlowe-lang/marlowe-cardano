@@ -7,7 +7,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import GHC.Conc (throwSTM)
 import GHC.IO (mkUserError)
-import Language.Marlowe.Runtime.Contract.Api (ContractWithAdjacency (..), MerkleizeInputsError (MerkleizeInputsIntervalError, MerkleizeInputsContractNotFound, MerkleizeInputsApplyNoMatch, MerkleizeInputsReduceAmbiguousInterval))
+import Language.Marlowe.Runtime.Contract.Api (MerkleizeInputsError (MerkleizeInputsIntervalError, MerkleizeInputsContractNotFound, MerkleizeInputsApplyNoMatch, MerkleizeInputsReduceAmbiguousInterval))
+import Language.Marlowe.Runtime.Core.Api (ContractWithAdjacency (..), MarloweVersionTag (V1))
 import Language.Marlowe.Runtime.Contract.Store (ContractStagingArea (..), ContractStore (..))
 import Language.Marlowe.Object.Types (ContractHash(ContractHash))
 -- import Language.Marlowe.Runtime.ChainSync.Api (ContractHash (..))
@@ -100,7 +101,7 @@ createContractStoreInMemory = do
                       pure $ Map.member hash stored
           }
 
-    getContract :: TVar (Map ContractHash Contract) -> ContractHash -> STM (Maybe ContractWithAdjacency)
+    getContract :: TVar (Map ContractHash Contract) -> ContractHash -> STM (Maybe (ContractWithAdjacency 'V1))
     getContract store = runMaybeT . go
       where
         go hash = do

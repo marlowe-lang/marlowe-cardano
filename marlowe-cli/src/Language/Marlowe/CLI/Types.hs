@@ -54,6 +54,7 @@ module Language.Marlowe.CLI.Types (
 
   -- * Publishing
   MarloweScriptsRefs (..),
+  MarloweScriptsInfo (..),
   PublishingStrategy (..),
 
   -- * Helpers
@@ -398,21 +399,19 @@ instance (IsScriptLanguage lang, IsShelleyBasedEra era) => FromJSON (MarloweInfo
 
 -- TODO: Turn this into GADT and introduce two cases - ref and non ref.
 -- Non ref should skip `txIn` and ref should change Address into enterprise one.
+--
+-- 'viScriptDetails' is the core script information (bytes, hash, on-chain
+-- UTxOs). 'viStakeCredential' is the per-execution stake credential that
+-- lives on-chain (it is not derivable from the script hash). 'networkId' is
+-- cached so we can compute the script address on demand.
 data ValidatorInfo lang era = ValidatorInfo
-  { viScript :: PlutusScript lang
-  -- ^ The Plutus script.
+  { viScriptDetails :: ScriptDetails lang era
   , viTxIn :: Maybe C.TxIn
   -- ^ Reference input to use. We don't want to use `PlutusScriptOrReferenceInput` here.
-  , viBytes :: ShortByteString
-  -- ^ The serialisation of the validator.
-  , viHash :: C.ScriptHash
-  -- ^ The validator hash.
-  , viAddress :: AddressInEra era
-  -- ^ The script address.
-  , viSize :: Int
-  -- ^ The script size, in bytes.
-  , viCost :: ExBudget
-  -- ^ The execution budget for the script.
+  , viStakeCredential :: Maybe (C.StakeCredential, C.Network)
+  -- ^ Stake credential as seen on-chain (paired with the network in which
+  -- it was observed) and the network it was observed in. 'Nothing' means the
+  -- script was published without a stake reference.
   }
   deriving (Eq, Generic, Show)
 
@@ -727,6 +726,12 @@ data MarloweScriptsRefs lang era = MarloweScriptsRefs
   { mrMarloweValidator :: (AUTxO era, ValidatorInfo lang era)
   , mrRolePayoutValidator :: (AUTxO era, ValidatorInfo lang era)
   , mrOpenRoleValidator :: (AUTxO era, ValidatorInfo lang era)
+  }
+
+data MarloweScriptsInfo lang era = MarloweScriptsInfo
+  { msMarloweValidator :: ValidatorInfo lang era
+  , msRolePayoutValidator :: ValidatorInfo lang era
+  , msOpenRoleValidator :: ValidatorInfo lang era
   }
 
 data CoinSelectionStrategy = CoinSelectionStrategy

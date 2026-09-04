@@ -189,9 +189,8 @@ export function mkContract(
   });
 }
 
-type WinningChoice = "no-winners" | "party1-wins" | "party2-wins";
-
-namespace WinningChoice {
+export type WinningChoice = "no-winners" | "party1-wins" | "party2-wins";
+export namespace WinningChoice {
   export const toChoiceValue = (choice: WinningChoice): bigint => {
     switch (choice) {
       case "no-winners":
@@ -204,7 +203,7 @@ namespace WinningChoice {
   }
 }
 
-type RunOpts = {
+export type RunOpts = {
   amount: bigint;
   party1: Wallet;
   party2: Wallet;
@@ -353,13 +352,12 @@ const toIsoUtc = (ms: bigint): string => new Date(Number(ms)).toISOString();
 // was using the test-host's `now` for the upper bound, which (after
 // translating through the runtime) could fall past the contract's
 // timeout and trip the validator.
-const waitForNext = (opts: {
+export const waitForNext = (opts: {
   contractId: ContractId;
   party: Wallet;
   kind: 'deposit' | 'choice';
   logLabel: string;
 }): ResultAsync<Next, unknown> => {
-  let attempt = 0;
   const runNextWithDerivedRange = async (): Promise<Next> => {
     const timeoutMs = await getCurrentWhenTimeoutMs(opts.contractId);
     if (timeoutMs === null) {
@@ -384,16 +382,17 @@ const waitForNext = (opts: {
     if (derived.isErr()) throw derived.error;
     return derived.value;
   };
+  let attempt = 0;
   return waitPatientlyForResultAsync(
     () => ResultAsyncCtor.fromPromise(runNextWithDerivedRange(), (e: unknown) => e),
     (next) => {
-      attempt += 1;
       const ready = isApplicableFor(next, opts.party, opts.kind);
       // Log a fuller snapshot every 5th attempt to help debug cases where
       // the runtime sees the contract but never reports the expected input.
       if (!ready && attempt % 5 === 0) {
         void logRuntimeSnapshot(opts.logLabel, opts.contractId, opts.party, opts.kind);
       }
+      attempt += 1;
       return ready;
     },
     { timeoutMs: POLL_TIMEOUT_MS, everyMs: POLL_EVERY_MS },
@@ -438,7 +437,7 @@ const initBetContract = (opts: {
 
 // Submits a deposit input on behalf of `party`, then waits for the runtime
 // to advance to the next step (`nextParty`'s input is now applicable).
-const applyDeposit = (opts: {
+export const applyDeposit = (opts: {
   contractId: ContractId;
   party: Wallet;
   amount: bigint;
@@ -467,7 +466,7 @@ const applyDeposit = (opts: {
 
 // Submits the oracle's choice and waits for the contract to close
 // (state and currentContract both null).
-const applyChoice = (opts: {
+export const applyChoice = (opts: {
   contractId: ContractId;
   party: Wallet;
   choiceValue: bigint;

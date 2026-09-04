@@ -470,7 +470,7 @@ type ApplyResults v = (UTCTime, UTCTime, Maybe (TxOutAssets, Datum v), Inputs v)
 -- applies an input to a contract.
 buildApplyInputsConstraints
   :: (Monad m)
-  => (TransactionInput -> m (Maybe TransactionInput))
+  => (TransactionInputs v -> m (Maybe (TransactionInputs v)))
   -> SystemStart
   -> EraHistory
   -- ^ The era history for converting times to slots.

@@ -77,6 +77,22 @@ mkRoleTokensPolicyHash roleTokens1 txOutRef = hashScript PlutusV3 (mkRoleTokensP
 mkRoleTokensPolicyBytes :: RoleTokens -> PV3.TxOutRef -> SerialisedScript
 mkRoleTokensPolicyBytes roleTokens2 txOutRef = serialiseCompiledCode (mkRoleTokensPolicy roleTokens2 txOutRef)
 
+{-# INLINEABLE openRolesValidator #-}
+openRolesValidator :: CompiledCode (BuiltinData -> BuiltinUnit)
+openRolesValidator =
+  $$(PlutusTx.compile [||openRolesValidator'||])
+    `applyArg` marloweValidatorHash
+ where
+  openRolesValidator' :: ScriptHash -> BuiltinData -> BuiltinUnit
+  openRolesValidator' marloweValidatorHash' ctx =
+    check $ mkMarloweValidator marloweValidatorHash' (unsafeFromBuiltinData ctx)
+
+openRolesValidatorHash :: ScriptHash
+openRolesValidatorHash = hashScript PlutusV3 openRolesValidator
+
+openRolesValidatorBytes :: SerialisedScript
+openRolesValidatorBytes = serialiseCompiledCode openRolesValidator
+
 -- This type of helper is missing because it requires a pretty heavy cardano-api dependency.
 --
 -- mkRoleTokensPolicyScript :: RoleTokens -> PV3.TxOutRef -> C.PlutusScript C.PlutusScriptV3

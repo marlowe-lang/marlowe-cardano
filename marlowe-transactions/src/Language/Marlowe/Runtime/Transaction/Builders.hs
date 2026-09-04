@@ -9,10 +9,13 @@ module Language.Marlowe.Runtime.Transaction.Builders where
 import Data.Time (NominalDiffTime, nominalDiffTimeToSeconds, UTCTime)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import qualified Cardano.Api as C
+import qualified PlutusLedgerApi.V2 as PV2
 import Log (MonadLog)
 import Language.Marlowe.Runtime.Transaction.BuildConstraints (MkRoleTokenMintingPolicy, MinAdaProvider (MinAdaProvider), initialMarloweState, invalidAddressesError, RolesPolicyId (RolesPolicyId), buildInitConstraints, buildApplyInputsConstraints)
-import Language.Marlowe.Runtime.Core.Api (MarloweVersion (MarloweV1), MarloweTransactionMetadata, IsMarloweVersion (Contract), ContractId (ContractId), decodeMarloweTransactionMetadataLenient, Inputs, TransactionScriptOutput (TransactionScriptOutput, datum), TransactionOutput (TransactionOutput, payouts, scriptOutput), Payout (Payout), fromChainPayoutDatum)
-import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts (MarloweScripts, marloweScript, payoutScript, helperScripts, marloweScriptUTxOs, payoutScriptUTxOs, helperScriptUTxOs), ReferenceScriptUtxo, GetCurrentScripts(GetCurrentScripts))
+import Language.Marlowe.Runtime.Core.Api (MarloweVersion (MarloweV1), MarloweTransactionMetadata, IsMarloweVersion (Contract), ContractId (ContractId), decodeMarloweTransactionMetadataLenient, Inputs, TransactionInputs, TransactionScriptOutput (TransactionScriptOutput, datum), TransactionOutput (TransactionOutput, payouts, scriptOutput), Payout (Payout), fromChainPayoutDatum, ContractWithAdjacency (ContractWithAdjacency))
+import qualified Language.Marlowe.Runtime.Core.Api as Contract
+import Language.Marlowe.Object.Types (ContractHash (ContractHash))
+import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts (MarloweScripts, marloweScript, payoutScript, marloweScriptUTxOs, payoutScriptUTxOs), ReferenceScriptUtxo)
 import Language.Marlowe.Runtime.Transaction.Constraints (SolveConstraints, WalletContext (changeAddress), HelpersContext (HelpersContext), MarloweContext (MarloweContext, scriptOutput, marloweAddress, payoutAddress, marloweScriptUTxO, payoutScriptUTxO, marloweScriptHash, payoutScriptHash))
 import qualified Language.Marlowe.Runtime.ChainSync.Api as Chain
 import Language.Marlowe.Runtime.Transaction.Api (RoleTokensConfig, Accounts, InitError(InitEraUnsupported, InitContractNotFound, ProtocolParamNoUTxOCostPerByte, InsufficientMinAdaDeposit, InitLoadMarloweContextFailed, InitToCardanoError, InitLoadHelpersContextFailed, InitSafetyAnalysisError, InitSafetyAnalysisFailed, InitConstraintError, InitTxOutputNotFound), ContractInitialized(ContractInitialized), LoadHelpersContextError, LoadMarloweContextError (MarloweScriptNotPublished, PayoutScriptNotPublished), unAccounts, ContractInitializedInEra (ContractInitializedInEra, contractId , rolesCurrency , metadata , txBody , marloweScriptHash , marloweScriptAddress , payoutScriptHash , payoutScriptAddress , version , datum , assets , safetyErrors), ApplyInputsError (ApplyInputsConstraintError, ApplyInputsEraUnsupported, ApplyInputsLoadHelpersContextFailed, ScriptOutputNotFound, ApplyInputsLoadMarloweContextFailed, ApplyInputsContractContinuationNotFound, ApplyInputsSafetyAnalysisError), InputsApplied(InputsApplied), InputsAppliedInEra (InputsAppliedInEra, metadata, inputs, safetyErrors, version, contractId, input, output, invalidBefore, invalidHereafter, txBody))
@@ -26,7 +29,7 @@ import Language.Marlowe.Runtime.Transaction.Safety (
 import Control.Monad (guard, unless)
 import qualified Data.Map.Strict as Map
 import Data.Bifunctor (first)
-import Control.Error (note, hush)
+import Control.Error (note, hush, MaybeT(MaybeT), runMaybeT)
 import Language.Marlowe.Runtime.Cardano.Api (toCardanoPaymentCredential, fromCardanoAddressInEra, toCardanoStakeCredential, fromCardanoTxId, fromCardanoTxOutDatum, fromCardanoTxOutValue)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Marlowe.Plutus.Analysis.Safety.Types (SafetyError (SafetyAnalysisTimeout))
@@ -35,7 +38,7 @@ import qualified Control.Exception.Base as Exception
 import qualified Control.DeepSeq as DeepSeq
 import Control.Concurrent.Async (race)
 import Control.Concurrent (threadDelay)
-import Language.Marlowe.Runtime.ChainSync.Api (fromCardanoTxMetadata, mkTxOutAssets, DatumHash, SlotNo)
+import Language.Marlowe.Runtime.ChainSync.Api (fromCardanoTxMetadata, mkTxOutAssets, SlotNo)
 import qualified Data.List as List
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Marlowe.Plutus.Semantics as V1
@@ -45,6 +48,11 @@ import Data.Kind (Type)
 import Control.Monad.Trans.Class (lift)
 import PlutusTx.Functor ((<&>))
 import Data.Traversable (for)
+import Marlowe.Plutus.Contrib.Data.Foldable (foldMapMFlipped)
+import qualified Data.Set as Set
+import Data.Set (Set)
+
+type GetContractSource v m = ContractHash -> m (Maybe (ContractWithAdjacency v))
 
 type LoadHelpersContext m =
   forall v
@@ -72,8 +80,8 @@ execInit
   => MonadLog m
   => MkRoleTokenMintingPolicy m
   -> C.CardanoEra era
-  -> Connector (QueryClient ContractRequest) m
-  -> GetCurrentScripts
+  -> GetContractSource v m
+  -> MarloweScripts
   -> SolveConstraints era v
   -- -> C.LedgerProtocolParameters era
   -> Ledger.PParams (C.ShelleyLedgerEra era)
@@ -87,14 +95,14 @@ execInit
   -> MarloweTransactionMetadata
   -> Maybe Chain.Lovelace
   -> Accounts
-  -> Either (Contract v) Chain.DatumHash
+  -> Either (Contract v) ContractHash
   -> NominalDiffTime
   -> m (Either InitError (ContractInitialized v))
 execInit
   mkRoleTokenMintingPolicy
   era
-  _contractQueryConnector
-  getCurrentScripts
+  getContractSource
+  marloweScripts
   solveConstraints
   protocolParameters
   walletContext
@@ -123,12 +131,17 @@ execInit
           (fromMaybe mempty optMinAda)
           (MinAdaProvider walletContext.changeAddress)
 
-  (contract', continuations) <- case contract of
+  ((contract', continuations) :: (Contract v, Map ContractHash (Contract v))) <- case contract of
     Right hash -> case version of
-      MarloweV1 -> throwE (InitContractNotFound "Not ported yet")
-        -- let getContract' = MaybeT . runConnector contractQueryConnector . getContract
-        -- Contract.ContractWithAdjacency{contract = c, ..} <- getContract' hash
-        -- (c :: Contract v,) <$> foldMapM (fmap singletonContinuations . getContract') (Set.delete hash closure)
+      MarloweV1 -> do
+        lift (getContractSource hash) >>= \case
+          Nothing -> throwE $ InitContractNotFound hash
+          Just (ContractWithAdjacency{contract = c, closure}) -> do
+            continuations <- foldMapMFlipped (Set.delete hash closure) \h -> do
+              lift (getContractSource h) >>= \case
+                Nothing -> throwE $ InitContractNotFound h
+                Just (ContractWithAdjacency{contract = c'}) -> pure $ Map.singleton h c'
+            pure (c, continuations)
     Left c -> pure (c, noContinuations version)
   computedMinAdaDeposit <-
     except $
@@ -136,6 +149,7 @@ execInit
         minAdaUpperBound eon protocolParameters version dummyState contract' continuations
   let minAda = fromMaybe computedMinAdaDeposit optMinAda
   unless (minAda >= computedMinAdaDeposit) $ throwE $ InsufficientMinAdaDeposit computedMinAdaDeposit
+
   ((datum, assets, possibleRolesPolicyId), constraints) <-
     ExceptT $ do
       buildInitConstraints
@@ -153,7 +167,7 @@ execInit
     mkMarloweContext
       networkId
       version
-      getCurrentScripts
+      marloweScripts
       mStakeCredential
   possibleHelpersContext <- for possibleRolesPolicyId \(RolesPolicyId policyId) -> do
     withExceptT InitLoadHelpersContextFailed $
@@ -245,12 +259,12 @@ mkMarloweContext
   :: (MonadUnliftIO m)
   => C.NetworkId
   -> MarloweVersion v
-  -> GetCurrentScripts
+  -> MarloweScripts
   -> Maybe Chain.StakeCredential
   -> ExceptT InitError m (MarloweContext v)
-mkMarloweContext networkId version (GetCurrentScripts getCurrentScripts) mStakeCredential = do
+mkMarloweContext networkId version marloweScripts mStakeCredential = do
   let
-    scripts@MarloweScripts{..} = getCurrentScripts version
+    scripts@MarloweScripts{..} = marloweScripts
   mCardanoStakeCredential <- except $ traverse (note InitToCardanoError . toCardanoStakeCredential) mStakeCredential
   marlowePaymentCredential <- except . note InitToCardanoError . toCardanoPaymentCredential $ Chain.ScriptCredential marloweScript
   payoutPaymentCredential <- except . note InitToCardanoError . toCardanoPaymentCredential $ Chain.ScriptCredential payoutScript
@@ -332,52 +346,50 @@ findPayouts version address body@(C.TxBody C.TxBodyContent{..}) =
 -- in the contract. In other words the root hash could be missing from the store.
 getContractContinuations
   :: (Monad m)
-  => Connector (QueryClient ContractRequest) m
+  => GetContractSource v m
   -> V1.Contract
-  -> m (Maybe (Map DatumHash V1.Contract))
-getContractContinuations contractQueryConnector contract = pure (Just mempty)
--- getContractContinuations
---   :: (Monad m)
---   => Connector (QueryClient ContractRequest) m
---   -> V1.Contract
---   -> m (Maybe (Map DatumHash V1.Contract))
--- getContractContinuations contractQueryConnector contract = runMaybeT do
---   let getCaseContinuationHashes (V1.MerkleizedCase _ h) = [h]
---       getCaseContinuationHashes (V1.Case _ continuation) = getContractContinuationHashes continuation
--- 
---       getContractContinuationHashes (V1.When cases _ continuation) =
---         foldMap getCaseContinuationHashes cases <> getContractContinuationHashes continuation
---       getContractContinuationHashes (V1.If _ trueContinuation falseContinuation) =
---         getContractContinuationHashes trueContinuation <> getContractContinuationHashes falseContinuation
---       getContractContinuationHashes (V1.Pay _ _ _ _ continuation) = getContractContinuationHashes continuation
---       getContractContinuationHashes (V1.Let _ _ continuation) = getContractContinuationHashes continuation
---       getContractContinuationHashes V1.Close = []
---       getContractContinuationHashes (V1.Assert _ continuation) = getContractContinuationHashes continuation
--- 
---       toDatumHash = DatumHash . PV2.fromBuiltin
--- 
---       childrenHashes :: Set DatumHash
---       childrenHashes = Set.fromList . fmap toDatumHash $ getContractContinuationHashes contract
--- 
---       getContract' = MaybeT . runConnector contractQueryConnector . getContract
--- 
---   childContracts :: [Contract.ContractWithAdjacency] <- for (Set.toList childrenHashes) getContract'
---   let childrenClosure = flip foldMap childContracts \Contract.ContractWithAdjacency{closure} -> closure
--- 
---   (closureContracts :: [Contract.ContractWithAdjacency]) <- do
---     let hs = Set.toList $ Set.difference childrenClosure childrenHashes
---     for hs getContract'
---   let allContracts = childContracts <> closureContracts
---       continuations = Map.fromList $ flip fmap allContracts \Contract.ContractWithAdjacency{contract = c, contractHash = ch} -> (ch, c)
---   pure continuations
+  -> m (Maybe (Map ContractHash (Contract v)))
+getContractContinuations getContract contract = runMaybeT do
+  let getCaseContinuationHashes (V1.MerkleizedCase _ h) = [h]
+      getCaseContinuationHashes (V1.Case _ continuation) = getContractContinuationHashes continuation
+
+      getContractContinuationHashes (V1.When cases _ continuation) =
+        foldMap getCaseContinuationHashes cases <> getContractContinuationHashes continuation
+      getContractContinuationHashes (V1.If _ trueContinuation falseContinuation) =
+        getContractContinuationHashes trueContinuation <> getContractContinuationHashes falseContinuation
+      getContractContinuationHashes (V1.Pay _ _ _ _ continuation) = getContractContinuationHashes continuation
+      getContractContinuationHashes (V1.Let _ _ continuation) = getContractContinuationHashes continuation
+      getContractContinuationHashes V1.Close = []
+      getContractContinuationHashes (V1.Assert _ continuation) = getContractContinuationHashes continuation
+
+      childrenHashes :: Set PV2.BuiltinByteString
+      childrenHashes = Set.fromList $ getContractContinuationHashes contract
+
+      toContractHash = ContractHash . PV2.fromBuiltin
+
+      childrenHashes' :: Set ContractHash
+      childrenHashes' = Set.map toContractHash childrenHashes
+
+      getContract' = MaybeT . getContract
+
+  childContracts :: [Contract.ContractWithAdjacency v] <- for (Set.toList childrenHashes') getContract'
+  let childrenClosure = flip foldMap childContracts \Contract.ContractWithAdjacency{closure} -> closure
+
+  (closureContracts :: [Contract.ContractWithAdjacency v]) <- do
+    let hs = Set.toList $ Set.difference childrenClosure childrenHashes'
+    for hs getContract'
+  let allContracts = childContracts <> closureContracts
+      continuations = Map.fromList $ flip fmap allContracts \Contract.ContractWithAdjacency{contract = c, contractHash = ch} -> (ch, c)
+  pure continuations
 
 execApplyInputs
   :: MonadUnliftIO m
   => C.IsCardanoEra era
   => MonadLog m
-  => C.CardanoEra era
+  => (TransactionInputs v -> m (Maybe (TransactionInputs v)))
+  -> C.CardanoEra era
   -> Ledger.PParams (C.ShelleyLedgerEra era)
-  -> Connector (QueryClient ContractRequest) m
+  -> GetContractSource v m
   -> m SlotNo
   -> C.SystemStart
   -> C.EraHistory
@@ -396,9 +408,10 @@ execApplyInputs
   -> NominalDiffTime
   -> m (Either ApplyInputsError (InputsApplied v))
 execApplyInputs
+  merkleizeInputs
   era
   protocolParameters
-  contractQueryConnector
+  getContractSource
   getCurrentSlotNo
   systemStart
   eraHistory
@@ -429,12 +442,9 @@ execApplyInputs
           MarloweV1 -> case inputDatum of
             V1.MarloweData{..} -> do
               (marloweContract, marloweState)
-        -- => (TransactionInput -> m (Maybe TransactionInput))
-        -- merkleizeInputs' = fmap hush . runConnector contractQueryConnector . merkleizeInputs contract state
-        merkleizeInputsStub = const $ pure Nothing
     ((invalidBefore, invalidHereafter, mAssetsAndDatum, inputs'), constraints) <-
       buildApplyInputsConstraints
-        merkleizeInputsStub
+        merkleizeInputs
         systemStart
         eraHistory
         version
@@ -457,8 +467,8 @@ execApplyInputs
             , scriptOutput = buildOutput <$> mAssetsAndDatum <*> findMarloweOutput marloweAddress txBody
             }
 
-    continuations <-
-      lift (getContractContinuations contractQueryConnector contract) >>= \case
+    continuations <- case version of
+      MarloweV1 -> lift (getContractContinuations getContractSource contract) >>= \case
         Nothing -> throwE ApplyInputsContractContinuationNotFound
         Just c -> pure c
 

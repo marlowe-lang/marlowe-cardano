@@ -479,12 +479,12 @@ data TransactionOutput = TransactionOutput
   -- ^ FIXME: I'm guessing - The script inlined-datum associated with this output.
   }
   deriving stock (Show, Eq, Ord, Generic)
-  deriving anyclass (Binary, ToJSON, Variations)
+  deriving anyclass (Binary, Variations)
 
 -- | A script datum that is used to spend the output of a script tx.
 newtype Redeemer = Redeemer {unRedeemer :: Datum}
   deriving stock (Show, Eq, Ord, Generic)
-  deriving newtype (Binary, ToJSON, Variations)
+  deriving newtype (Binary, Variations)
 
 -- | A datum as a sum-of-products.
 data Datum
@@ -680,10 +680,23 @@ instance ToJSON Base16 where
 instance ToJSONKey Base16 where
   toJSONKey = toJSONKeyText $ extractBase16 . encodeBase16 . unBase16
 
+-- 32 bytes of sha256 hash of the contract datum.
 newtype DatumHash = DatumHash {unDatumHash :: ByteString}
   deriving stock (Eq, Ord, Generic)
   deriving newtype (Binary, Variations, Hashable, NFData)
   deriving (IsString, Show, ToJSON) via Base16
+
+fromByteString :: ByteString -> Maybe DatumHash
+fromByteString = \case
+  bs | BS.length bs == 32 -> Just $ DatumHash bs
+  _ -> Nothing
+
+instance FromJSON DatumHash where
+  parseJSON json = do
+    Base16 bytes <- parseJSON json
+    case fromByteString bytes of
+      Just dh -> pure dh
+      Nothing -> fail $ "DatumHash must be 32 bytes, but got: " <> show (BS.length bytes)
 
 newtype TxId = TxId {unTxId :: ByteString}
   deriving stock (Eq, Ord, Generic)
@@ -880,7 +893,7 @@ fromCardanoStakeKeyHash = StakeKeyHash . Cardano.serialiseToRawBytes
 newtype ScriptHash = ScriptHash {unScriptHash :: ByteString}
   deriving stock (Eq, Ord, Generic)
   deriving newtype (Hashable)
-  deriving (IsString, Show, ToJSON, ToJSONKey) via Base16
+  deriving (IsString, Show, FromJSON, FromJSONKey, ToJSON, ToJSONKey) via Base16
   deriving anyclass (Binary, Variations)
 
 policyIdToScriptHash :: PolicyId -> ScriptHash

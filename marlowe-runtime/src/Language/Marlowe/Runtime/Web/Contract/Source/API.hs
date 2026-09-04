@@ -7,13 +7,14 @@ module Language.Marlowe.Runtime.Web.Contract.Source.API (
   PostContractSourceResponse (..),
   PreserveActions (..),
   ContractOrSourceId (..),
+  mkContractSourceId,
+  contractSourceIdFromText,
 ) where
 
 import Data.Aeson (
   FromJSON (parseJSON),
   ToJSON (toJSON),
   Value (String),
-  withText,
  )
 import Control.DeepSeq (NFData)
 import qualified Data.ByteString.Lazy as LBS
@@ -50,7 +51,6 @@ import Servant.API (FromHttpApiData (..), ToHttpApiData (toHeader, toEncodedUrlP
 import Control.Lens ((&), (?~))
 import Control.Monad ((<=<))
 import Data.Aeson qualified as Aeson
-import Data.Aeson.Types (parseFail)
 import Data.ByteString (ByteString)
 import qualified Data.Text as T
 import Data.Text.Encoding qualified as T
@@ -66,6 +66,8 @@ import Data.OpenApi (
 import qualified Data.OpenApi as OpenApi
 import Language.Marlowe.Runtime.Web.Adapter.ByteString (hasLength)
 import Language.Marlowe.Runtime.Web.Core.Base16 (Base16 (..))
+import qualified Data.ByteString as BS
+import qualified Language.Marlowe.Runtime.Web.Core.Base16 as Base16
 
 
 -- | /contracts/sources sub-API
@@ -183,9 +185,26 @@ data PostContractSourceResponse = PostContractSourceResponse
 instance HasStatus PostContractSourceResponse where
   type StatusOf PostContractSourceResponse = 200
 
+-- TODO:
+-- * turn this type into `newtype ContractSourceId = ContractSourceId ContractHash`
 newtype ContractSourceId = ContractSourceId {unContractSourceId :: ByteString}
   deriving (Eq, Ord, Generic)
   deriving (Show, ToHttpApiData, ToJSON, NFData) via Base16
+
+mkContractSourceId :: ByteString -> Maybe ContractSourceId
+mkContractSourceId bs = if BS.length bs == 32 then Just (ContractSourceId bs) else Nothing
+
+contractSourceIdFromText :: T.Text -> Maybe ContractSourceId
+contractSourceIdFromText text = do
+  Base16 bytes <- Base16.fromText text
+  mkContractSourceId bytes
+
+instance FromJSON ContractSourceId where
+  parseJSON json = do
+    Base16 bs <- parseJSON json
+    case mkContractSourceId bs of
+      Just cid -> pure cid
+      Nothing -> fail $ "Invalid ContractSourceId JSON: " ++ show json
 
 deriving newtype instance NFData Label
 
@@ -197,10 +216,6 @@ instance ToParamSchema PreserveActions where
 
 instance FromHttpApiData ContractSourceId where
   parseUrlPiece = fmap ContractSourceId . (hasLength 32 . unBase16 <=< parseUrlPiece)
-
-instance FromJSON ContractSourceId where
-  parseJSON =
-    withText "ContractSourceId" $ either (parseFail . T.unpack) pure . parseUrlPiece
 
 instance ToSchema ContractSourceId where
   declareNamedSchema = pure . NamedSchema (Just "ContractSourceId") . toParamSchema

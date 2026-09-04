@@ -25,7 +25,7 @@ import Data.Foldable (traverse_, find)
 import Data.Maybe (mapMaybe)
 import qualified Language.Marlowe.Object.Link as O
 import qualified Language.Marlowe.Object.Types as O
-import Language.Marlowe.Runtime.Contract.Api (ContractWithAdjacency (..))
+import Language.Marlowe.Runtime.Core.Api (ContractWithAdjacency (..))
 import Language.Marlowe.Runtime.Contract.Store (ContractStagingArea (..), ContractStore (..))
 import Language.Marlowe.Object.Types
     ( ContractHash(ContractHash, unContractHash),
@@ -143,7 +143,7 @@ downloadServer deps preserveActions stage hashes =
     }
 
 getClosureInExportOrder :: forall m. Monad m => ContractStore m -> ContractHash -> m (Maybe [O.ContractHash])
-getClosureInExportOrder store rootHash = runMaybeT $ DList.toList . snd <$> evalRWST (writeClosureInExportOrder rootHash) () mempty
+getClosureInExportOrder ContractStore{getContract} rootHash = runMaybeT $ DList.toList . snd <$> evalRWST (writeClosureInExportOrder rootHash) () mempty
   where
     writeClosureInExportOrder :: ContractHash -> RWST () (DList.DList O.ContractHash) (Set.Set O.ContractHash) (MaybeT m) ()
     writeClosureInExportOrder hash = do
@@ -152,18 +152,21 @@ getClosureInExportOrder store rootHash = runMaybeT $ DList.toList . snd <$> eval
       if Set.member hashO visited
         then pure ()
         else do
-          ContractWithAdjacency{..} <- lift $ MaybeT $ getContract store hash
+          ContractWithAdjacency{..} <- lift $ MaybeT $ getContract hash
           let toContractHash (O.ContractHash bs) = ContractHash bs
           traverse_ writeClosureInExportOrder
             (Set.toList $ Set.map toContractHash adjacency)
           RWS.tell $ pure hashO
           RWS.modify $ Set.insert hashO
 
-loadContract :: (MonadFail m) => ContractStore m -> ContractHash -> m O.LabelledObject
-loadContract store hash = do
-  Just ContractWithAdjacency{..} <- getContract store hash
-  let hashO = O.fromCoreContractHash (BuiltinByteString (unContractHash hash))
-  pure $ O.LabelledObject (O.Label $ T.pack $ show hashO) O.ContractType $ O.fromCoreContract contract
+loadContract :: forall m. MonadFail m => ContractStore m -> ContractHash -> m O.LabelledObject
+loadContract ContractStore{getContract} hash = do
+  result <- getContract hash
+  case result of
+    Nothing -> fail "Contract not found"
+    Just ContractWithAdjacency{contract} -> do
+      let hashO = O.fromCoreContractHash (BuiltinByteString (unContractHash hash))
+      pure $ O.LabelledObject (O.Label $ T.pack $ show hashO) O.ContractType $ O.fromCoreContract contract
 
 merkleizeAndStoreContracts
   :: (Monad m)

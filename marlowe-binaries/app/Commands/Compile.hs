@@ -41,10 +41,12 @@ import System.Directory (createDirectoryIfMissing)
 import System.Exit (die)
 import System.FilePath ((</>))
 import Marlowe.Plutus.RoleTokens (RoleTokens, mkRoleTokens)
+import Marlowe.Plutus.Binaries.Api.Compile (ScriptOutput(ScriptOutput, scriptName, scriptHash, scriptFile, hashFile), scriptNameToText, ScriptName(MarloweSemantics, MarloweRolePayout, OpenRoles))
 
 data CompileCommand
   = MarloweCompile MarloweCompileCommand
   | PayoutCompile PayoutCompileCommand
+  | OpenRolesCompile OpenRolesCompileCommand
   | RoleTokenMintingCompile RoleTokenMintingCompileCommand
 
 data MarloweCompileCommand = MarloweCompileCommand
@@ -54,6 +56,12 @@ data MarloweCompileCommand = MarloweCompileCommand
   }
 
 data PayoutCompileCommand = PayoutCompileCommand
+  { develScripts :: Bool
+  , outputDir :: FilePath
+  , messageFormat :: MessageFormat
+  }
+
+data OpenRolesCompileCommand = OpenRolesCompileCommand
   { develScripts :: Bool
   , outputDir :: FilePath
   , messageFormat :: MessageFormat
@@ -215,6 +223,16 @@ payoutCompileParser =
     )
     (progDesc "Compile Role Payout validator script.")
 
+openRolesCompileParser :: ParserInfo OpenRolesCompileCommand
+openRolesCompileParser =
+  info
+    ( OpenRolesCompileCommand
+        <$> develScriptsParser
+        <*> outputDirParser
+        <*> messageFormatParser
+    )
+    (progDesc "Compile Open Roles validator script.")
+
 roleTokenMintingCompileParser :: ParserInfo RoleTokenMintingCompileCommand
 roleTokenMintingCompileParser =
   info
@@ -234,12 +252,14 @@ compileCommandParser = info parser (progDesc "Compile and export Marlowe validat
     parser = hsubparser $
       command "marlowe" (MarloweCompile <$> marloweCompileParser)
       <> command "payout" (PayoutCompile <$> payoutCompileParser)
+      <> command "open-roles" (OpenRolesCompile <$> openRolesCompileParser)
       <> command "role-tokens-minting" (RoleTokenMintingCompile <$> roleTokenMintingCompileParser)
 
 runCompileCommand :: CompileCommand -> IO ()
 runCompileCommand = \case
   MarloweCompile cmd -> runMarloweCompile cmd
   PayoutCompile cmd -> runPayoutCompile cmd
+  OpenRolesCompile cmd -> runOpenRolesCompile cmd
   RoleTokenMintingCompile cmd -> runRoleTokenMintingCompile cmd
 
 runMarloweCompile :: MarloweCompileCommand -> IO ()
@@ -249,6 +269,15 @@ runMarloweCompile MarloweCompileCommand{develScripts, outputDir, messageFormat} 
     MessageFormatText -> putStrLn $ "Writing " <> show variant <> " marlowe script to " <> show outputDir <> "."
     _ -> pure ()
   result <- compileMarloweScript variant outputDir
+  either (emitError messageFormat) (emitSummary messageFormat) result
+
+runOpenRolesCompile :: OpenRolesCompileCommand -> IO ()
+runOpenRolesCompile OpenRolesCompileCommand{develScripts, outputDir, messageFormat} = do
+  let variant = if develScripts then DevelScripts else ProductionScripts
+  case messageFormat of
+    MessageFormatText -> putStrLn $ "Writing " <> show variant <> " open roles script to " <> show outputDir <> "."
+    _ -> pure ()
+  result <- compileOpenRoles variant outputDir
   either (emitError messageFormat) (emitSummary messageFormat) result
 
 runPayoutCompile :: PayoutCompileCommand -> IO ()
@@ -285,29 +314,13 @@ toPV3TxOutRef (TxOutRef tid ix) =
 data ScriptVariant = DevelScripts | ProductionScripts
   deriving (Eq)
 
-data ScriptName = MarloweSemantics | MarloweRolePayout
-
-data ScriptOutput = ScriptOutput
-  { scriptName :: String
-  , scriptHash :: String
-  , scriptFile :: FilePath
-  , hashFile :: FilePath
-  }
-
-instance A.ToJSON ScriptOutput where
-  toJSON ScriptOutput{..} = A.object
-    [ "scriptName" A..= scriptName
-    , "scriptHash" A..= scriptHash
-    , "scriptFile" A..= scriptFile
-    , "hashFile" A..= hashFile
-    ]
-
 compileMarloweScript :: ScriptVariant -> FilePath -> IO (Either String ScriptOutput)
 compileMarloweScript variant outputDir = do
   let (hash, bytes) = case variant of
         DevelScripts -> (Devel.marloweValidatorHash, Devel.marloweValidatorBytes)
         ProductionScripts -> (Production.marloweValidatorHash, Production.marloweValidatorBytes)
-      baseName = "marlowe-semantics"
+      scriptName = MarloweSemantics
+      baseName = T.unpack . scriptNameToText $ scriptName
       scriptFile = outputDir </> baseName <> ".plutus"
       hashFile = outputDir </> baseName <> ".plutus.hash"
       scriptHash = show hash
@@ -320,14 +333,15 @@ compileMarloweScript variant outputDir = do
     Left err -> pure $ Left $ show err
     Right () -> do
       writeFile hashFile (scriptHash <> "\n")
-      pure $ Right ScriptOutput{scriptName = baseName, scriptHash, scriptFile, hashFile}
+      pure $ Right ScriptOutput{scriptName, scriptHash, scriptFile, hashFile}
 
 compilePayoutScript :: ScriptVariant -> FilePath -> IO (Either String ScriptOutput)
 compilePayoutScript variant outputDir = do
   let (hash, bytes) = case variant of
         DevelScripts -> (Devel.rolePayoutValidatorHash, Devel.rolePayoutValidatorBytes)
         ProductionScripts -> (Production.rolePayoutValidatorHash, Production.rolePayoutValidatorBytes)
-      baseName = "marlowe-rolepayout"
+      scriptName = MarloweRolePayout
+      baseName = T.unpack . scriptNameToText $ scriptName
       scriptFile = outputDir </> baseName <> ".plutus"
       hashFile = outputDir </> baseName <> ".plutus.hash"
       scriptHash = show hash
@@ -340,14 +354,36 @@ compilePayoutScript variant outputDir = do
     Left err -> pure $ Left $ show err
     Right () -> do
       writeFile hashFile (scriptHash <> "\n")
-      pure $ Right ScriptOutput{scriptName = baseName, scriptHash, scriptFile, hashFile}
+      pure $ Right ScriptOutput{scriptName, scriptHash, scriptFile, hashFile}
+
+compileOpenRoles :: ScriptVariant -> FilePath -> IO (Either String ScriptOutput)
+compileOpenRoles variant outputDir = do
+  let (hash, bytes) = case variant of
+        DevelScripts -> (Devel.openRolesValidatorHash, Devel.openRolesValidatorBytes)
+        ProductionScripts -> (Production.openRolesValidatorHash, Production.openRolesValidatorBytes)
+      scriptName = OpenRoles
+      baseName = T.unpack . scriptNameToText $ scriptName
+      scriptFile = outputDir </> baseName <> ".plutus"
+      hashFile = outputDir </> baseName <> ".plutus.hash"
+      scriptHash = show hash
+  createDirectoryIfMissing True outputDir
+  result <- writeFileTextEnvelope
+    (File scriptFile)
+    Nothing
+    (PlutusScript PlutusScriptV3 (PlutusScriptSerialised bytes))
+  case result of
+    Left err -> pure $ Left $ show err
+    Right () -> do
+      writeFile hashFile (scriptHash <> "\n")
+      pure $ Right ScriptOutput{scriptName, scriptHash, scriptFile, hashFile}
 
 compileRoleTokenMintingScript :: ScriptVariant -> FilePath -> RoleTokens -> TxOutRef -> IO (Either String ScriptOutput)
 compileRoleTokenMintingScript variant outputDir roles txOutRef = do
   let (hash, bytes) = case variant of
         DevelScripts -> (Devel.mkRoleTokensPolicyHash roles (toPV3TxOutRef txOutRef), Devel.mkRoleTokensPolicyBytes roles (toPV3TxOutRef txOutRef))
         ProductionScripts -> (Production.mkRoleTokensPolicyHash roles (toPV3TxOutRef txOutRef), Production.mkRoleTokensPolicyBytes roles (toPV3TxOutRef txOutRef))
-      baseName = "role-tokens-minting-policy"
+      scriptName = MarloweRolePayout
+      baseName = T.unpack . scriptNameToText $ scriptName
       scriptFile = outputDir </> baseName <> ".plutus"
       hashFile = outputDir </> baseName <> ".plutus.hash"
       scriptHash = show hash
@@ -360,7 +396,7 @@ compileRoleTokenMintingScript variant outputDir roles txOutRef = do
     Left err -> pure $ Left $ show err
     Right () -> do
       writeFile hashFile (scriptHash <> "\n")
-      pure $ Right ScriptOutput{scriptName = baseName, scriptHash, scriptFile, hashFile}
+      pure $ Right ScriptOutput{scriptName, scriptHash, scriptFile, hashFile}
 
 emitSummary :: MessageFormat -> ScriptOutput -> IO ()
 emitSummary messageFormat output = case messageFormat of
@@ -386,3 +422,4 @@ instance Show ScriptVariant where
   show = \case
     DevelScripts -> "devel"
     ProductionScripts -> "production"
+

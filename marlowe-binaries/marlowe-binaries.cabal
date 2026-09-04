@@ -170,7 +170,6 @@ library marlowe-binaries-api
     , serialise
     , directory
     , filepath
-    , marlowe-binaries
     , marlowe-plutus:{marlowe-plutus, marlowe-testing}
     , QuickCheck
     , plutus-core

@@ -68,7 +68,7 @@ const mkTempDir = (local: boolean = false): string => {
 //                            (default: "out")
 //   -h,--help                Show this help text
 export function runInitCLI(
-  contractFile: MarloweContractFile,
+  initRef: { kind: 'file', contractFile: MarloweContractFile } | { kind: 'source', contractSourceId: ContractSourceId },
   fundingWalletAddress: AddressBech32,
   options: {
     develScripts?: boolean;
@@ -82,10 +82,17 @@ export function runInitCLI(
 ): Result<Json, CommandError | string> {
   const args: CliArgs = [
     'contract', 'init',
-    ['--contract-file', contractFile],
     ['--message-format', 'json'],
     ['--funding-wallet-address', fundingWalletAddress],
   ];
+  switch (initRef.kind) {
+    case 'file':
+      args.push(['--contract-file', initRef.contractFile]);
+      break;
+    case 'source':
+      args.push(['--contract-source-id', initRef.contractSourceId]);
+      break;
+  }
   if (options.develScripts) {
     args.push('--devel-scripts');
   }
@@ -122,8 +129,40 @@ export function runInit(
     outputDir: tmpDir,
     ...options,
   }
-  return runInitCLI(contractFile, fundingWalletAddress, finalOptions, repoRoot, debug)
+  return runInitCLI({ kind: 'file', contractFile }, fundingWalletAddress, finalOptions, repoRoot, debug)
     .andThen(json => PostCreateContractResponse.jsonCodec.deserialise(json));
+}
+
+// Deploy a contract from a previously uploaded contract source by id. The
+// runtime resolves the source from its store instead of taking the full
+// contract inline. The returned envelope is signed and ready to submit.
+export function runInitBySource(
+  sourceId: ContractSourceId,
+  fundingWalletAddress: AddressBech32,
+  options: {
+    develScripts?: boolean;
+    outputDir?: string;
+    serverPort?: PositiveInt;
+    socketPath?: string;
+    testnetMagic?: NetworkMagicNumber,
+  },
+  repoRoot: Path | null = null,
+  debug: boolean = false
+): Result<PostCreateContractResponse, JsonError | CommandError | string> {
+  const finalOptions = {
+    outputDir: options.outputDir ?? mkTempDir(false),
+    serverPort: options.serverPort,
+    socketPath: options.socketPath,
+    testnetMagic: options.testnetMagic,
+    develScripts: options.develScripts,
+  };
+  return runInitCLI(
+    { kind: 'source', contractSourceId: sourceId },
+    fundingWalletAddress,
+    finalOptions,
+    repoRoot,
+    debug,
+  ).andThen(json => PostCreateContractResponse.jsonCodec.deserialise(json));
 }
 // Usage: cli contract get --contract-id CONTRACT_ID
 //                         [--message-format text|json|yaml]
@@ -329,9 +368,10 @@ export function runNextCLI(
   return execMarloweRuntimeClient(args, repoRoot, debug).andThen(jsonStr => Json.fromString(jsonStr));
 }
 
-// | Default validity window for `/next` polls: from now to now+10min.
-// | Covers the round-trip to build/sign/submit a tx within a single test step.
-const NEXT_VALIDITY_WINDOW_MS = 10 * 60 * 1000;
+// | Default validity window for `/next` polls: from now to now+5min.
+// | Tight enough to keep the validity range under the contract timeout, so
+// | we're asserting the runtime finds inputs before the contract expires.
+const NEXT_VALIDITY_WINDOW_MS = 5 * 60 * 1000;
 const NEXT_POLL_INTERVAL_MS = 2_000;
 const NEXT_POLL_TIMEOUT_MS = 120_000;
 

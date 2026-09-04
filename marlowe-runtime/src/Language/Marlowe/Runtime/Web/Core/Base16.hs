@@ -1,4 +1,4 @@
-module Language.Marlowe.Runtime.Web.Core.Base16 (Base16 (..)) where
+module Language.Marlowe.Runtime.Web.Core.Base16 (Base16 (..), fromText) where
 
 import Control.DeepSeq (NFData)
 import Data.Aeson (
@@ -30,10 +30,14 @@ import Servant (
  )
 import Servant.API.Generic (Generic)
 import Data.Base16.Types (extractBase16)
+import Control.Error (hush)
 
 -- | A newtype for Base16 decoding and encoding ByteStrings
 newtype Base16 = Base16 {unBase16 :: ByteString}
   deriving (Eq, Ord, Generic)
+
+fromText :: T.Text -> Maybe Base16
+fromText = fmap Base16 . hush . decodeBase16Untyped . encodeUtf8
 
 instance NFData Base16
 

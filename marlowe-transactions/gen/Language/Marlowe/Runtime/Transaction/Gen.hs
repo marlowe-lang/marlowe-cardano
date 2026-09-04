@@ -33,6 +33,7 @@ import Test.QuickCheck.Instances ()
 import Data.Foldable (Foldable (fold))
 import Marlowe.Plutus.Testing.Semantics.Arbitrary ()
 import Language.Marlowe.Runtime.Core.Gen (ArbitraryMarloweVersion)
+import Language.Marlowe.Object.Gen ()
 
 instance Arbitrary MediaType where
   arbitrary = do

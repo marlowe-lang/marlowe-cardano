@@ -2,6 +2,8 @@ import { test, beforeAll, afterAll } from 'vitest'
 import * as deposit from '../../src/testing/e2e/deposit.js';
 import * as bet from '../../src/testing/e2e/bet.js';
 import * as init from '../../src/testing/e2e/init.js';
+import * as storedInit from '../../src/testing/e2e/storedInit.js';
+import * as storedBet from '../../src/testing/e2e/storedBet.js';
 import * as storeClose from '../../src/testing/store/close.js';
 import * as storeBet from '../../src/testing/store/bet.js';
 import * as storeSelectiveBet from '../../src/testing/store/selective-bet.js';
@@ -64,7 +66,7 @@ type TestEnv = {
 
 type TestContext = {
   env: TestEnv;
-  tempDir: string;
+  tempDir: Path;
   party1: Wallet;
   party2: Wallet;
   oracle: Wallet;
@@ -104,7 +106,7 @@ beforeAll(async () => {
     (err) => { throw new Error(`Funding wallets from faucet failed: ${String(err)}`); },
   );
 
-  ctx = { env: testEnv, tempDir, party1, party2, oracle }
+  ctx = { env: testEnv, tempDir: tempDir as Path, party1, party2, oracle }
 });
 
 afterAll(async () => {
@@ -113,13 +115,13 @@ afterAll(async () => {
   }
 })
 
-// test('Init lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-//   await init.run(ctx.env.faucetAddr, ctx.env.faucetSkeyFile);
-// })
+test('Init lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
+  await init.run(ctx.env.faucetAddr, ctx.env.faucetSkeyFile);
+})
 
-// test('Deposit lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-//   await deposit.run(ctx.env.faucetAddr, ctx.env.faucetSkeyFile);
-// })
+test('Deposit lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
+  await deposit.run(ctx.env.faucetAddr, ctx.env.faucetSkeyFile);
+})
 
 test('Bet lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
   const faucet: Wallet = { addr: ctx.env.faucetAddr, skeyFile: ctx.env.faucetSkeyFile };
@@ -143,4 +145,26 @@ test('Store: upload + query a bet source', { tags: ['store', 'marlowe-runtime-cl
 
 test('Store: selective merkleization preserves the oracle Choice', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
   await storeSelectiveBet.run();
+})
+
+test('Store: upload + init the bet from the store by id', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
+  await storedInit.run(
+    ctx.env.faucetAddr,
+    ctx.tempDir
+  );
+})
+
+test('Store: stored bet e2e flow (upload, init by id, apply inputs)', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 300000, }, async () => {
+  const faucet: Wallet = { addr: ctx.env.faucetAddr, skeyFile: ctx.env.faucetSkeyFile };
+  const storedBetDir = `${ctx.tempDir}/stored-bet` as Path;
+  if (!fs.existsSync(storedBetDir)) fs.mkdirSync(storedBetDir, { recursive: true });
+  await storedBet.run({
+    amount: 5_000_000n,
+    party1: ctx.party1,
+    party2: ctx.party2,
+    oracle: ctx.oracle,
+    faucet,
+    winningChoice: 'no-winners',
+    tempDir: storedBetDir,
+  });
 })

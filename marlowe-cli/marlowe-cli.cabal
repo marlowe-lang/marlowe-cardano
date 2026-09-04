@@ -105,6 +105,7 @@ library
     Language.Marlowe.CLI.Sync.Types
     Language.Marlowe.CLI.Transaction
     Language.Marlowe.CLI.Types
+    Language.Marlowe.CLI.Scripts
     Paths_marlowe_cli
 
   build-depends:
@@ -132,9 +133,9 @@ library
     , indexed-traversable
     -- This is our main dependency change
     -- from .external-dependencies/marlowe-cardano/marlowe (called internally marlowe-cardano lib)
-    , marlowe-binaries
     , marlowe-plutus
     , marlowe-plutus-extended
+    , marlowe-transactions
     , megaparsec
     , memory
     , microlens
@@ -159,8 +160,6 @@ library
     , yaml
 
   other-modules:
-    Language.Marlowe.Scripts
-    Language.Marlowe.Scripts.Types
 
 library command
   import:          lang
@@ -182,7 +181,9 @@ library command
     Language.Marlowe.CLI.Command.Util
 
   build-depends:
+    , aeson
     , base >=4.9 && <5
+    , base16-aeson
     , base16-bytestring
     , bytestring
     , cardano-api
@@ -196,6 +197,7 @@ library command
     -- , marlowe-cli:cli-test
     -- , marlowe-contracts
     -- , marlowe-runtime:config
+    , marlowe-transactions
     , mtl
     , optparse-applicative
     , plutus-ledger-ada

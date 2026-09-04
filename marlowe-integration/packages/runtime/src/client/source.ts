@@ -1,39 +1,48 @@
 import * as codec from "@konduit/codec";
+import type { Codec } from "@konduit/codec";
 import * as jsonCodecs from "@konduit/codec/json/codecs";
+import type { JsonCodec, JsonError } from "@konduit/codec/json/codecs";
+import { err, ok, Result } from "neverthrow";
 import type { Tagged } from "type-fest";
 
-// FIXME: paluh: add proper json codecs for `Contract` once the runtime client
-// exposes one. For now we operate on plain JSON shapes for source responses.
-
-// Hex-encoded 32-byte identifier of a Marlowe contract source.
+// This should be 64 hex chars - 32 bytes of sha256 of a (sub)contract.
 export type ContractSourceId = Tagged<string, "ContractSourceId">;
 
 export namespace ContractSourceId {
-  export const jsonCodec: jsonCodecs.JsonCodec<ContractSourceId> = codec.rmap(
-    jsonCodecs.json2StringCodec,
-    (idStr) => idStr as ContractSourceId,
-    (id) => id as string,
-  );
+  const pattern: RegExp = /^[0-9a-fA-F]{64}/;
+  export const fromString = (s: string): Result<ContractSourceId, JsonError> => {
+    if(pattern.test(s)) {
+      return ok(s as ContractSourceId);
+    } else {
+      return err({msg: `Invalid ContractSourceId format: ${s}`, value: s});
+    }
+  }
+  export const stringCodec: Codec<string, ContractSourceId, JsonError> = {
+    deserialise: fromString,
+    serialise: (id: ContractSourceId) => id as string,
+  };
+
+  export const jsonCodec: JsonCodec<ContractSourceId> = codec.pipe(jsonCodecs.json2StringCodec, stringCodec);
+  export const urlEncode = (id: ContractSourceId): string => encodeURIComponent(id as string);
 }
 
-export type PostContractSourceResponseRecord = {
+type PostContractSourceResponseRecord = {
   contractSourceId: ContractSourceId;
-  intermediateIds: { [label: string]: ContractSourceId };
+  intermediateIds: {
+      [label: string]: ContractSourceId;
+  };
 };
 
-export type PostContractSourceResponse = Tagged<
-  PostContractSourceResponseRecord,
-  "PostContractSourceResponse"
->;
+export type PostContractSourceResponse = Tagged<PostContractSourceResponseRecord, "PostContractSourceResponse">
 
 export namespace PostContractSourceResponse {
-  export const jsonCodec: jsonCodecs.JsonCodec<PostContractSourceResponse> =
-    codec.rmap(
+  export const jsonCodec: JsonCodec<PostContractSourceResponse> = codec.pipe(
       jsonCodecs.objectOf({
-        contractSourceId: ContractSourceId.jsonCodec,
-        intermediateIds: jsonCodecs.dictOf(ContractSourceId.jsonCodec),
-      }),
-      (record) => record as PostContractSourceResponse,
-      (response) => response,
-    );
+      contractSourceId: ContractSourceId.jsonCodec,
+      intermediateIds: jsonCodecs.dictOf(ContractSourceId.jsonCodec),
+    }), {
+      deserialise: (obj) => ok(obj as PostContractSourceResponse),
+      serialise: (obj) => obj as PostContractSourceResponseRecord,
+    }
+  );
 }

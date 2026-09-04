@@ -26,17 +26,18 @@ import Language.Marlowe.Runtime.ChainSync.Api (
   TxId,
   TxIx,
   TxOutRef (..),
-  UTxOError,
+  UTxOError, paymentCredential,
  )
 import qualified Language.Marlowe.Runtime.ChainSync.Api as Chain
 import Language.Marlowe.Runtime.Core.Api hiding (marloweVersion)
-import Language.Marlowe.Runtime.Core.ScriptRegistry (getMarloweVersion, MarloweScriptHashes (..))
+import Language.Marlowe.Runtime.Core.ScriptRegistry (getMarloweVersion, MarloweScriptHashes (..), ScriptRegistry)
 import qualified Marlowe.Plutus.Scripts.Types as V1
 import Ouroboros.Consensus.BlockchainTime (SystemStart, fromRelativeTime)
 import Ouroboros.Consensus.HardFork.History (interpretQuery, slotToWallclock)
 import qualified Ouroboros.Network.Block as O
 import qualified PlutusLedgerApi.V2 as PV2
 import Data.Variations (Variations (..), varyAp)
+import qualified Data.Set as Set
 
 data ContractHistoryError
   = HansdshakeFailed
@@ -269,12 +270,36 @@ instance Binary SomeContractStep where
       SomeMarloweVersion MarloweV1 ->
         SomeContractStep MarloweV1 <$> get
 
-extractCreation :: ContractId -> Chain.Transaction -> Either ExtractCreationError SomeCreateStep
-extractCreation contractId tx@Chain.Transaction{metadata = txMetadata} = do
+
+extractThreadToken
+  :: Chain.PolicyId
+  -> [Chain.AssetId]
+  -> Maybe Chain.TokenName
+extractThreadToken ownPolicyId mintedAssets = do
+  case [ tokenName | Chain.AssetId policyId tokenName <- mintedAssets, policyId == ownPolicyId ] of
+    [threadTokenName] -> Just threadTokenName
+    _ -> Nothing
+
+extractThreadTokenPolicyId
+  :: Chain.Tokens
+  -> Chain.TransactionOutput
+  -> Set Chain.ScriptHash
+  -> Maybe Chain.PolicyId
+extractThreadTokenPolicyId (Chain.Tokens (Map.keys -> mintedAssets)) Chain.TransactionOutput{address} marloweScriptHashes = do
+  (Chain.ScriptCredential scriptHash) <- paymentCredential address
+  guard (Set.member scriptHash marloweScriptHashes)
+  let ownPolicyId = Chain.scriptHashToPolicyId scriptHash
+  threadTokenName <- extractThreadToken ownPolicyId mintedAssets
+  let threadTokenAssetId = Chain.AssetId ownPolicyId threadTokenName
+  guard (threadTokenAssetId `elem` mintedAssets)
+  pure ownPolicyId
+
+extractCreation :: ScriptRegistry -> ContractId -> Chain.Transaction -> Either ExtractCreationError SomeCreateStep
+extractCreation scriptRegistry contractId tx@Chain.Transaction{metadata = txMetadata} = do
   Chain.TransactionOutput{assets, address = scriptAddress, datum = mdatum} <-
     getOutput (txIx $ unContractId contractId) tx
   marloweScriptHash <- getScriptHash scriptAddress
-  (SomeMarloweVersion version, MarloweScriptHashes{..}) <- note InvalidScriptHash $ getMarloweVersion marloweScriptHash
+  (SomeMarloweVersion version, MarloweScriptHashes{..}) <- note InvalidScriptHash $ getMarloweVersion scriptRegistry marloweScriptHash
   let payoutValidatorHash = payoutScript
   -- for_ inputs \Chain.TransactionInput{..} ->
   --   when (isScriptAddress marloweScriptHash address) $ Left NotCreationTransaction

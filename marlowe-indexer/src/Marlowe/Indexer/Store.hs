@@ -24,6 +24,7 @@ import Language.Marlowe.Runtime.Indexer.MarloweBlock (MarloweBlock (..), Marlowe
 import Log (MonadLog, logInfo)
 import Marlowe.Indexer.MarloweChainFollower (ChainEvent (..))
 import UnliftIO (MonadUnliftIO, atomically)
+import Debug.Trace (traceM)
 import qualified Data.List.NonEmpty as NE
 
 data StoreDependencies m = StoreDependencies
@@ -232,6 +233,7 @@ mkPersister
 mkPersister PersisterDependencies{..} = mkComponent_ "indexer-store-persister" $ forever do
   -- Read the next batch of changes.
   Changes{..} <- atomically readChanges
+  traceM ("[PERSISTER] read changes: blocks=" ++ show (length blocks))
 
   logInfo "Saving changes to the database" $ A.object
     [ "indexerTip" .= indexerTip
@@ -252,6 +254,7 @@ mkPersister PersisterDependencies{..} = mkComponent_ "indexer-store-persister" $
 
   -- If there are blocks to save, save them.
   unless (null blocks) $ do
+    traceM ("[PERSISTER] committing blocks: " ++ show (length blocks))
     let
       txIds = [ txId | MarloweBlock{transactions = xs} <- blocks, mtx <- NE.toList xs, Just txId <- [grabTxId mtx] ]
       -- duplicateApplyIds = [ txid | (txid, _) <- txs, txid `elem` [d | (ApplyInputsTransaction _, d) <- txs] ]
@@ -260,4 +263,5 @@ mkPersister PersisterDependencies{..} = mkComponent_ "indexer-store-persister" $
       -- , "duplicateApplyIds" .= duplicateApplyIds
       ]
     commitBlocks databaseQueries blocks
+    traceM "[PERSISTER] commitBlocks done"
 

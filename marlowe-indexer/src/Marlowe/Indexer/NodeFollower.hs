@@ -34,6 +34,7 @@ import Control.Monad (guard, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Base16 (encodeBase16)
 import Data.IORef (IORef)
+import Debug.Trace (traceM)
 -- FIXME: Why we use a lazy map here?
 import Data.IntMap.Lazy (IntMap)
 import qualified Data.IntMap.Lazy as IntMap
@@ -392,6 +393,7 @@ mkClientStNext lastLog changesVar slotNoToBlockNo pipelineDecision n =
   ClientStNext
     { recvMsgRollForward = \(blockNo, blockInMode@(BlockInMode _ block)) tip -> do
         let header@(BlockHeader slotNo hash _) = getBlockHeader block
+        traceM ("[NODE-FOLLOWER] RollForward received: blockNo=" ++ show (unBlockNo blockNo) ++ " slotNo=" ++ show slotNo ++ " txCount=" ++ show (Block.txCount blockInMode))
         now <- liftIO getCurrentTime
         canLog <- atomicModifyIORef lastLog \lastLogValue ->
           if diffUTCTime now lastLogValue >= minLogPeriod
@@ -431,6 +433,7 @@ mkClientStNext lastLog changesVar slotNoToBlockNo pipelineDecision n =
         let slotNoToBlockNo' = IntMap.insert (slotNoToInt slotNo) blockNo slotNoToBlockNo
         pure $ mkClientStIdle lastLog changesVar slotNoToBlockNo' pipelineDecision n clientTip tip
     , recvMsgRollBackward = \point tip -> do
+        traceM ("[NODE-FOLLOWER] RollBackward")
         now <- liftIO getCurrentTime
         writeIORef lastLog now
         let clientTip = case point of

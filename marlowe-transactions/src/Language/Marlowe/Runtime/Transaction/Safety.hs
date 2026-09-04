@@ -44,6 +44,7 @@ import Language.Marlowe.Runtime.Core.Api (
   TransactionScriptOutput (..),
  )
 import Language.Marlowe.Runtime.Transaction.Api (Mint (..), RoleTokensConfig (..))
+import Language.Marlowe.Object.Types (ContractHash (ContractHash))
 import Language.Marlowe.Runtime.Transaction.BuildConstraints (
   AdjustMinUTxO (..),
   ThreadTokenAssetId (..),
@@ -108,7 +109,6 @@ import qualified Language.Marlowe.Runtime.ChainSync.Api as Chain (
   AssetId (..),
   Assets (..),
   Datum (B),
-  DatumHash (..),
   Lovelace,
   PolicyId (..),
   SlotNo (..),
@@ -150,7 +150,7 @@ import qualified PlutusLedgerApi.V2 as Plutus (
 import qualified Cardano.Ledger.Core as Ledger
 
 -- FIXME: Relocate this definition when full support for Merkleization is added to Runtime.
-type Continuations v = M.Map Chain.DatumHash (Contract v)
+type Continuations v = M.Map ContractHash (Contract v)
 
 -- Roles still locked in the script on the chain. All the `helperUTxO` are non empty.
 -- We could use parameter to enforce th in the original `HelpersContext` but it would overcomplicate the code all over the place.
@@ -207,9 +207,11 @@ noContinuations MarloweV1 = M.empty
 
 -- | Map Plutus continuations into chain-sync continuations.
 remapContinuations
-  :: M.Map Chain.DatumHash contract
+  :: M.Map ContractHash contract
   -> M.Map Plutus.DatumHash contract
-remapContinuations = M.mapKeys $ Plutus.DatumHash . Plutus.toBuiltin . Chain.unDatumHash
+remapContinuations = do
+  let toPlutusDatumHash (ContractHash bytes) = Plutus.DatumHash . Plutus.toBuiltin $ bytes
+  M.mapKeys toPlutusDatumHash
 
 -- | Compute a worst-case bound on the minimum UTxO value for a contract, assuming that the contract does not pay
 --   from the account in the initial state and that account only contains lovelace. Assume that a datum hash is

@@ -271,7 +271,6 @@ import Language.Marlowe.CLI.Types (
   validatorInfo', TxBodyFile (TxBodyFile),
  )
 import Language.Marlowe.CLI.Types qualified as PayToScript (PayToScript (value))
-import Language.Marlowe.Scripts
 import Lens.Micro ((^.))
 import Ouroboros.Consensus.HardFork.History (interpreterToEpochInfo)
 import Ouroboros.Network.Protocol.LocalStateQuery.Type (Target (VolatileTip))
@@ -281,12 +280,7 @@ import PlutusLedgerApi.V1 (Datum (..), POSIXTime (..), Redeemer (..), TokenName 
 import System.IO (hPutStrLn, stderr)
 -- import qualified Data.ByteString.Lazy as BSL
 import qualified Cardano.Api.Error as CE
-
-marloweValidator :: C.PlutusScript C.PlutusScriptV3
-marloweValidator = marloweDevelValidatorWithTraces
-
-payoutValidator :: C.PlutusScript C.PlutusScriptV3
-payoutValidator = payoutDevelValidatorWithoutTraces
+import Language.Marlowe.CLI.Scripts (MarloweValidator (..), OpenRolesValidator (..), PayoutValidator (..))
 
 -- | Build a non-Marlowe transaction.
 buildSimple
@@ -960,7 +954,10 @@ buildPublishingImpl
   => (MonadIO m)
   => (MonadReader (CliEnv era) m)
   => (C.IsShelleyBasedEra era)
-  => TxBuildupContext era
+  => MarloweValidator
+  -> PayoutValidator
+  -> OpenRolesValidator
+  -> TxBuildupContext era
   -- ^ The connection info for the local node or pure tx buildup context.
   -> SomePaymentSigningKey
   -- ^ The file for required signing key.
@@ -972,7 +969,17 @@ buildPublishingImpl
   -> CoinSelectionStrategy
   -> MessageFormat
   -> m ([TxBody era], MarloweScriptsRefs C.PlutusScriptV3 era)
-buildPublishingImpl buildupCtx signingKey expires changeAddress publishingStrategy coinSelectionStrategy messageFormat = do
+buildPublishingImpl
+  (MarloweValidator marloweValidator)
+  (PayoutValidator payoutValidator)
+  (OpenRolesValidator openRolesValidator)
+  buildupCtx
+  signingKey
+  expires
+  changeAddress
+  publishingStrategy
+  coinSelectionStrategy
+  messageFormat = do
   let queryCtx = toQueryContext buildupCtx
   pm <- buildScriptPublishingInfo queryCtx marloweValidator publishingStrategy
   pp <- buildScriptPublishingInfo queryCtx payoutValidator publishingStrategy
@@ -1117,7 +1124,10 @@ buildPublishing
   => (MonadIO m)
   => (MonadReader (CliEnv era) m)
   => (C.IsShelleyBasedEra era)
-  => LocalNodeConnectInfo
+  => MarloweValidator
+  -> PayoutValidator
+  -> OpenRolesValidator
+  -> LocalNodeConnectInfo
   -- ^ The connection info for the local node.
   -> SigningKeyFile
   -- ^ The file for required signing key.
@@ -1130,11 +1140,14 @@ buildPublishing
   -> Maybe Second
   -> MessageFormat
   -> m ()
-buildPublishing connection signingKeyFile expires changeAddress strategy (TxFile txFile) timeout printStats = do
+buildPublishing marloweValidator payoutValidator openRolesValidator connection signingKeyFile expires changeAddress strategy (TxFile txFile) timeout printStats = do
   let strategy' = fromMaybe (PublishAtAddress changeAddress) strategy
   signingKey <- readSigningKey signingKeyFile
   (txBodies, _) <-
     buildPublishingImpl @era
+      marloweValidator
+      payoutValidator
+      openRolesValidator
       (mkNodeTxBuildup connection timeout)
       signingKey
       expires
@@ -1161,7 +1174,10 @@ publishImpl
   => (MonadIO m)
   => (MonadReader (CliEnv era) m)
   => (C.IsShelleyBasedEra era)
-  => TxBuildupContext era
+  => MarloweValidator
+  -> PayoutValidator
+  -> OpenRolesValidator
+  -> TxBuildupContext era
   -- ^ The connection info for the local node.
   -> SomePaymentSigningKey
   -- ^ The file for required signing key.
@@ -1173,9 +1189,12 @@ publishImpl
   -> CoinSelectionStrategy
   -> MessageFormat
   -> m ([TxBody era], MarloweScriptsRefs C.PlutusScriptV3 era)
-publishImpl txBuildupCtx signingKey expires changeAddress publishingStrategy coinSelectionStrategy messageFormat = do
+publishImpl marloweValidator payoutValidator openRolesValidator txBuildupCtx signingKey expires changeAddress publishingStrategy coinSelectionStrategy messageFormat = do
   (txBodies, _) <-
     buildPublishingImpl @era
+      marloweValidator
+      payoutValidator
+      openRolesValidator
       txBuildupCtx
       signingKey
       expires
@@ -1188,7 +1207,7 @@ publishImpl txBuildupCtx signingKey expires changeAddress publishingStrategy coi
 
   refs <- do
     let queryCtx = toQueryContext txBuildupCtx
-    findMarloweScriptsRefs queryCtx publishingStrategy (PrintStats False) >>= \case
+    findMarloweScriptsRefs @era marloweValidator payoutValidator openRolesValidator queryCtx publishingStrategy (PrintStats False) >>= \case
       Nothing -> throwError . CliError $ "Unable to find just published scripts by tx:" <> show (map getTxId txBodies)
       Just m -> pure m
   pure (txBodies, refs)
@@ -1231,12 +1250,15 @@ findMarloweScriptsRefs
   => (MonadIO m)
   => (MonadError CliError m)
   => (C.IsShelleyBasedEra era)
-  => QueryExecutionContext era
+  => MarloweValidator
+  -> PayoutValidator
+  -> OpenRolesValidator
+  -> QueryExecutionContext era
   -- ^ Either already selected UTxOs or connection info to select UTxOs.
   -> PublishingStrategy era
   -> PrintStats
   -> m (Maybe (MarloweScriptsRefs C.PlutusScriptV3 era))
-findMarloweScriptsRefs queryCtx publishingStrategy printStats = do
+findMarloweScriptsRefs (MarloweValidator marloweValidator) (PayoutValidator payoutValidator) (OpenRolesValidator openRolesValidator) queryCtx publishingStrategy printStats = do
   let marloweHash = hashScript $ toScript marloweValidator
       payoutHash = hashScript $ toScript payoutValidator
       openRoleHash = hashScript $ toScript openRolesValidator
@@ -1254,12 +1276,15 @@ findPublished
   => (MonadReader (CliEnv era) m)
   => (MonadIO m)
   => (MonadError CliError m)
-  => QueryExecutionContext era
+  => MarloweValidator
+  -> PayoutValidator
+  -> OpenRolesValidator
+  -> QueryExecutionContext era
   -> Maybe (PublishingStrategy era)
   -> m ()
-findPublished queryCtx publishingStrategy = do
+findPublished marloweValidator payoutValidator openRolesValidator queryCtx publishingStrategy = do
   let publishingStrategy' = fromMaybe (PublishPermanently NoStakeAddress) publishingStrategy
-  findMarloweScriptsRefs @era queryCtx publishingStrategy' (PrintStats True) >>= \case
+  findMarloweScriptsRefs @era marloweValidator payoutValidator openRolesValidator queryCtx publishingStrategy' (PrintStats True) >>= \case
     Just (MarloweScriptsRefs (mu, mi) (ru, ri) (ou, oi)) -> do
       let refJSON (AUTxO (i, _)) ValidatorInfo{viHash} =
             A.object

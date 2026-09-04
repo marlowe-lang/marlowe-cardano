@@ -36,9 +36,10 @@ module Language.Marlowe.Runtime.Web.Server.Monad (
 ) where
 
 import qualified Language.Marlowe.Runtime.Web.Contract.API as Web
-import Language.Marlowe.Runtime.Contract.Api (ContractWithAdjacency)
+import Language.Marlowe.Runtime.Contract.Api (ContractWithAdjacency (..))
 import Language.Marlowe.Runtime.Contract.Store (ContractStore)
-import Language.Marlowe.Runtime.ChainSync.Api (DatumHash, Lovelace, StakeCredential, TokenName, TxId, TxOutRef)
+import Language.Marlowe.Runtime.ChainSync.Api (Lovelace, StakeCredential, TokenName, TxId, TxOutRef)
+import Language.Marlowe.Object.Types (ContractHash)
 import Language.Marlowe.Runtime.Transaction.Api
     ( Accounts,
       ContractInitializedInEra,
@@ -198,7 +199,7 @@ type WithBundleImporter m a = (ImportBundle m -> m a) -> m a
 -- `ContractWithAdjacency` with `DatumHash`es instead of `ContractHash`es.
 -- This is the read side of the merkleized contract store, used by the
 -- (not-yet-implemented) `GET /contracts/sources/{id}` endpoints.
-type GetContractSource m = Web.ContractSourceId -> m (Maybe ContractWithAdjacency)
+type GetContractSource m = Web.ContractSourceId -> m (Maybe (ContractWithAdjacency 'V1))
 
 type InitContract m =
   Maybe StakeCredential
@@ -208,7 +209,7 @@ type InitContract m =
   -> MarloweTransactionMetadata
   -> Maybe Lovelace
   -> Accounts
-  -> Either (Contract V1) DatumHash
+  -> Either (Contract V1) ContractHash
   -> m (Either InitError (ContractInitialized V1))
 
 type LoadContract m =

@@ -98,7 +98,6 @@ import Marlowe.Plutus.Semantics.Types (
   getInputContent,
  )
 import Marlowe.Plutus.Semantics.Types.Address (mainnet)
-import Language.Marlowe.Scripts.Types (marloweTxInputsFromInputs)
 
 import Cardano.Api (unsafeHashableScriptData)
 import Cardano.Api qualified as C
@@ -134,6 +133,7 @@ import PlutusLedgerApi.V2 qualified as PV2 hiding (evaluateScriptCounting)
 import PlutusTx (toBuiltinData)
 import PlutusTx.AssocMap qualified as AM
 import PlutusTx.Prelude qualified as P
+import Marlowe.Plutus.Scripts.Types (marloweTxInputsFromInputs)
 
 -- | Analyze a Marlowe contract for protocol-limit or other violations.
 analyze

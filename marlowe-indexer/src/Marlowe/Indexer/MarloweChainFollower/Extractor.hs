@@ -49,6 +49,7 @@ import qualified Data.Text as T
 import Data.Aeson (ToJSON, toJSON)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Debug.Trace (traceM)
 
 type ExtractM = WriterT [MarloweTransaction] (StateT MarloweUTxO (Writer [Text]))
 
@@ -106,12 +107,9 @@ extractCreateTx
 extractCreateTx marloweScriptHashes Transaction{..} = do
   -- Creation transactions cannot consume outputs from other Marlowe contracts.
   let -- Find all outputs that create a new Marlowe contract
-    newMarloweOutputs =
-      filter (isNewMarloweOutput mintedTokens)
-      outputs
     contractIds =
       mapMaybe (uncurry $ extractContractId marloweScriptHashes) $
-        zip (TxOutRef txId . TxIx <$> [0 ..]) newMarloweOutputs
+        zip (TxOutRef txId . TxIx <$> [0 ..]) outputs
   logMsg $ "Found " <> T.pack (show (length contractIds))
   logJson contractIds
   existingContracts <- gets $ Map.keysSet . unspentContractOutputs
@@ -167,33 +165,11 @@ extractCreateTx marloweScriptHashes Transaction{..} = do
     --   }
     --   deriving stock (Show, Eq, Generic)
     --   deriving anyclass (Binary, ToJSON, Variations)
-    extractThreadToken
-      :: Chain.PolicyId
-      -> [Chain.AssetId]
-      -> Maybe Chain.TokenName
-    extractThreadToken ownPolicyId mintedAssets = do
-      case [ tokenName | Chain.AssetId policyId tokenName <- mintedAssets, policyId == ownPolicyId ] of
-        [threadTokenName] -> Just threadTokenName
-        _ -> Nothing
-
-    newMarloweOutputPolicyId
-      :: Chain.Tokens
-      -> Chain.TransactionOutput
-      -> Maybe Chain.PolicyId
-    newMarloweOutputPolicyId (Chain.Tokens (Map.keys -> mintedAssets)) Chain.TransactionOutput{address} = do
-      (Chain.ScriptCredential scriptHash) <- paymentCredential address
-      guard (Set.member scriptHash marloweScriptHashes)
-      let ownPolicyId = Chain.scriptHashToPolicyId scriptHash
-      threadTokenName <- extractThreadToken ownPolicyId mintedAssets
-      let threadTokenAssetId = Chain.AssetId ownPolicyId threadTokenName
-      guard (threadTokenAssetId `elem` mintedAssets)
-      pure ownPolicyId
-
-    isNewMarloweOutput
-      :: Chain.Tokens
-      -> Chain.TransactionOutput
-      -> Bool
-    isNewMarloweOutput txMintedTokens output = isJust $ newMarloweOutputPolicyId txMintedTokens output
+    -- isNewMarloweOutput
+    --   :: Chain.Tokens
+    --   -> Chain.TransactionOutput
+    --   -> Bool
+    -- isNewMarloweOutput txMintedTokens output = isJust $ extractThreadTokenPolicyId txMintedTokens output
 
 -- | Extracts a ContractId from a transaction output if it is a Marlowe contract output.
 extractContractId

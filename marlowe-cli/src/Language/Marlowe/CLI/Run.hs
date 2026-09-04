@@ -168,7 +168,7 @@ import Language.Marlowe.CLI.Types (
   toQueryContext,
   toShelleyAddress,
   txIn,
-  validatorInfoScriptOrReference,
+  validatorInfoScriptOrReference, MarloweScriptsInfo (..)
  )
 import Marlowe.Plutus.Merkle (MerkleizedContract (..), merkleizeInputs)
 import Marlowe.Plutus.Semantics (
@@ -273,26 +273,22 @@ makeNotification outputFile =
 
 -- | Create an initial Marlowe transaction.
 initializeTransaction
-  :: (MonadError CliError m, C.IsShelleyBasedEra era)
-  => (MonadIO m)
+  :: forall lang era m
+   . MonadError CliError m
+  => MonadIO m
   => (MonadReader (CliEnv era) m)
-  => LocalNodeConnectInfo
+  => (C.IsPlutusScriptLanguage lang)
+  => MarloweScriptsInfo lang era
   -> MarloweParams
   -- ^ The Marlowe contract parameters.
   -> SlotConfig
   -- ^ The POSIXTime-to-slot configuration.
-  -> MajorProtocolVersion
-  -> [Integer]
-  -- ^ The cost model parameters.
-  -> NetworkId
-  -- ^ The network ID.
   -> StakeAddressReference
   -- ^ The stake address.
   -> FilePath
   -- ^ The JSON file containing the contract.
   -> FilePath
   -- ^ The JSON file containing the contract's state.
-  -> Maybe (PublishingStrategy era)
   -> Maybe FilePath
   -- ^ The output JSON file for the validator information.
   -> Bool
@@ -301,30 +297,24 @@ initializeTransaction
   -- ^ Whether to print statistics about the validator.
   -> m ()
   -- ^ Action to export the validator information to a file.
-initializeTransaction connection marloweParams slotConfig protocolVersion costModelParams network stake contractFile stateFile publishingStrategy outputFile merkleize printStats =
+initializeTransaction marloweScripts marloweParams slotConfig stake contractFile stateFile outputFile merkleize printStats =
   do
     era <- askEra
-    refs <- case publishingStrategy of
-      Nothing -> pure Nothing
-      Just publishingStrategy' -> findMarloweScriptsRefs (QueryNode connection) publishingStrategy' (PrintStats printStats)
     contract <- decodeFileStrict contractFile
     state <- decodeFileStrict stateFile
     marloweTransaction <-
       initializeTransactionImpl
+        marloweScripts
         marloweParams
         slotConfig
-        protocolVersion
-        costModelParams
-        network
         stake
         contract
         state
-        refs
         merkleize
         printStats
     maybeWriteJson outputFile $
       SomeMarloweTransaction
-        (C.plutusScriptVersion :: PlutusScriptVersion MarlowePlutusVersion)
+        (C.plutusScriptVersion @lang)
         era
         marloweTransaction
 
@@ -335,54 +325,42 @@ initializeTransactionImpl
   => (MonadIO m)
   => (MonadReader (CliEnv era) m)
   => (C.IsPlutusScriptLanguage lang)
-  => MarloweParams
+  => MarloweScriptsInfo lang era
+  -> MarloweParams
   -- ^ The Marlowe contract parameters.
   -> SlotConfig
-  -- ^ The POSIXTime-to-slot configuration.
-  -> MajorProtocolVersion
-  -> [Integer]
-  -- ^ The cost model parameters.
-  -> NetworkId
-  -- ^ The network ID.
   -> StakeAddressReference
   -- ^ The stake address.
   -> Contract
   -- ^ The initial Marlowe contract.
   -> State
   -- ^ The initial Marlowe state.
-  -> Maybe (MarloweScriptsRefs lang era)
   -> Bool
   -- ^ Whether to deeply merkleize the contract.
   -> Bool
   -- ^ Whether to print statistics about the validator.
   -> m (MarloweTransaction lang era)
   -- ^ Action to return a MarloweTransaction
-initializeTransactionImpl marloweParams mtSlotConfig protocolVersion costModelParams network stake mtContract mtState refs merkleize printStats = case C.plutusScriptVersion @lang of
+initializeTransactionImpl marloweScripts marloweParams mtSlotConfig stake mtContract mtState merkleize printStats = case C.plutusScriptVersion @lang of
   PlutusScriptV1 -> throwError "Plutus Script V1 not supported"
   PlutusScriptV3 -> do
     era <- askEra
     let mtRolesCurrency = rolesCurrency marloweParams
-    (mtValidator, mtRoleValidator, mtOpenRoleValidator) <-
-      case refs of
-        Nothing -> do
-          mv <- liftCli =<< marloweValidatorInfo era protocolVersion costModelParams network stake
-          rv <- liftCli =<< payoutValidatorInfo era protocolVersion costModelParams network stake
-          ov <- liftCli =<< openRoleValidatorInfo era protocolVersion costModelParams network stake
-          pure (mv, rv, ov)
-        Just MarloweScriptsRefs{..} -> do
-          let vi = snd mrMarloweValidator
-          vi' <-
-            case toShelleyAddress $ viAddress vi of
-              Nothing -> throwError "Expecting shelley address in reference validator info"
-              Just (CS.ShelleyAddress n p _) ->
-                pure $
-                  vi
-                    { viAddress =
-                        C.shelleyAddressInEra (C.babbageEraOnwardsToShelleyBasedEra era) $
-                          CS.ShelleyAddress n p $
-                            toShelleyStakeReference stake
-                    }
-          pure (vi', snd mrRolePayoutValidator, snd mrOpenRoleValidator)
+    (mtValidator, mtRoleValidator, mtOpenRoleValidator) <- do
+      let
+        MarloweScriptsInfo {..} = marloweScripts
+      vi' <-
+        case toShelleyAddress $ viAddress msMarloweValidator of
+          Nothing -> throwError "Expecting shelley address in reference validator info"
+          Just (CS.ShelleyAddress n p _) ->
+            pure $
+              msMarloweValidator
+                { viAddress =
+                    C.shelleyAddressInEra (C.babbageEraOnwardsToShelleyBasedEra era) $
+                      CS.ShelleyAddress n p $
+                        toShelleyStakeReference stake
+                }
+      pure (vi', msRolePayoutValidator, msOpenRoleValidator)
     let ValidatorInfo{..} = mtValidator
         mtContinuations = mempty
         mtRange = Nothing

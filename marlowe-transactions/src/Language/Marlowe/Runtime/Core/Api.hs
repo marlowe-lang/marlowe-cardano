@@ -1,6 +1,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StrictData #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Language.Marlowe.Runtime.Core.Api where
 
@@ -26,6 +27,7 @@ import Data.ByteString.Base16 (decodeBase16Untyped, encodeBase16)
 import Data.Either (fromRight)
 import Data.Kind (Type)
 import qualified Data.List.NonEmpty as NE
+import Language.Marlowe.Object.Types (ContractHash)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes, fromMaybe)
@@ -58,6 +60,7 @@ import qualified PlutusTx.AssocMap as AM
 import qualified Cardano.Api as C
 import Data.Data (Proxy(..))
 import qualified Data.Aeson as A
+import Data.Set (Set)
 
 -- | The ID of a contract is the TxId and TxIx of the UTxO that first created
 -- the contract.
@@ -110,6 +113,7 @@ class IsMarloweVersion (v :: MarloweVersionTag) where
   type Datum v :: Type
   type State v :: Type
   type Inputs (v :: MarloweVersionTag) :: Type
+  type TransactionInputs (v :: MarloweVersionTag) :: Type
   type PayoutDatum v :: Type
   marloweVersion :: MarloweVersion v
 
@@ -119,6 +123,7 @@ instance IsMarloweVersion 'V1 where
   type Datum 'V1 = V1.MarloweData
   type State 'V1 = V1.State
   type Inputs 'V1 = [V1.Input]
+  type TransactionInputs 'V1 = V1.TransactionInput
   type PayoutDatum 'V1 = Chain.AssetId
   marloweVersion = MarloweV1
 
@@ -734,3 +739,23 @@ instance Variations (V1.Value V1.Observation) where
         , V1.UseValue <$> variations
         , pure $ V1.Cond V1.FalseObs (V1.Constant 1) (V1.Constant 1)
         ]
+
+-- | A contract with its adjacency and closure information.
+data ContractWithAdjacency v = ContractWithAdjacency
+  { contractHash :: ContractHash
+  -- ^ The hash of the contract.
+  , contract :: Contract v
+  -- ^ The contract.
+  , adjacency :: Set ContractHash
+  -- ^ The set of continuation hashes explicitly contained in the contract.
+  , closure :: Set ContractHash
+  -- ^ The set of hashes contained in the contract and all recursive continuations of the contract.
+  -- includes the hash of the contract itself.
+  -- Does not contain the hash of the close contract.
+  }
+deriving instance (Show (Contract v)) => Show (ContractWithAdjacency v)
+deriving instance (Eq (Contract v)) => Eq (ContractWithAdjacency v)
+deriving instance (Ord (Contract v)) => Ord (ContractWithAdjacency v)
+deriving instance Generic (ContractWithAdjacency v)
+
+

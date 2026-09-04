@@ -149,6 +149,7 @@ import Language.Marlowe.Runtime.Core.Api (
   putInputs,
  )
 import Language.Marlowe.Runtime.Core.ScriptRegistry (HelperScript)
+import Language.Marlowe.Object.Types (ContractHash)
 import Language.Marlowe.Runtime.History.Api (ExtractCreationError, ExtractMarloweTransactionError)
 import Network.HTTP.Media (MediaType)
 
@@ -1553,7 +1554,7 @@ data InitError
   | -- | This error is thrown when the safety analysis process fails itself
     -- due to a timeout or other reasons, such as missing merkleization data.
     InitSafetyAnalysisError String
-  | InitContractNotFound String
+  | InitContractNotFound ContractHash
   | ProtocolParamNoUTxOCostPerByte
   | InsufficientMinAdaDeposit Lovelace
   | -- | The indexer has not (yet) initialized era history in the database, so

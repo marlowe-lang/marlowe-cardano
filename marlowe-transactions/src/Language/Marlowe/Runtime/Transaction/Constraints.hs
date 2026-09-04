@@ -512,7 +512,6 @@ data MarloweContext v = MarloweContext
   deriving (Generic)
 
 deriving instance Show (MarloweContext 'V1)
-deriving instance ToJSON (MarloweContext 'V1)
 
 -- | Data from Payout Scripts needed to solve the constraints.
 data PayoutContext = PayoutContext
@@ -521,7 +520,7 @@ data PayoutContext = PayoutContext
   , payoutScriptOutputs :: Map Chain.ScriptHash ReferenceScriptUtxo
   -- ^ The unspent payout reference script outputs indexed by script hash.
   }
-  deriving (Generic, Show, Eq, ToJSON)
+  deriving (Generic, Show, Eq)
 
 -- Data from Helper Scripts needed to solve the constraints.
 data HelpersContext = HelpersContext
@@ -535,7 +534,9 @@ data HelpersContext = HelpersContext
   deriving (Generic)
 
 deriving instance Show HelpersContext
-deriving anyclass instance ToJSON HelpersContext
+-- | 'ToJSON HelpersContext' is provided by
+-- 'Language.Marlowe.Runtime.Core.ScriptRegistry.JSON' because it transitively
+-- uses a 'ReferenceScriptUtxo' which has a custom 'ToJSON' instance.
 
 data HelperScriptState = HelperScriptState
   { helperScriptInfo :: HelperScriptInfo
@@ -544,7 +545,8 @@ data HelperScriptState = HelperScriptState
   deriving (Generic)
 
 deriving instance Show HelperScriptState
-deriving instance ToJSON HelperScriptState
+-- | 'ToJSON HelperScriptState' is provided by
+-- 'Language.Marlowe.Runtime.Core.ScriptRegistry.JSON'.
 
 data HelperScriptInfo = HelperScriptInfo
   { helperScript :: HelperScript
@@ -555,7 +557,19 @@ data HelperScriptInfo = HelperScriptInfo
   deriving (Generic)
 
 deriving instance Show HelperScriptInfo
-deriving instance ToJSON HelperScriptInfo
+-- | 'ToJSON HelperScriptInfo' lives here (not in 'ScriptRegistry') so the
+-- 'Constraints' module can derive 'ToJSON PayoutContext' without importing
+-- 'ScriptRegistry' (which itself imports 'Constraints'). The custom instance
+-- is needed because 'HelperScriptInfo' contains a 'ReferenceScriptUtxo' whose
+-- own 'ToJSON' instance is also defined in this same transitive set.
+instance ToJSON HelperScriptInfo where
+  toJSON HelperScriptInfo{helperScript, helperAddress, helperScriptUTxO, helperScriptHash} =
+    A.object
+      [ "helperScript" .= helperScript
+      , "helperAddress" .= helperAddress
+      , "helperScriptUTxO" .= helperScriptUTxO
+      , "helperScriptHash" .= helperScriptHash
+      ]
 
 type SolveConstraints era v =
   C.BabbageEraOnwards era

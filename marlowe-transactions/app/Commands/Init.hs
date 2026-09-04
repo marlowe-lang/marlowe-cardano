@@ -48,7 +48,7 @@ import qualified Data.Set as Set
 import qualified Language.Marlowe.Runtime.Core.ScriptRegistry as ScriptRegistry
 import System.Exit (die)
 import Language.Marlowe.Runtime.Transaction.Api (LoadHelpersContextError(LoadHelpersContextErrorNotFound), RoleTokensConfig(RoleTokensNone), ContractInitialized(ContractInitialized), ContractInitializedInEra(txBody, contractId))
-import Language.Marlowe.Runtime.Transaction.Builders (execInit, Connector(Connector))
+import Language.Marlowe.Runtime.Transaction.Builders (execInit)
 import Language.Marlowe.Runtime.Cardano.Api (fromCardanoUTxO, fromPlutusSerialisedScript)
 import Log (LogLevel(LogTrace), runLogT)
 import Log.Backend.StandardOutput (withStdOutLogger)
@@ -245,7 +245,7 @@ runInitCommand cmd = do
       execInit
         mkRoleTokensPolicy
         C.ConwayEra
-        Connector
+        (\_ -> pure Nothing)
         ScriptRegistry.getCurrentScripts
         solveConstraints
         protocolParams

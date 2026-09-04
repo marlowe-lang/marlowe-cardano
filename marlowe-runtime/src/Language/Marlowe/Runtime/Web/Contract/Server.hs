@@ -7,7 +7,8 @@ import Language.Marlowe.Runtime.Web.Adapter.Servant.UVerbT (
  )
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Language.Marlowe.Runtime.ChainSync.Api (DatumHash (..), Lovelace (..), fromUTxOsList, toUTxOTuple)
+import Language.Marlowe.Runtime.ChainSync.Api (Lovelace (..), fromUTxOsList, toUTxOTuple)
+import Language.Marlowe.Object.Types (ContractHash(ContractHash))
 import Language.Marlowe.Runtime.Web.Adapter.Links (WithLink (..))
 import Language.Marlowe.Runtime.Web.Server.DTO (
   ToDTO (toDTO),
@@ -83,7 +84,7 @@ postCreateTxBody
   -> CommaList (Web.TransactionUnspentOutput C.ConwayEra)
   -> ServerM (Core.ContractId, TxBodyInAnyEra, [SafetyError])
 postCreateTxBody req stakeAddressDTO changeAddressDTO availableUtxosDTO = do
-  SomeMarloweVersion _v@MarloweV1 <- fromDTOThrow (badRequest' "Unsupported Marlowe version") req.version
+  SomeMarloweVersion MarloweV1 <- fromDTOThrow (badRequest' "Unsupported Marlowe version") req.version
   stakeAddress <- fromDTOThrow (badRequest' "Invalid stake address value") stakeAddressDTO
   changeAddress <- fromDTOThrow (badRequest' "Invalid change address value") changeAddressDTO
   availableUTxOs <- fromDTOThrow (badRequest' "Invalid funding UTxO value") (unCommaList availableUtxosDTO)
@@ -111,7 +112,7 @@ postCreateTxBody req stakeAddressDTO changeAddressDTO availableUtxosDTO = do
     marloweTransactionMetadata
     (Lovelace <$> req.minUTxODeposit)
     accounts'
-    (DatumHash . unContractSourceId <$> contract')
+    (ContractHash . unContractSourceId <$> contract')
     >>= \case
       Left err -> throwDTOError err
       Right

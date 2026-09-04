@@ -13,6 +13,7 @@ import Language.Marlowe.Runtime.Indexer.MarloweBlock (MarloweBlock, MarloweUTxO)
 import UnliftIO (MonadUnliftIO, newTQueue, writeTQueue, atomically, readTQueue, MonadIO (..), newTVar)
 import Log (MonadLog)
 import qualified Log (logInfo_, logInfo, logAttention, logTrace_)
+import Debug.Trace (traceM)
 import Control.Concurrent.Component (Component, mkComponent)
 import Data.Foldable (for_)
 import Data.Maybe (catMaybes)
@@ -80,7 +81,8 @@ mkMarloweChainFollower
   -> Component m MarloweChainFollower
 mkMarloweChainFollower deps = mkComponent "marlowe-chain-follower" do
   eventQueue <- newTQueue
-  prevNodeTip <- newTVar Nothing
+  prevNodeTipRef <- newTVar Nothing
+  prevIndexerTipRef <- newTVar Nothing
   let
     emit :: ChainEvent -> ThreadT m ()
     emit = lift . atomically . writeTQueue eventQueue
@@ -89,7 +91,7 @@ mkMarloweChainFollower deps = mkComponent "marlowe-chain-follower" do
     deps' = hoistMarloweChainFollowerDependencies lift deps
 
     follower :: ThreadT m ()
-    follower = mkFollowerThread emit Nothing prevNodeTip
+    follower = mkFollowerThread emit Nothing prevNodeTipRef prevIndexerTipRef
 
     process :: m ()
     process = runThreadT follower deps'
@@ -143,16 +145,19 @@ mkFollowerThread
   => (ChainEvent -> m ())
   -> Maybe C.SystemStart
   -> TVar (Maybe NodeFollower.NodeTip)
+  -> TVar (Maybe NodeFollower.IndexerTip)
   -> m ()
-mkFollowerThread emit possibleSystemStart prevNodeTip = do
+mkFollowerThread emit possibleSystemStart prevNodeTipRef prevIndexerTipRef = do
   MarloweChainFollowerDependencies{..} <- ask
   NodeFollower.Changes{..} <- liftIO $ atomically do
     ch <- changes
-    prev <- readTVar prevNodeTip
-    if Just ch.changesTip == prev
+    prevNodeTip <- readTVar prevNodeTipRef
+    prevIndexerTip <- readTVar prevIndexerTipRef
+    if Just ch.changesTip == prevNodeTip && Just ch.changesIndexerTip == prevIndexerTip
       then retry
       else do
-        writeTVar prevNodeTip (Just ch.changesTip)
+        writeTVar prevNodeTipRef (Just ch.changesTip)
+        writeTVar prevIndexerTipRef (Just ch.changesIndexerTip)
         pure ch
   systemStart <- getSystemStart nodeQuerier possibleSystemStart
   (eraHistory :: C.EraHistory) <- runQuery nodeQuerier QueryHistory
@@ -161,9 +166,11 @@ mkFollowerThread emit possibleSystemStart prevNodeTip = do
     let
       rollbackPoint = chainPointFromCardanoRollback rollbackTo
     logInfo "Rolling back to" rollbackPoint
+    traceM "[MARLOWE-FOLLOWER] emitting RollBackward"
     emit $ RollBackward rollbackPoint (fromCardanoNodeTip changesTip) eraHistory
 
   marloweUTxO <- getLatestMarloweUTxO
+  traceM ("[MARLOWE-FOLLOWER] processing " ++ show (length changesBlocks) ++ " raw blocks from node-follower")
   blocks' <- for (reverse changesBlocks) \(C.BlockInMode _ block) -> do
     let
       blockHeader = fromCardanoBlockHeader . C.getBlockHeader $ block
@@ -193,11 +200,12 @@ mkFollowerThread emit possibleSystemStart prevNodeTip = do
     -- FIXME: Add JSON instance
     -- logInfo "Extracted marlowe blocks" marloweBlocks
   logInfo "Updated marlowe UTxO" marloweUTxO'
+  traceM ("[MARLOWE-FOLLOWER] emitting RollForward with " ++ show (length marloweBlocks) ++ " blocks")
   emit $ RollForward
     marloweBlocks
     (fromCardanoIndexerTip changesIndexerTip)
     (fromCardanoNodeTip changesTip)
     eraHistory
 
-  mkFollowerThread emit (Just systemStart) prevNodeTip
+  mkFollowerThread emit (Just systemStart) prevNodeTipRef prevIndexerTipRef
 

@@ -172,9 +172,11 @@ let
       "/home/paluh/.local/bin/ghcid"          # also include the classic cabal dir (safe)
       "/home/paluh/.config/opencode"
       "/home/paluh/.local/share/opencode"
+      "/home/paluh/.local/state/opencode"
       "/home/paluh/.cache/opencode"
       "/home/paluh/projects/cl/"
       "/home/paluh/programming/cardano/mgdoc"
+      "/tmp"
     ];
     # (builtins.trace (lib.concatStringsSep ", " (lib.attrNames project.hsPkgs.cardano-crypto-class.components.library)) project)
     # (builtins.trace (lib.concatStringsSep ", " cryptoShell.nativeBuildInputs) cryptoShell)
@@ -258,6 +260,7 @@ let
       # inputs.process-compose
       pkgs.process-compose
       pkgs.dbeaver-bin
+      pkgs.mitmproxy
 
       # db-schema-info generator
 

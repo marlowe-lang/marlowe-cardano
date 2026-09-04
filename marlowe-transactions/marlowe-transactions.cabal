@@ -8,9 +8,13 @@ stability:     experimental
 author:        paluh (aka Tomasz Rybarczyk)
 synopsis:      Marlowe pure transaction builders
 category:      Language
+
 license-files:
   LICENSE
   NOTICE
+
+data-files:
+  script-registry.json
 
 source-repository head
   type:     git
@@ -79,11 +83,15 @@ library
     , base
     , base16-aeson
     , base16 ^>=1.0
+    , directory
+    , filepath
     , binary ^>=0.8.8
     , bytestring
     , cardano-api
     , cardano-binary
     , cardano-crypto-class
+    , marlowe-object
+    , cardano-api
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-api
@@ -100,13 +108,12 @@ library
     , errors
     , groups
     , hashable
-    , http-media
-    , keys
-    , lens
-    , log-base
-    , marlowe-binaries ^>=0.2
-    , marlowe-plutus ^>=0.2
-    , microlens
+     , http-media
+     , keys
+     , lens
+     , log-base
+     , marlowe-plutus ^>=0.2
+     , microlens
     , network-uri
     , nonempty-containers
     , ouroboros-consensus
@@ -147,6 +154,7 @@ library
     Language.Marlowe.Runtime.Transaction.BuildConstraints
     Language.Marlowe.Runtime.Transaction.Constraints
     Language.Marlowe.Runtime.Transaction.Safety
+    Paths_marlowe_transactions
 
 library gen
   import:          lang
@@ -166,9 +174,10 @@ library gen
     , cardano-protocol-tpraos
     , containers
     , errors
-    , hedgehog-quickcheck ^>=0.1
-    , http-media ^>=0.8
-    , marlowe-binaries
+     , hedgehog-quickcheck ^>=0.1
+     , http-media ^>=0.8
+    , marlowe-object
+    , marlowe-object:gen
     , marlowe-plutus
     , marlowe-plutus:marlowe-testing
     , marlowe-transactions
@@ -215,18 +224,17 @@ test-suite test
     , cardano-ledger-shelley
     , cardano-slotting
     -- , convex-mockchain
-    , containers
-    , deepseq
-    , hspec
-    , hspec-core
-    , lens
-    , marlowe-binaries
-    , marlowe-plutus
-    , marlowe-plutus:marlowe-testing
-    , marlowe-transactions
-    , marlowe-transactions:gen
-    , nonempty-containers
-    , ouroboros-consensus
+     , containers
+     , deepseq
+     , hspec
+     , hspec-core
+     , lens
+     , marlowe-plutus
+     , marlowe-plutus:marlowe-testing
+     , marlowe-transactions
+     , marlowe-transactions:gen
+     , nonempty-containers
+     , ouroboros-consensus
     , ouroboros-consensus:{cardano}
     , ouroboros-network:{api}
     , plutus-ledger-api
@@ -285,11 +293,10 @@ executable marlowe-transactions-cli
     , http-types
     , insert-ordered-containers
     , lens
-    , lifted-base
-    , log-base
-    , log-base-inlined
-    , marlowe-binaries
-    , marlowe-object
+     , lifted-base
+     , log-base
+     , log-base-inlined
+     , marlowe-object
     , marlowe-plutus ^>=0.2
     , marlowe-transactions
     , monad-control ^>=1
