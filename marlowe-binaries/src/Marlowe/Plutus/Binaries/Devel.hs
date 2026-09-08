@@ -28,6 +28,7 @@ import PlutusTx qualified
 import qualified PlutusLedgerApi.V3 as PV3
 import Marlowe.Plutus.RoleTokens (RoleTokens, mkRoleTokensHash, mkPolicy, wrapMintingPolicy)
 import qualified Prelude as Haskell
+import Marlowe.Plutus.OpenRoles (mkOpenRoleValidator)
 
 {-# INLINEABLE rolePayoutValidator #-}
 rolePayoutValidator :: CompiledCode (BuiltinData -> BuiltinUnit)
@@ -85,7 +86,7 @@ openRolesValidator =
  where
   openRolesValidator' :: ScriptHash -> BuiltinData -> BuiltinUnit
   openRolesValidator' marloweValidatorHash' ctx =
-    check $ mkMarloweValidator marloweValidatorHash' (unsafeFromBuiltinData ctx)
+    check $ mkOpenRoleValidator marloweValidatorHash' (unsafeFromBuiltinData ctx)
 
 openRolesValidatorHash :: ScriptHash
 openRolesValidatorHash = hashScript PlutusV3 openRolesValidator

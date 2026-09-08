@@ -15,25 +15,20 @@
 {-# OPTIONS -fno-unbox-strict-fields #-}
 {-# OPTIONS_GHC -fobject-code #-}
 
-
--- FIXME: drop this
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-
 module Marlowe.Plutus.Binaries.Production where
 
 import Marlowe.Plutus.Binaries.Core (applyArg, hashScript)
 import Marlowe.Plutus.Scripts (mkMarloweValidator, mkRolePayoutValidator)
-import Marlowe.Plutus.OpenRoles (mkOpenRoleValidator)
 import PlutusLedgerApi.Common (SerialisedScript, serialiseCompiledCode, unsafeFromBuiltinData)
 import PlutusLedgerApi.Data.V1 (ScriptHash)
 import PlutusTx (CompiledCode)
 import PlutusTx.Blueprint.PlutusVersion (PlutusVersion (PlutusV3))
 import PlutusTx.Prelude (BuiltinData, BuiltinUnit, check, ($))
 import PlutusTx qualified
-import Marlowe.Plutus.RoleTokens (RoleTokens, mkPolicy, wrapMintingPolicy, mkRoleTokensHash)
 import qualified PlutusLedgerApi.V3 as PV3
-import qualified PlutusLedgerApi.V3 as V3
+import Marlowe.Plutus.RoleTokens (RoleTokens, mkRoleTokensHash, mkPolicy, wrapMintingPolicy)
 import qualified Prelude as Haskell
+import Marlowe.Plutus.OpenRoles (mkOpenRoleValidator)
 
 {-# INLINEABLE rolePayoutValidator #-}
 rolePayoutValidator :: CompiledCode (BuiltinData -> BuiltinUnit)
@@ -77,11 +72,11 @@ mkRoleTokensPolicy roleTokens txOutRef =
         Haskell.Left err -> Haskell.error $ "Application of arguments to minting validator failed." Haskell.<> err
         Haskell.Right applied -> applied
 
-mkRoleTokensPolicyHash :: RoleTokens -> V3.TxOutRef -> ScriptHash
-mkRoleTokensPolicyHash roleTokens2 txOutRef = hashScript PlutusV3 (mkRoleTokensPolicy roleTokens2 txOutRef)
+mkRoleTokensPolicyHash :: RoleTokens -> PV3.TxOutRef -> ScriptHash
+mkRoleTokensPolicyHash roleTokens1 txOutRef = hashScript PlutusV3 (mkRoleTokensPolicy roleTokens1 txOutRef)
 
-mkRoleTokensPolicyBytes :: RoleTokens -> V3.TxOutRef -> SerialisedScript
-mkRoleTokensPolicyBytes roleTokens1 txOutRef = serialiseCompiledCode (mkRoleTokensPolicy roleTokens1 txOutRef)
+mkRoleTokensPolicyBytes :: RoleTokens -> PV3.TxOutRef -> SerialisedScript
+mkRoleTokensPolicyBytes roleTokens2 txOutRef = serialiseCompiledCode (mkRoleTokensPolicy roleTokens2 txOutRef)
 
 {-# INLINEABLE openRolesValidator #-}
 openRolesValidator :: CompiledCode (BuiltinData -> BuiltinUnit)
@@ -98,3 +93,13 @@ openRolesValidatorHash = hashScript PlutusV3 openRolesValidator
 
 openRolesValidatorBytes :: SerialisedScript
 openRolesValidatorBytes = serialiseCompiledCode openRolesValidator
+
+-- This type of helper is missing because it requires a pretty heavy cardano-api dependency.
+--
+-- mkRoleTokensPolicyScript :: RoleTokens -> PV3.TxOutRef -> C.PlutusScript C.PlutusScriptV3
+-- mkRoleTokensPolicyScript roleTokens3 txOutRef = do
+--   let
+--     bytes = mkRoleTokensPolicyBytes roleTokens3 txOutRef
+--   PlutusScript PlutusScriptV3 (PlutusScriptSerialised bytes)
+
+

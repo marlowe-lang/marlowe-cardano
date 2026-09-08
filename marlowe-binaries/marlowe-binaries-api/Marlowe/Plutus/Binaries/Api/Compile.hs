@@ -2,6 +2,7 @@ module Marlowe.Plutus.Binaries.Api.Compile
   ( ScriptName(..)
   , ScriptVariant(..)
   , ScriptOutput(..)
+  , ScriptsSuite(..)
   , scriptNameToText
   , scriptNameFromText
   ) where
@@ -43,7 +44,12 @@ instance FromJSON ScriptName where
 data ScriptVariant
   = DevelScripts
   | ProductionScripts
-  deriving stock (Eq, Show, Generic)
+  deriving stock (Eq, Generic)
+
+instance Show ScriptVariant where
+  show = \case
+    DevelScripts -> "devel"
+    ProductionScripts -> "production"
 
 instance ToJSON ScriptVariant where
   toJSON = \case

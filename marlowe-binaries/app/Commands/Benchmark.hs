@@ -24,7 +24,7 @@ import Marlowe.Plutus.Binaries.Api.Benchmark
       benchmarkScripts,
       generateBenchmarks,
       EvaluationError(..), scenarioId2Hex )
-import Marlowe.Plutus.Binaries.Api.Compile (CompileResponse(..), ScriptName(..), ScriptOutput(..))
+import Marlowe.Plutus.Binaries.Api.Compile ( ScriptOutput(..), ScriptsSuite(ScriptsSuite, marloweSemantics, marloweRolePayout) )
 import Options.Applicative
   ( Parser
   , ParserInfo
@@ -147,11 +147,8 @@ runRunCommand cmd = do
       input <- LBS8.getContents
       case A.eitherDecode input of
         Left err -> die $ "Failed to parse CompileResponse from stdin: " <> err
-        Right response -> do
-          let scripts = responseScripts response
-          case (findScript MarloweSemantics scripts, findScript MarloweRolePayout scripts) of
-            (Just sem, Just pay) -> pure (scriptFile sem, scriptFile pay)
-            _ -> die "CompileResponse missing required scripts"
+        Right (ScriptsSuite { marloweSemantics, marloweRolePayout }) -> do
+          pure (marloweSemantics.scriptFile, marloweRolePayout.scriptFile)
     (Just s, Just p) -> pure (s, p)
     (_, _) -> die "Both semantics and payout script files must be provided, or neither to read them from stdin."
   benchmarkRootDir <- case cmd.benchmarkRootDir of
@@ -171,9 +168,6 @@ runRunCommand cmd = do
   runExceptT (benchmarkScripts request) >>= \case
     Left err -> emitBenchmarkError cmd.messageFormat err
     Right response -> emitBenchmarkSummary cmd.messageFormat response
-
-findScript :: ScriptName -> [ScriptOutput] -> Maybe ScriptOutput
-findScript name = foldr (\s acc -> if scriptName s == name then Just s else acc) Nothing
 
 runGenerateCommand :: BenchmarkGenerateCommand -> IO ()
 runGenerateCommand BenchmarkGenerateCommand{scenarioDir, scenarioType, maxScenarios} = do
