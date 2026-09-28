@@ -91,6 +91,8 @@ data TxHeader = TxHeader
   }
   deriving (Show, Eq, Ord, Generic, ToJSON, FromJSON, ToSchema)
 
+instance NFData TxHeader
+
 instance HasPagination TxHeader "transactionId" where
   type RangeType TxHeader "transactionId" = TxId
   getFieldValue _ TxHeader{..} = transactionId

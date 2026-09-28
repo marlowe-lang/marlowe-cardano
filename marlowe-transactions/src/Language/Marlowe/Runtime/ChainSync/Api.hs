@@ -36,19 +36,18 @@ import Cardano.Ledger.Hashes (SafeToHash (..))
 import Cardano.Ledger.Binary (Annotator, DecCBOR (..), EncCBOR (encCBOR), decodeFullAnnotator, toBuilder)
 import Cardano.Ledger.Credential (ptrCertIx, ptrSlotNo, ptrTxIx)
 import Cardano.Ledger.Slot (EpochSize)
--- import Codec.Serialise (deserialiseOrFail, serialise)
 import Control.Applicative ((<|>))
 import Control.DeepSeq (NFData)
 import Control.Monad (guard, join, when, (<=<), (>=>))
 import Data.Aeson (
   FromJSON (..),
   FromJSONKey (..),
-  FromJSONKeyFunction (FromJSONKeyText, FromJSONKeyTextParser),
+  FromJSONKeyFunction (FromJSONKeyTextParser),
   ToJSON,
   ToJSONKey,
   toJSON,
   (.:),
-  (.=),
+  (.=), (.:?), toJSONKey,
  )
 import qualified Data.Aeson as A
 import qualified Data.Aeson as Aeson
@@ -481,10 +480,26 @@ data TransactionOutput = TransactionOutput
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Binary, Variations)
 
--- | A script datum that is used to spend the output of a script tx.
+instance ToJSON TransactionOutput where
+  toJSON (TransactionOutput {..}) = A.object
+    [ "address" .= address
+    , "assets" .= assets
+    , "datumHash" .= datumHash
+    , "datum" .= datum
+    ]
+
+instance FromJSON TransactionOutput where
+  parseJSON = A.withObject "TransactionOutput" $ \o -> do
+    address <- o .: "address"
+    assets <- o .: "assets"
+    datumHash <- o .:? "datumHash"
+    datum <- o .:? "datum"
+    pure TransactionOutput {..}
+
+-- | A script datum that is used to spend the output of a script.
 newtype Redeemer = Redeemer {unRedeemer :: Datum}
   deriving stock (Show, Eq, Ord, Generic)
-  deriving newtype (Binary, Variations)
+  deriving newtype (Binary, ToJSON, Variations)
 
 -- | A datum as a sum-of-products.
 data Datum
@@ -588,7 +603,20 @@ data Assets = Assets
   -- ^ Additional tokens sent by the tx output.
   }
   deriving stock (Show, Eq, Generic)
-  deriving anyclass (Binary, ToJSON, Variations)
+  deriving anyclass (Binary, Variations)
+
+instance ToJSON Assets where
+  toJSON (Assets ada tokens) =
+    A.object
+      [ "lovelace" .= ada
+      , "tokens" .= tokens
+      ]
+
+instance FromJSON Assets where
+  parseJSON = A.withObject "Assets" $ \o -> do
+    ada <- o .: "lovelace"
+    tokens <- o .: "tokens"
+    pure Assets{..}
 
 -- | Let's make the instance explicit so we can assume "some" semantics.
 instance Ord Assets where
@@ -611,7 +639,7 @@ instance Group Assets where
 -- More advanced ledger invariants (min ADA) are not checked here.
 newtype TxOutAssets = TxOutAssets {unTxOutAssets :: Assets}
   deriving stock (Show, Eq, Ord, Generic)
-  deriving newtype (Binary, ToJSON, Variations)
+  deriving newtype (Binary, FromJSON, ToJSON, Variations)
 
 instance Semigroup TxOutAssets where
   (TxOutAssets a1) <> (TxOutAssets a2) = TxOutAssets $ a1 <> a2
@@ -648,7 +676,25 @@ subtractTxOutAssetsRounding (TxOutAssets a1) (TxOutAssets a2) = do
 -- | A collection of token quantities by their asset ID.
 newtype Tokens = Tokens {unTokens :: Map AssetId Quantity}
   deriving stock (Show, Eq, Ord, Generic)
-  deriving newtype (Binary, ToJSON, Variations)
+  deriving newtype (Binary, Variations)
+
+instance ToJSON Tokens where
+  toJSON (Tokens m) = do
+    let
+      encodePair (assetId, quantity) = (Key.fromText (assetIdToText assetId), toJSON quantity)
+    A.object . fmap encodePair $ Map.toList m
+
+instance FromJSON Tokens where
+  parseJSON = A.withObject "Tokens" $ \o -> do
+    let
+      decodePair (key, value) = do
+        assetId <- case assetIdFromText key of
+          Right assetId -> pure assetId
+          Left err -> fail $ "Failed to parse assetId: " <> T.unpack err
+        quantity <- parseJSON value
+        pure (assetId, quantity)
+    m <- for (Map.toList . KeyMap.toMapText $ o) decodePair
+    pure $ Tokens $ Map.fromList m
 
 instance Semigroup Tokens where
   (<>) = fmap Tokens . on (Map.unionWith (<>)) unTokens
@@ -765,7 +811,46 @@ data AssetId = AssetId
   , tokenName :: TokenName
   }
   deriving stock (Show, Eq, Ord, Generic)
-  deriving anyclass (Binary, ToJSON, ToJSONKey, FromJSON, Variations, Hashable)
+  deriving anyclass (Binary, Variations, Hashable)
+
+instance ToJSON AssetId where
+  toJSON (AssetId policyId tokenName) =
+    A.object
+      [ "policyId" .= policyId
+      , "tokenName" .= tokenName
+      ]
+
+instance FromJSON AssetId where
+  parseJSON = A.withObject "AssetId" $ \o -> do
+    policyId <- o .: "policyId"
+    tokenName <- o .: "tokenName"
+    pure AssetId{..}
+
+assetIdToText :: AssetId -> Text
+assetIdToText (AssetId (PolicyId policyId) (TokenName tokenName)) =
+  mconcat
+    [ extractBase16 . encodeBase16 $ policyId
+    , "."
+    , extractBase16 . encodeBase16 $ tokenName
+    ]
+
+assetIdFromText :: Text -> Either Text AssetId
+assetIdFromText t = case T.splitOn "." t of
+  [policyId, tokenName] -> do
+    let
+      decodeBytes errMsg = either (const $ Left errMsg) Right . decodeBase16Untyped . encodeUtf8
+    policyIdBytes <- decodeBytes "Invalid PolicyId" policyId
+    tokenNameBytes <- decodeBytes "Invalid TokenName" tokenName
+    Right $ AssetId (PolicyId policyIdBytes) (TokenName tokenNameBytes)
+  _ -> Left $ "Invalid AssetId: " <> t
+
+instance ToJSONKey AssetId where
+  toJSONKey = toJSONKeyText assetIdToText
+
+instance FromJSONKey AssetId where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case assetIdFromText t of
+    Right assetId -> pure assetId
+    Left errMsg -> fail $ T.unpack errMsg
 
 newtype PolicyId = PolicyId {unPolicyId :: ByteString}
   deriving stock (Eq, Ord, Generic)
@@ -775,22 +860,11 @@ newtype PolicyId = PolicyId {unPolicyId :: ByteString}
 newtype TokenName = TokenName {unTokenName :: ByteString}
   deriving stock (Eq, Ord, Generic)
   deriving newtype (Show, IsString, Binary, Variations, Hashable)
-
-instance ToJSONKey TokenName where
-  toJSONKey = toJSONKeyText $ T.pack . BSC.unpack . unTokenName
-
-instance ToJSON TokenName where
-  toJSON = Aeson.String . T.pack . BSC.unpack . unTokenName
-
-instance FromJSON TokenName where
-  parseJSON = Aeson.withText "TokenName" (pure . TokenName . BSC.pack . T.unpack)
-
-instance FromJSONKey TokenName where
-  fromJSONKey = FromJSONKeyText (TokenName . BSC.pack . T.unpack)
+  deriving (FromJSON, FromJSONKey, ToJSON, ToJSONKey) via Base16
 
 newtype Quantity = Quantity {unQuantity :: Integer}
   deriving stock (Show, Eq, Ord, Generic)
-  deriving newtype (Binary, ToJSON, Variations)
+  deriving newtype (Binary, FromJSON, ToJSON, Variations)
 
 instance Semigroup Quantity where
   (Quantity q1) <> (Quantity q2) = Quantity $ q1 + q2
@@ -803,7 +877,7 @@ instance Group Quantity where
 
 newtype Lovelace = Lovelace {unLovelace :: Integer}
   deriving stock (Show, Eq, Ord, Generic)
-  deriving newtype (Binary, ToJSON, Variations)
+  deriving newtype (Binary, FromJSON, ToJSON, Variations)
 
 instance Semigroup Lovelace where
   (Lovelace l1) <> (Lovelace l2) = Lovelace $ l1 + l2
@@ -895,6 +969,31 @@ newtype ScriptHash = ScriptHash {unScriptHash :: ByteString}
   deriving newtype (Hashable)
   deriving (IsString, Show, FromJSON, FromJSONKey, ToJSON, ToJSONKey) via Base16
   deriving anyclass (Binary, Variations)
+
+-- | Part of the public API of 'Language.Marlowe.Runtime.Core.ScriptRegistry'.
+-- 'NetworkId' encodes as @\"mainnet\"@ or @\"testnet/<networkMagic>\"@.
+instance ToJSON Cardano.NetworkId where
+  toJSON = \case
+    Cardano.Mainnet -> Aeson.String "mainnet"
+    Cardano.Testnet (Cardano.NetworkMagic n) ->
+      Aeson.String $ "testnet/" <> T.pack (show (toInteger n))
+
+-- | Part of the public API of 'Language.Marlowe.Runtime.Core.ScriptRegistry'.
+instance FromJSON Cardano.NetworkId where
+  parseJSON = Aeson.withText "NetworkId" $ \t -> case T.splitOn "/" (T.toLower t) of
+    ["mainnet"] -> pure Cardano.Mainnet
+    ["testnet", m] -> case reads (T.unpack m) :: [(Int, String)] of
+      [(n, "")] -> pure $ Cardano.Testnet $ Cardano.NetworkMagic (toEnum n)
+      _ -> fail $ "Invalid NetworkId: " <> T.unpack t
+    _ -> fail $ "Invalid NetworkId: " <> T.unpack t
+
+-- | Part of the public API of 'Language.Marlowe.Runtime.Core.ScriptRegistry'.
+instance Ord Cardano.NetworkId where
+  compare Cardano.Mainnet Cardano.Mainnet = EQ
+  compare Cardano.Mainnet _ = LT
+  compare _ Cardano.Mainnet = GT
+  compare (Cardano.Testnet (Cardano.NetworkMagic a)) (Cardano.Testnet (Cardano.NetworkMagic b)) =
+    compare a b
 
 policyIdToScriptHash :: PolicyId -> ScriptHash
 policyIdToScriptHash (PolicyId h) = ScriptHash h

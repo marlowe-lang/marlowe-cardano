@@ -12,7 +12,7 @@
 
 module Language.Marlowe.CLI.Test.Contract.Source where
 
-import Contrib.Data.Foldable (foldMapMFlipped)
+import Marlowe.Contrib.Foldable (foldMapMFlipped)
 import Control.Monad (void)
 import Control.Monad.Except (MonadError, throwError)
 import Data.Aeson (FromJSON (..), ToJSON (..), (.=))

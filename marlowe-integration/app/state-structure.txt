@@ -1,0 +1,39 @@
+
+    , pwcScriptHash = ScriptHash \\\"ce4224dc3f8be6e591de19a655d8d9d7884013475ac5f548b1e63fe1\\\", pwcArgs = ScriptContext {scriptContextTxInfo = TxInfo {txInfoInputs = [TxInInfo {txInInfoOutRef = TxOutRef {txOutRefId = e7df7d0b6e21fe500714810206f533aa4e65abe74427eea56361c45be8898c0d, txOutRefIdx = 0}, txInInfoResolved = TxOut {txOutAddress = Address {addressCredential = PubKeyCredential 3de5465c2947966b70ad3c2267dddf837fc737f9a01c4d5db5418e4e, addressStakingCredential = Nothing}, txOutValue = Value {getValue = Map {unMap = [(,Map {unMap = [(0x,14991019898670409)]})]}}, txOutDatum = NoOutputDatum, txOutReferenceScript = Nothing}}], txInfoReferenceInputs = [TxInInfo {txInInfoOutRef = TxOutRef {txOutRefId = 3ff344fadac7af1516e8175b483ea2d85121f2a2cd3a28b4ad3ea5d70099b83f, txOutRefIdx = 1}, txInInfoResolved = TxOut {txOutAddress = Address {addressCredential = PubKeyCredential e86ef0b8a18b71f15a97ef44df6f515aa1331416abd7924f8c189a67, addressStakingCredential = Nothing}, txOutValue = Value {getValue = Map {unMap = [(,Map {unMap = [(0x,55633480)]})]}}, txOutDatum = NoOutputDatum, txOutReferenceScript = Just ce4224dc3f8be6e591de19a655d8d9d7884013475ac5f548b1e63fe1}}], txInfoOutputs = [TxOut {txOutAddress = Address {addressCredential = PubKeyCredential 3de5465c2947966b70ad3c2267dddf837fc737f9a01c4d5db5418e4e, addressStakingCredential = Nothing}, txOutValue = Value {getValue = Map {unMap = [(,Map {unMap = [(0x,14991019897368789)]})]}}, txOutDatum = NoOutputDatum, txOutReferenceScript = Nothing},TxOut {txOutAddress = Address {addressCredential = ScriptCredential ce4224dc3f8be6e591de19a655d8d9d7884013475ac5f548b1e63fe1, addressStakingCredential = Nothing}, txOutValue = Value {getValue = Map {unMap = [(,Map {unMap = [(0x,1301620)]}),(ce4224dc3f8be6e591de19a655d8d9d7884013475ac5f548b1e63fe1,Map {unMap = [(0x3b9c8c916a869c19e573e64f79d1573e3deaead92a3888bbcccd1410549b2df1,1)]})]}}, txOutDatum = OutputDatumHash 2670428f2194f310c2daeb9079563f8a9294200d8d82cad715af3a90293ecdc7, txOutReferenceScript = Nothing},TxOut {txOutAddress = Address {addressCredential = PubKeyCredential 3de5465c2947966b70ad3c2267dddf837fc737f9a01c4d5db5418e4e, addressStakingCredential = Nothing}, txOutValue = Value {getValue = Map {unMap = [(,Map {unMap = [(0x,0)]})]}}, txOutDatum = NoOutputDatum, txOutReferenceScript = Nothing}], txInfoFee = 0, txInfoMint = UnsafeMintValue {unMintValue = Map {unMap = [(ce4224dc3f8be6e591de19a655d8d9d7884013475ac5f548b1e63fe1,Map {unMap = [(0x3b9c8c916a869c19e573e64f79d1573e3deaead92a3888bbcccd1410549b2df1,1)]})]}}, txInfoTxCerts = [], txInfoWdrl = Map {unMap = []}, txInfoValidRange = Interval {ivFrom = LowerBound NegInf True, ivTo = UpperBound PosInf True}, txInfoSignatories = [], txInfoRedeemers = Map {unMap = [(Minting ce4224dc3f8be6e591de19a655d8d9d7884013475ac5f548b1e63fe1,Redeemer {getRedeemer = Constr 0 [B \\\"\\\\231\\\\223}\\\\vn!\\\\254P\\\\a\\\\DC4\\\\129\\\\STX\\\\ACK\\\\245\\\\&3\\\\170Ne\\\\171\\\\231D'\\\\238\\\\165ca\\\\196[\\\\232\\\\137\\\\140\\\\r\\\",I 0]})]}
+    , txInfoData = Map
+      { unMap =
+        [ ( 2670428f2194f310c2daeb9079563f8a9294200d8d82cad715af3a90293ecdc7
+          , Datum
+            { getDatum =
+              Constr 0
+              [ Constr 0 [B \\\"\\\"]
+              , Constr 0
+                [ Map
+                  [ ( Constr 0
+                      [ Constr 0
+                        [ Constr 0 []
+                        , Constr 0
+                          [ Constr 0 [B \\\"=\\\\229F\\\\\\\\.G\\\\150kp\\\\173<\\\\\\\"g\\\\221\\\\223\\\\131\\\\DEL\\\\199\\\\&7\\\\249\\\\160\\\\FSM.\\\\181A\\\\142N\\\"]
+                          , Constr 1 []
+                          ]
+                        ]
+                      , Constr 0 [B \\\"\\\",B \\\"\\\"]
+                      ]
+                    , I 1301620
+                    )
+                  ]
+                , Map []
+                , Map []
+                , I 0
+                ]
+              , Constr 3
+                [ List []
+                , I 1787857580113
+                , Constr 0 []
+                ]
+              ]
+            }
+          )
+        ]
+      }
+    , txInfoId = 41837d841c70c3a85ecac8438d3964b50c7608d2d3e7faace6a5191863c589a1, txInfoVotes = Map {unMap = []}, txInfoProposalProcedures = [], txInfoCurrentTreasuryAmount = Nothing, txInfoTreasuryDonation = Nothing}, scriptContextRedeemer = Redeemer {getRedeemer = Constr 0 [B \\\"\\\\231\\\\223}\\\\vn!\\\\254P\\\\a\\\\DC4\\\\129\\\\STX\\\\ACK\\\\245\\\\&3\\\\170Ne\\\\171\\\\231D'\\\\238\\\\165ca\\\\196[\\\\232\\\\137\\\\140\\\\r\\\",I 0]}, scriptContextScriptInfo = MintingScript ce4224dc3f8be6e591de19a655d8d9d7884013475ac5f548b1e63fe1}, pwcExUnits = WrapExUnits {unWrapExUnits = ExUnits' {exUnitsMem' = 14000000, exUnitsSteps' = 10000000000}}, pwcCostModel = CostModel PlutusV3 [100788,420,1,1,1000,173,0,1,1000,59957,4,1,11183,32,201305,8356,4,16000,100,16000,100,16000,100,16000,100,16000,100,16000,100,100,100,16000,100,94375,32,132994,32,61462,4,72010,178,0,1,22151,32,91189,769,4,2,85848,123203,7305,-900,1716,549,57,85848,0,1,1,1000,42921,4,2,24548,29498,38,1,898148,27279,1,51775,558,1,39184,1000,60594,1,141895,32,83150,32,15299,32,76049,1,13169,4,22100,10,28999,74,1,28999,74,1,43285,552,1,44749,541,1,33852,32,68246,32,72362,32,7243,32,7391,32,11546,32,85848,123203,7305,-900,1716,549,57,85848,0,1,90434,519,0,1,74433,32,85848,123203,7305,-900,1716,549,57,85848,0,1,1,85848,123203,7305,-900,1716,549,57,85848,0,1,955506,213312,0,2,270652,22588,4,1457325,64566,4,20467,1,4,0,141992,32,100788,420,1,1,81663,32,59498,32,20142,32,24588,32,20744,32,25933,32,24623,32,43053543,10,53384111,14333,10,43574283,26308,10,16000,100,16000,100,962335,18,2780678,6,442008,1,52538055,3756,18,267929,18,76433006,8868,18,52948122,18,1995836,36,3227919,12,901022,1,166917843,4307,36,284546,36,158221314,26549,36,74698472,36,333849714,1,254006273,72,2174038,72,2261318,64571,4,207616,8310,4,1293828,28716,63,0,1,1006041,43623,251,0,1]}, dpfExecutionUnits = WrapExUnits {unWrapExUnits = ExUnits' {exUnitsMem' = 0, exUnitsSteps' = 0}}, dpfExecutionLogs = [\\\"3.1\\\",\\\"PT5\\\"]}))]\""

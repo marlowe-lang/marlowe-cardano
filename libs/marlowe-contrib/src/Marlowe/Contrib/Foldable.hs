@@ -1,4 +1,4 @@
-module Contrib.Data.Foldable where
+module Marlowe.Contrib.Foldable where
 
 import Data.Foldable (foldlM, foldrM)
 import Data.Foldable.WithIndex (FoldableWithIndex, ifoldlM)

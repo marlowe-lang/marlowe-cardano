@@ -29,7 +29,7 @@ import Cardano.Api qualified as CS
 import Contrib.Cardano.Api (ledgerProtVerToPlutusMajorProtocolVersion, lovelaceFromInt, lovelaceToInt, lppPParamsL)
 import Contrib.Control.Exception (liftEitherIO)
 import Contrib.Control.Monad.Trans.State.IO (unsafeExecIOStateT)
-import Contrib.Data.Foldable (foldMapFlipped)
+import Marlowe.Contrib.Foldable (foldMapFlipped)
 import Contrib.UnliftIO.Async.Pool qualified as UnliftIO
 import Contrib.UnliftIO.Control.Concurrent (threadDelayBy)
 import Control.Concurrent.STM (

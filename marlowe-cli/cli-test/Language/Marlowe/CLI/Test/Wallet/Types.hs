@@ -26,7 +26,7 @@ import Cardano.Api (
   UTxO (UTxO),
  )
 import Cardano.Api qualified as C
-import Contrib.Data.Foldable (foldMapFlipped)
+import Marlowe.Contrib.Foldable (foldMapFlipped)
 import Control.Lens (Lens', makeLenses)
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO)

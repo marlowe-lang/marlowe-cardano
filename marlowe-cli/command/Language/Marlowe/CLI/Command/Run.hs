@@ -29,12 +29,14 @@ import Cardano.Api (
   StakeAddressReference (..),
   TxIn,
  )
-import Control.Monad.Except (MonadError)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (asum)
 import Data.Maybe (fromMaybe)
 import Language.Marlowe.CLI.Analyze (analyze)
 import Language.Marlowe.CLI.Command.Parse (
+  ScriptFilesOptions,
+  loadMarloweScripts,
   parseAddress,
   parseCurrencySymbol,
   parseInput,
@@ -47,6 +49,7 @@ import Language.Marlowe.CLI.Command.Parse (
   parseTxOut,
   publishingStrategyOpt,
   requiredSignersOpt,
+  scriptsFilesOptions,
   outTxFileOpt,
  )
 import Language.Marlowe.CLI.Run (
@@ -57,13 +60,13 @@ import Language.Marlowe.CLI.Run (
   runTransaction,
   withdrawFunds,
  )
+import Language.Marlowe.CLI.Scripts (mkMarloweScriptsInfo)
 import Language.Marlowe.CLI.Transaction (querySlotConfig)
 import Language.Marlowe.CLI.Types (
   CliEnv,
-  CliError,
+  CliError (..),
   PrintStats (PrintStats),
   PublishingStrategy,
-  QueryExecutionContext (..),
   SigningKeyFile,
   TxFile,
  )
@@ -74,7 +77,6 @@ import Cardano.Api qualified as Api (Value)
 import Cardano.Api qualified as C
 import Control.Monad.Reader (MonadReader)
 import Data.Time.Units (Second)
-import Language.Marlowe.CLI.IO (getMajorProtocolVersion, getPV2CostModelParams)
 import Options.Applicative qualified as O
 
 defaultMarloweParams :: MarloweParams
@@ -106,6 +108,8 @@ data RunCommand era
       -- ^ Whether to deeply merkleize the contract.
       , printStats :: Bool
       -- ^ Whether to print statistics about the contract.
+      , scriptFiles :: ScriptFilesOptions
+      -- ^ Paths to Marlowe Plutus scripts.
       }
   | -- | Prepare a Marlowe transaction for execution.
     Prepare
@@ -285,23 +289,21 @@ runRunCommand command =
                 , localNodeNetworkId = network'
                 , localNodeSocketPath = File socketPath
                 }
-        costModel <- getPV2CostModelParams (QueryNode connection)
         slotConfig <- querySlotConfig connection
-        protocolVersion <- getMajorProtocolVersion (QueryNode connection)
-        initializeTransaction
-          connection
-          marloweParams'
-          slotConfig
-          protocolVersion
-          costModel
-          network'
-          stake'
-          contractFile
-          stateFile
-          strategy
-          outputFile
-          merkleize
-          printStats
+        loadedScripts <- liftIO $ loadMarloweScripts scriptFiles
+        case loadedScripts of
+          Left err -> throwError err
+          Right scripts ->
+            initializeTransaction
+              (mkMarloweScriptsInfo network' stake' scripts)
+              marloweParams'
+              slotConfig
+              stake'
+              contractFile
+              stateFile
+              outputFile
+              merkleize
+              printStats
       Prepare{..} ->
         prepareTransaction
           marloweInFile
@@ -481,6 +483,7 @@ initializeOptions era network socket =
     <*> O.switch
       ( O.long "print-stats" <> O.help "Print statistics."
       )
+    <*> scriptsFilesOptions
 
 -- | Parser for the "prepare" command.
 prepareCommand :: O.Mod O.CommandFields (RunCommand era)

@@ -419,13 +419,13 @@ const initBetContract = (opts: {
   );
   return toAsync(marloweRuntimeCli.runInit(contract, faucet.addr, {}, null, true))
     .andThen((response: PostCreateContractResponse) =>
-      cardanoCli.signTxEnvelope(faucet.skeyFile, response.tx).map(signed => ({
+      cardanoCli.signTxEnvelope(faucet.skeyFile, response.tx, true).map(signed => ({
         contractId: response.contractId,
         txEnvelope: signed,
       })),
     )
     .andThen(({ contractId, txEnvelope }) =>
-      cardanoCli.submitTxEnvelope(txEnvelope).map(() => contractId),
+      cardanoCli.submitTxEnvelope(txEnvelope, true).map(() => contractId),
     )
     .andThen(contractId =>
       // Wait for the runtime to see our init tx and report party1's
@@ -441,7 +441,7 @@ export const applyDeposit = (opts: {
   contractId: ContractId;
   party: Wallet;
   amount: bigint;
-  nextParty: Wallet;
+  nextParty: { wallet: Wallet, kind: 'deposit' | 'choice' };
   logLabel: string;
 }): ResultAsync<ContractId, unknown> => {
   const { contractId, party, amount, nextParty, logLabel } = opts;
@@ -450,16 +450,16 @@ export const applyDeposit = (opts: {
     marloweRuntimeCli.runApplyInputs([input], contractId, party.addr, {}, null, true),
   )
     .andThen((response: ApplyInputsResponse) =>
-      cardanoCli.signTxEnvelope(party.skeyFile, response.tx).map(signed => ({
+      cardanoCli.signTxEnvelope(party.skeyFile, response.tx, true).map(signed => ({
         contractId: response.contractId,
         txEnvelope: signed,
       })),
     )
-    .andThen(({ txEnvelope }) => cardanoCli.submitTxEnvelope(txEnvelope).map(() => contractId))
+    .andThen(({ txEnvelope }) => cardanoCli.submitTxEnvelope(txEnvelope, true).map(() => contractId))
     .andThen(contractIdAfter =>
       // Wait for the runtime to catch up and report `nextParty`'s input as
       // applicable before returning.
-      waitForNext({ contractId: contractIdAfter, party: nextParty, kind: 'deposit', logLabel })
+      waitForNext({ contractId: contractIdAfter, party: nextParty.wallet, kind: nextParty.kind, logLabel })
         .map(() => contractIdAfter),
     );
 };
@@ -477,12 +477,12 @@ export const applyChoice = (opts: {
     marloweRuntimeCli.runApplyInputs([input], contractId, party.addr, {}, null, true),
   )
     .andThen((response: ApplyInputsResponse) =>
-      cardanoCli.signTxEnvelope(party.skeyFile, response.tx).map(signed => ({
+      cardanoCli.signTxEnvelope(party.skeyFile, response.tx, true).map(signed => ({
         contractId: response.contractId,
         txEnvelope: signed,
       })),
     )
-    .andThen(({ txEnvelope }) => cardanoCli.submitTxEnvelope(txEnvelope).map(() => contractId))
+    .andThen(({ txEnvelope }) => cardanoCli.submitTxEnvelope(txEnvelope, true).map(() => contractId))
     .andThen(contractIdAfter =>
       waitPatientlyForResultAsync(
         () => toAsync(marloweRuntimeCli.runGet(contractIdAfter, {}, null, true)),
@@ -521,7 +521,7 @@ export const run = async (opts: RunOpts): Promise<void> => {
         contractId,
         party: party1,
         amount,
-        nextParty: party2,
+        nextParty: { wallet: party2, kind: 'deposit' },
         logLabel: 'after-party1-deposit',
       }).map(() => contractId),
     )
@@ -530,7 +530,7 @@ export const run = async (opts: RunOpts): Promise<void> => {
         contractId,
         party: party2,
         amount,
-        nextParty: oracle,
+        nextParty: { wallet: oracle, kind: 'choice' },
         logLabel: 'after-party2-deposit',
       }).map(() => contractId),
     )

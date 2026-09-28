@@ -31,11 +31,14 @@ packages:
   libs/cardano-debug
   libs/log-base-inlined
   libs/hasql-dynamic-syntax
+  libs/marlowe-contrib
   libs/multiplate
   libs/plutus-ledger-ada
   libs/plutus-ledger-slot
   libs/variations
   -- libs/sqlite-simple
+
+multi-repl: True
 
 tests: True
 

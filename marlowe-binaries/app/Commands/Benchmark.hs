@@ -25,6 +25,7 @@ import Marlowe.Plutus.Binaries.Api.Benchmark
       generateBenchmarks,
       EvaluationError(..), scenarioId2Hex )
 import Marlowe.Plutus.Binaries.Api.Compile ( ScriptOutput(..), ScriptsSuite(ScriptsSuite, marloweSemantics, marloweRolePayout) )
+import Marlowe.Contrib.OptParse.MessageFormat (MessageFormat (..), messageFormatParser)
 import Options.Applicative
   ( Parser
   , ParserInfo
@@ -48,15 +49,6 @@ import Paths_marlowe_binaries (getDataDir)
 import System.Exit (die)
 import System.FilePath ((</>))
 import qualified Data.Aeson.Encode.Pretty as A
-
-data MessageFormat = MessageFormatText | MessageFormatJson | MessageFormatYaml
-  deriving (Eq)
-
-instance Show MessageFormat where
-  show = \case
-    MessageFormatText -> "text"
-    MessageFormatJson -> "json"
-    MessageFormatYaml -> "yaml"
 
 benchmarkCommandParser :: ParserInfo (IO ())
 benchmarkCommandParser =
@@ -226,20 +218,3 @@ scriptFileOption name description =
         <> metavar "FILE"
         <> help description
     )
-
-messageFormatParser :: Parser MessageFormat
-messageFormatParser =
-  option readMessageFormat
-    ( long "message-format"
-        <> metavar "text|json|yaml"
-        <> value MessageFormatText
-        <> showDefault
-        <> help "Format of command output."
-    )
-
-readMessageFormat :: ReadM MessageFormat
-readMessageFormat = eitherReader $ \case
-  "text" -> Right MessageFormatText
-  "json" -> Right MessageFormatJson
-  "yaml" -> Right MessageFormatYaml
-  other -> Left $ "Unknown message format: " <> other <> ". Expected one of: text, json, yaml."

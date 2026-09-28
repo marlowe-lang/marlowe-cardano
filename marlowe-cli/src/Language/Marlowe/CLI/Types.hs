@@ -7,6 +7,7 @@
 -- Portability :  Portable
 --
 -----------------------------------------------------------------------------
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StrictData #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
@@ -30,9 +31,11 @@ module Language.Marlowe.CLI.Types (
   ValidatorInfo (..),
 
   -- * eUTxOs
-  AUTxO (..),
+  TransactionAUTxO.AUTxO (..),
   PayFromScript (..),
   PayToScript (..),
+  -- (AUTxO and its helpers are re-exported from
+  -- `Language.Marlowe.Runtime.Cardano.AUTxO`.)
 
   -- * Minting
   CurrencyIssuer (..),
@@ -58,7 +61,6 @@ module Language.Marlowe.CLI.Types (
   PublishingStrategy (..),
 
   -- * Helpers
-  MessageFormat(..),
   PrintStats (..),
   SigningKeyFile (..),
   TxBodyFile (..),
@@ -79,7 +81,7 @@ module Language.Marlowe.CLI.Types (
   txWitnessSigningKeyToSomePaymentSigningKey,
 
   -- * accessors and converters
-  aUTxOValue,
+  TransactionAUTxO.aUTxOValue,
   getVerificationKey,
   queryContextNetworkId,
   toQueryContext,
@@ -87,7 +89,7 @@ module Language.Marlowe.CLI.Types (
   toMarloweExtendedTimeout,
   toPaymentVerificationKey,
   toMarloweTimeout,
-  toUTxO,
+  TransactionAUTxO.toUTxO,
   toSlotRoundedMarloweTimeout,
   toSlotRoundedPlutusPOSIXTime,
   validatorInfoScriptOrReference,
@@ -95,11 +97,12 @@ module Language.Marlowe.CLI.Types (
   -- * constructors and defaults
   defaultCoinSelectionStrategy,
   mkNodeTxBuildup,
-  fromUTxO,
+  TransactionAUTxO.fromUTxO,
   validatorAddress,
   validatorInfo,
   validatorInfo',
 ) where
+
 
 import Cardano.Api (
   AddressAny,
@@ -145,7 +148,7 @@ import Control.Monad.Reader.Class (MonadReader (..), asks)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value, object, withObject, (.:), (.:?), (.=))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.KeyMap qualified as KeyMap
-import Data.Aeson.Text qualified as A
+import qualified Data.Aeson.Text as Aeson (encodeToLazyText)
 import Data.Bifunctor qualified as Bifunctor
 import Data.ByteString.Lazy qualified as LBS (fromStrict)
 import Data.ByteString.Short (ShortByteString)
@@ -175,6 +178,7 @@ import PlutusLedgerApi.V1 qualified as P
 import PlutusLedgerApi.V3 qualified as PV3
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as A
+import qualified Language.Marlowe.Runtime.Cardano.AUTxO as TransactionAUTxO
 
 -- | Exception for Marlowe CLI.
 newtype CliError = CliError {unCliError :: String}
@@ -348,7 +352,7 @@ instance (C.IsPlutusScriptLanguage lang, IsShelleyBasedEra era) => ToJSON (Marlo
       , "slotConfig" .= toJSON mtSlotConfig
       ]
 
-instance (IsScriptLanguage lang, IsShelleyBasedEra era) => FromJSON (MarloweTransaction lang era) where
+instance (C.IsPlutusScriptLanguage lang, IsShelleyBasedEra era) => FromJSON (MarloweTransaction lang era) where
   parseJSON =
     withObject "MarloweTransaction" $
       \o ->
@@ -385,7 +389,7 @@ instance (C.IsPlutusScriptLanguage lang, IsShelleyBasedEra era) => ToJSON (Marlo
       , "redeemer" .= toJSON miRedeemerInfo
       ]
 
-instance (IsScriptLanguage lang, IsShelleyBasedEra era) => FromJSON (MarloweInfo lang era) where
+instance (C.IsPlutusScriptLanguage lang, IsShelleyBasedEra era) => FromJSON (MarloweInfo lang era) where
   parseJSON =
     withObject "MarloweInfo" $
       \o ->
@@ -397,21 +401,39 @@ instance (IsScriptLanguage lang, IsShelleyBasedEra era) => FromJSON (MarloweInfo
 
 -- | Information about Marlowe validator.
 
--- TODO: Turn this into GADT and introduce two cases - ref and non ref.
+-- FIXME [review]: It seems that script vs bytes are redundant below.
+-- Additionally the comments are not ideal (the network indicates where the
+-- script was published and not were it "was observed" etc.).
+--
+-- OLD TODO: Turn this into GADT and introduce two cases - ref and non ref.
 -- Non ref should skip `txIn` and ref should change Address into enterprise one.
 --
--- 'viScriptDetails' is the core script information (bytes, hash, on-chain
--- UTxOs). 'viStakeCredential' is the per-execution stake credential that
--- lives on-chain (it is not derivable from the script hash). 'networkId' is
--- cached so we can compute the script address on demand.
+-- 'viScript' and 'viHash' identify the underlying Plutus script.
+-- 'viBytes' is the serialised form of @viScript@ (cached for convenience
+-- so we don't need to deserialise just to compute sizes). 'viTxIn' is
+-- the reference input that should be used to attach the validator to a
+-- transaction. 'viNetworkId' is the network in which the validator was
+-- observed and is used when building addresses. 'viStakeCredential' is
+-- the per-execution stake credential that lives on-chain (it is not
+-- derivable from the script hash).
 data ValidatorInfo lang era = ValidatorInfo
-  { viScriptDetails :: ScriptDetails lang era
+  { viScript :: PlutusScript lang
+  -- ^ The Plutus script.
   , viTxIn :: Maybe C.TxIn
   -- ^ Reference input to use. We don't want to use `PlutusScriptOrReferenceInput` here.
-  , viStakeCredential :: Maybe (C.StakeCredential, C.Network)
-  -- ^ Stake credential as seen on-chain (paired with the network in which
-  -- it was observed) and the network it was observed in. 'Nothing' means the
-  -- script was published without a stake reference.
+  , viBytes :: ShortByteString
+  -- ^ The serialisation of the validator (cached copy of @viScript@).
+  , viHash :: C.ScriptHash
+  -- ^ The script hash.
+  , viNetworkId :: C.NetworkId
+  -- ^ The network in which the validator was observed. Used when
+  -- building script addresses regardless of whether a stake credential
+  -- is attached.
+  , viStakeCredential :: Maybe C.StakeCredential
+  -- ^ Stake credential as seen on-chain. 'Nothing' means the script was
+  -- published without a stake reference (in that case the script
+  -- address built from 'viNetworkId' and 'viScript' has no staking
+  -- part).
   }
   deriving (Eq, Generic, Show)
 
@@ -448,11 +470,11 @@ validatorInfo
 validatorInfo viScript viTxIn era _protocolVersion _costModel network stake = do
   let C.PlutusScriptSerialised viBytes = viScript
       viHash = C.hashScript (C.PlutusScript C.plutusScriptVersion viScript)
-      viAddress = validatorAddress viScript era network stake
-      viSize = SBS.length viBytes
-
-  -- TODO: Fix execution cost calculation - old code was buggy (passed [] so script wasn't evaluated)
-  let viCost = PV3.ExBudget (PV3.ExCPU 0) (PV3.ExMemory 0)
+      viNetworkId = network
+      viStakeCredential = case stake of
+        C.NoStakeAddress -> Nothing
+        C.StakeAddressByValue cred -> Just cred
+        C.StakeAddressByPointer _ -> Nothing
   pure $ ValidatorInfo{..}
 
 validatorInfo'
@@ -473,40 +495,34 @@ validatorInfoScriptOrReference ValidatorInfo{..} = case viTxIn of
   Just txIn -> C.PReferenceScript txIn
   Nothing -> C.PScript viScript
 
+-- Public API format
 instance (C.IsPlutusScriptLanguage lang, IsShelleyBasedEra era) => ToJSON (ValidatorInfo lang era) where
-  toJSON ValidatorInfo{..} = do
+  toJSON ValidatorInfo{viHash, viScript, viTxIn} =
     object
-      [ "address" .= serialiseAddress viAddress
-      , "hash" .= toJSON viHash
+      [ "hash" .= toJSON viHash
       , "script"
-          .= toJSON (serialiseToTextEnvelope Nothing (PlutusScript (C.plutusScriptVersion :: PlutusScriptVersion lang) viScript))
-      , "size" .= toJSON viSize
+          .= toJSON
+            (serialiseToTextEnvelope Nothing (PlutusScript (C.plutusScriptVersion :: PlutusScriptVersion lang) viScript))
       , "txIn" .= toJSON viTxIn
-      , "cost" .= toJSON viCost
       ]
 
-instance (IsScriptLanguage lang, IsShelleyBasedEra era) => FromJSON (ValidatorInfo lang era) where
+-- Public API format
+instance (C.IsPlutusScriptLanguage lang, IsShelleyBasedEra era) => FromJSON (ValidatorInfo lang era) where
   parseJSON =
-    withObject "ValidatorInfo" $
-      \o ->
-        do
-          address <- o .: "address"
-          viHash <- o .: "hash"
-          script <- o .: "script"
-          viSize <- o .: "size"
-          viTxIn <- o .: "txIn"
-          viCost <- o .: "cost"
-          viAddress <- case deserialiseAddress (proxyToAsType (Proxy :: Proxy (AddressInEra era))) address of
-            Just address' -> pure address'
-            Nothing -> fail "Failed deserializing address."
-
-          anyScript <- case deserialiseFromTextEnvelope script of
-            Right script' -> pure script'
-            Left message -> fail $ show message
-          (viScript, viBytes) <- case anyScript of
-            PlutusScript _ plutusScript@(PlutusScriptSerialised viBytes) -> pure (plutusScript, viBytes)
-            _ -> fail "Expecting plutus script."
-          pure ValidatorInfo{..}
+    withObject "ValidatorInfo" $ \o -> do
+      viHash <- o .: "hash"
+      scriptEnvelope <- o .: "script"
+      viTxIn <- o .: "txIn"
+      viScript <- case deserialiseFromTextEnvelope scriptEnvelope of
+        Right s -> pure s
+        Left message -> fail $ show message
+      -- We don't have a FromJSON instance for C.NetworkId yet, so default
+      -- to mainnet on deserialisation. The CLI always carries the
+      -- networkId through the in-memory form.
+      let viNetworkId = C.Mainnet
+          C.PlutusScriptSerialised viBytes = viScript
+          viStakeCredential = Nothing
+      pure ValidatorInfo{..}
 
 -- | Information about Marlowe datum.
 data DatumInfo = DatumInfo
@@ -633,7 +649,7 @@ instance FromJSON SomeTimeout where
         errorMsg =
           "Expecting either relative timeout like +10s, -1h, +1d or just a timestamp"
             <> "or an object with a single field of either `absolute` or `relative` but got:"
-            <> TL.unpack (A.encodeToLazyText json)
+            <> TL.unpack (Aeson.encodeToLazyText json)
     case json of
       Aeson.Object (KeyMap.toList -> [("absolute", absoluteTimeout)]) -> do
         parsedTimeout <- parseJSON absoluteTimeout
@@ -685,21 +701,6 @@ data PublishingStrategy era
 
 newtype PrintStats = PrintStats {unPrintStats :: Bool}
 
-data MessageFormat = MessageFormatText | MessageFormatJson | MessageFormatYaml
-  deriving (Eq)
-
-instance Show MessageFormat where
-  show = \case
-    MessageFormatText -> "text"
-    MessageFormatJson -> "json"
-    MessageFormatYaml -> "yaml"
-
-instance A.ToJSON MessageFormat where
-  toJSON = A.String . \case
-    MessageFormatText -> "text"
-    MessageFormatJson -> "json"
-    MessageFormatYaml -> "yaml"
-
 newtype TxFile = TxFile {unTxFile :: FilePath}
 
 newtype TxBodyFile = TxBodyFile {unTxBodyFile :: FilePath}
@@ -709,18 +710,12 @@ newtype SigningKeyFile = SigningKeyFile {unSigningKeyFile :: FilePath}
   deriving anyclass (FromJSON, ToJSON)
 
 -- | A single UTxO. We preserve the `Tuple` structure for consistency with `UTxO`.
-newtype AUTxO era = AUTxO {unAUTxO :: (C.TxIn, C.TxOut C.CtxUTxO era)}
-  deriving stock (Eq, Generic, Show)
-  deriving anyclass (FromJSON, ToJSON)
-
-fromUTxO :: C.UTxO era -> [AUTxO era]
-fromUTxO (Map.toList . C.unUTxO -> items) = map AUTxO items
-
-toUTxO :: [AUTxO era] -> C.UTxO era
-toUTxO (map unAUTxO -> utxos) = C.UTxO . Map.fromList $ utxos
-
-aUTxOValue :: forall era. AUTxO era -> C.Value
-aUTxOValue (AUTxO (_, C.TxOut _ v _ _)) = C.txOutValueToValue v
+-- Re-exported from `Language.Marlowe.Runtime.Cardano.AUTxO` to keep backwards
+-- compatibility while the type migrates into `marlowe-transactions`.
+type AUTxO era = TransactionAUTxO.AUTxO era
+pattern AUTxO :: C.TxIn -> C.TxOut C.CtxUTxO era -> AUTxO era
+pattern AUTxO txIn txOut = TransactionAUTxO.AUTxO{TransactionAUTxO.unAUTxO = (txIn, txOut)}
+{-# COMPLETE AUTxO #-}
 
 data MarloweScriptsRefs lang era = MarloweScriptsRefs
   { mrMarloweValidator :: (AUTxO era, ValidatorInfo lang era)

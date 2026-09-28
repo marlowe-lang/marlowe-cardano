@@ -22,7 +22,7 @@ module Language.Marlowe.CLI.Test.Types where
 
 import Cardano.Api (AddressInEra, BabbageEraOnwards, IsCardanoEra, LocalNodeConnectInfo, NetworkId)
 import Cardano.Api qualified as C
-import Contrib.Data.Foldable (foldMapM)
+import Marlowe.Contrib.Foldable (foldMapM)
 import Contrib.Data.Time.Units.Aeson qualified as A
 import Control.Category ((<<<))
 import Control.Lens (makeLenses, view, (^.), _1, _2, _Just)

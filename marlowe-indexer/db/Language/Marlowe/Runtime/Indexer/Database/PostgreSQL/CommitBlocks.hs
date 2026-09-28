@@ -34,7 +34,7 @@ import Language.Marlowe.Runtime.Core.Api (
 import qualified Language.Marlowe.Runtime.Core.Api as Core
 import Language.Marlowe.Runtime.History.Api (
   CreateStep (..),
-  SomeCreateStep (..), MarloweCreateTransaction (..), MarloweApplyInputsTransaction (..), MarloweWithdrawTransaction (..), UnspentContractOutput (..),
+  SomeCreateStep (..), MarloweApplyInputsTransaction (..), MarloweWithdrawTransaction (..), UnspentContractOutput (..),
  )
 import Language.Marlowe.Runtime.Indexer.Party (ContractTxOutParty (ContractTxOutParty), commitParties)
 import Language.Marlowe.Runtime.Indexer.MarloweBlock

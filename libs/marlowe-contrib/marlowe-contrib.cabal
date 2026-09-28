@@ -1,0 +1,49 @@
+cabal-version: 3.4
+name:          marlowe-contrib
+version:       0.1.0.0
+synopsis:      Umbrella library for small shared helpers used across Marlowe packages.
+
+common lang
+  default-language:   Haskell2010
+  default-extensions:
+    BlockArguments
+    DeriveGeneric
+    DerivingStrategies
+    ImportQualifiedPost
+    LambdaCase
+    OverloadedStrings
+    ScopedTypeVariables
+
+  ghc-options:
+    -Wall -Wnoncanonical-monad-instances -Wunused-packages
+    -Wincomplete-uni-patterns -Wincomplete-record-updates
+    -Wredundant-constraints -Widentities
+
+library optparse
+  import:           lang
+  visibility:       public
+  hs-source-dirs:   src
+  default-language: Haskell2010
+  exposed-modules:
+    Marlowe.Contrib.OptParse.MessageFormat
+
+  build-depends:
+    , aeson
+    , aeson-pretty
+    , base >=4.9 && <5
+    , bytestring
+    , optparse-applicative
+    , text
+    , yaml
+
+library foldable-traversable
+  import:           lang
+  visibility:       public
+  hs-source-dirs:   src
+  default-language: Haskell2010
+  exposed-modules:
+    Marlowe.Contrib.Foldable
+
+  build-depends:
+    , base >=4.9 && <5
+    , indexed-traversable

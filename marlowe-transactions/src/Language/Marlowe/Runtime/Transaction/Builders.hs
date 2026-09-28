@@ -12,10 +12,10 @@ import qualified Cardano.Api as C
 import qualified PlutusLedgerApi.V2 as PV2
 import Log (MonadLog)
 import Language.Marlowe.Runtime.Transaction.BuildConstraints (MkRoleTokenMintingPolicy, MinAdaProvider (MinAdaProvider), initialMarloweState, invalidAddressesError, RolesPolicyId (RolesPolicyId), buildInitConstraints, buildApplyInputsConstraints)
-import Language.Marlowe.Runtime.Core.Api (MarloweVersion (MarloweV1), MarloweTransactionMetadata, IsMarloweVersion (Contract), ContractId (ContractId), decodeMarloweTransactionMetadataLenient, Inputs, TransactionInputs, TransactionScriptOutput (TransactionScriptOutput, datum), TransactionOutput (TransactionOutput, payouts, scriptOutput), Payout (Payout), fromChainPayoutDatum, ContractWithAdjacency (ContractWithAdjacency))
+import Language.Marlowe.Runtime.Core.Api (MarloweVersion (MarloweV1), MarloweTransactionMetadata, IsMarloweVersion (Contract), ContractId (ContractId), decodeMarloweTransactionMetadataLenient, Inputs, TransactionInputs, TransactionScriptOutput (TransactionScriptOutput, datum), TransactionOutput (TransactionOutput, payouts, scriptOutput), Payout (Payout), fromChainPayoutDatum, ContractWithAdjacency (ContractWithAdjacency), State)
 import qualified Language.Marlowe.Runtime.Core.Api as Contract
 import Language.Marlowe.Object.Types (ContractHash (ContractHash))
-import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts (MarloweScripts, marloweScript, payoutScript, marloweScriptUTxOs, payoutScriptUTxOs), ReferenceScriptUtxo)
+import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts (MarloweScripts, marloweScript, payoutScript), ScriptDetails (ScriptDetails, scriptHash, scriptUTxOs), ReferenceScriptUtxo)
 import Language.Marlowe.Runtime.Transaction.Constraints (SolveConstraints, WalletContext (changeAddress), HelpersContext (HelpersContext), MarloweContext (MarloweContext, scriptOutput, marloweAddress, payoutAddress, marloweScriptUTxO, payoutScriptUTxO, marloweScriptHash, payoutScriptHash))
 import qualified Language.Marlowe.Runtime.ChainSync.Api as Chain
 import Language.Marlowe.Runtime.Transaction.Api (RoleTokensConfig, Accounts, InitError(InitEraUnsupported, InitContractNotFound, ProtocolParamNoUTxOCostPerByte, InsufficientMinAdaDeposit, InitLoadMarloweContextFailed, InitToCardanoError, InitLoadHelpersContextFailed, InitSafetyAnalysisError, InitSafetyAnalysisFailed, InitConstraintError, InitTxOutputNotFound), ContractInitialized(ContractInitialized), LoadHelpersContextError, LoadMarloweContextError (MarloweScriptNotPublished, PayoutScriptNotPublished), unAccounts, ContractInitializedInEra (ContractInitializedInEra, contractId , rolesCurrency , metadata , txBody , marloweScriptHash , marloweScriptAddress , payoutScriptHash , payoutScriptAddress , version , datum , assets , safetyErrors), ApplyInputsError (ApplyInputsConstraintError, ApplyInputsEraUnsupported, ApplyInputsLoadHelpersContextFailed, ScriptOutputNotFound, ApplyInputsLoadMarloweContextFailed, ApplyInputsContractContinuationNotFound, ApplyInputsSafetyAnalysisError), InputsApplied(InputsApplied), InputsAppliedInEra (InputsAppliedInEra, metadata, inputs, safetyErrors, version, contractId, input, output, invalidBefore, invalidHereafter, txBody))
@@ -29,7 +29,7 @@ import Language.Marlowe.Runtime.Transaction.Safety (
 import Control.Monad (guard, unless)
 import qualified Data.Map.Strict as Map
 import Data.Bifunctor (first)
-import Control.Error (note, hush, MaybeT(MaybeT), runMaybeT)
+import Control.Error (note, MaybeT(MaybeT), runMaybeT)
 import Language.Marlowe.Runtime.Cardano.Api (toCardanoPaymentCredential, fromCardanoAddressInEra, toCardanoStakeCredential, fromCardanoTxId, fromCardanoTxOutDatum, fromCardanoTxOutValue)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Marlowe.Plutus.Analysis.Safety.Types (SafetyError (SafetyAnalysisTimeout))
@@ -48,9 +48,10 @@ import Data.Kind (Type)
 import Control.Monad.Trans.Class (lift)
 import PlutusTx.Functor ((<&>))
 import Data.Traversable (for)
-import Marlowe.Plutus.Contrib.Data.Foldable (foldMapMFlipped)
+import Marlowe.Contrib.Foldable (foldMapMFlipped)
 import qualified Data.Set as Set
 import Data.Set (Set)
+import Data.These (These(This, That, These))
 
 type GetContractSource v m = ContractHash -> m (Maybe (ContractWithAdjacency v))
 
@@ -240,10 +241,14 @@ toBabbageEraOnwards
 toBabbageEraOnwards e = C.inEonForEra (throwE e) pure
 
 lookupMarloweScriptUtxo :: C.NetworkId -> MarloweScripts -> Either LoadMarloweContextError ReferenceScriptUtxo
-lookupMarloweScriptUtxo networkId MarloweScripts{..} = note (MarloweScriptNotPublished marloweScript) $ Map.lookup networkId marloweScriptUTxOs
+lookupMarloweScriptUtxo networkId MarloweScripts{marloweScript = ScriptDetails{scriptHash = marloweScriptHash, scriptUTxOs}} =
+  note (MarloweScriptNotPublished marloweScriptHash) $
+    Map.lookup networkId scriptUTxOs
 
 lookupPayoutScriptUtxo :: C.NetworkId -> MarloweScripts -> Either LoadMarloweContextError ReferenceScriptUtxo
-lookupPayoutScriptUtxo networkId MarloweScripts{..} = note (PayoutScriptNotPublished payoutScript) $ Map.lookup networkId payoutScriptUTxOs
+lookupPayoutScriptUtxo networkId MarloweScripts{payoutScript = ScriptDetails{scriptHash = payoutScriptHash, scriptUTxOs}} =
+  note (PayoutScriptNotPublished payoutScriptHash) $
+    Map.lookup networkId scriptUTxOs
 
 findMarloweOutput :: forall era. C.IsCardanoEra era => Chain.Address -> C.TxBody era -> Maybe Chain.TxOutRef
 findMarloweOutput address = \case
@@ -264,10 +269,12 @@ mkMarloweContext
   -> ExceptT InitError m (MarloweContext v)
 mkMarloweContext networkId version marloweScripts mStakeCredential = do
   let
-    scripts@MarloweScripts{..} = marloweScripts
+    scripts@MarloweScripts{marloweScript = marloweScriptDetails, payoutScript = payoutScriptDetails} = marloweScripts
+    ScriptDetails{scriptHash = marloweScriptHash} = marloweScriptDetails
+    ScriptDetails{scriptHash = payoutScriptHash} = payoutScriptDetails
   mCardanoStakeCredential <- except $ traverse (note InitToCardanoError . toCardanoStakeCredential) mStakeCredential
-  marlowePaymentCredential <- except . note InitToCardanoError . toCardanoPaymentCredential $ Chain.ScriptCredential marloweScript
-  payoutPaymentCredential <- except . note InitToCardanoError . toCardanoPaymentCredential $ Chain.ScriptCredential payoutScript
+  marlowePaymentCredential <- except . note InitToCardanoError . toCardanoPaymentCredential $ Chain.ScriptCredential marloweScriptHash
+  payoutPaymentCredential <- except . note InitToCardanoError . toCardanoPaymentCredential $ Chain.ScriptCredential payoutScriptHash
   let
       stakeReference = maybe C.NoStakeAddress C.StakeAddressByValue mCardanoStakeCredential
       marloweAddress =
@@ -294,8 +301,8 @@ mkMarloweContext networkId version marloweScripts mStakeCredential = do
         , payoutAddress
         , marloweScriptUTxO
         , payoutScriptUTxO
-        , marloweScriptHash = marloweScript
-        , payoutScriptHash = payoutScript
+        , marloweScriptHash
+        , payoutScriptHash
         }
 
 limitAnalysisTime :: NominalDiffTime -> IO (Either String [SafetyError]) -> IO (Either String [SafetyError])
@@ -335,7 +342,10 @@ findPayouts version address body@(C.TxBody C.TxBodyContent{..}) =
     parsePayout :: Chain.TxIx -> C.TxOut C.CtxTx era -> Maybe (Chain.TxOutRef, Payout v)
     parsePayout txIx (C.TxOut addr value txOutDatum _) = do
       guard $ fromCardanoAddressInEra (C.cardanoEra @era) addr == address
-      datum <- fromCardanoTxOutDatum txOutDatum >>= hush
+      datum <- fromCardanoTxOutDatum txOutDatum >>= \case
+        This _h -> Nothing
+        That d -> Just d
+        These _h d -> Just d
       datum' <- fromChainPayoutDatum version datum
       assets <- mkTxOutAssets $ fromCardanoTxOutValue value
       pure (Chain.TxOutRef txId txIx, Payout address assets datum')
@@ -386,7 +396,7 @@ execApplyInputs
   :: MonadUnliftIO m
   => C.IsCardanoEra era
   => MonadLog m
-  => (TransactionInputs v -> m (Maybe (TransactionInputs v)))
+  => (Contract v -> State v -> TransactionInputs v -> m (Maybe (TransactionInputs v)))
   -> C.CardanoEra era
   -> Ledger.PParams (C.ShelleyLedgerEra era)
   -> GetContractSource v m

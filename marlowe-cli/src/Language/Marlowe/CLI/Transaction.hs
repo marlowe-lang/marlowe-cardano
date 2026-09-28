@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns -Wno-deprecations #-}
 
 -----------------------------------------------------------------------------
@@ -9,6 +10,8 @@
 --
 -- Stability   :  Experimental
 -- Portability :  Portable
+{-# LANGUAGE PatternSynonyms #-}
+
 module Language.Marlowe.CLI.Transaction (
   -- * Types
   TxInEra,
@@ -171,7 +174,7 @@ import Cardano.Ledger.Plutus qualified as P
 import Cardano.Slotting.EpochInfo.API (epochInfoRange, epochInfoSlotToUTCTime, hoistEpochInfo)
 import Contrib.Cardano.Api (lppPParamsL)
 import Contrib.Cardano.UTxO qualified as U
-import Contrib.Data.Foldable (foldMapFlipped, tillFirstMatch)
+import Marlowe.Contrib.Foldable (foldMapFlipped, tillFirstMatch)
 import Control.Arrow ((***))
 import Control.Error (MaybeT (MaybeT, runMaybeT), hoistMaybe, mapMaybe, note)
 import Control.Monad (forM, unless, void, when)
@@ -179,7 +182,7 @@ import Control.Monad.Except (MonadError, liftEither, runExcept, throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.Trans (lift)
-import Data.Aeson (ToJSON (toJSON), (.=))
+import Data.Aeson (ToJSON (toJSON))
 import Data.Aeson qualified as A (Value (Null, Object), object)
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Key qualified as Aeson.Key
@@ -241,8 +244,7 @@ import Language.Marlowe.CLI.Types (
   CliError (..),
   CoinSelectionStrategy (CoinSelectionStrategy, csPreserveInlineDatums, csPreserveReferenceScripts, csPreserveTxIns),
   CurrencyIssuer (CurrencyIssuer),
-  MarloweScriptsRefs (MarloweScriptsRefs),
-  MessageFormat(..),
+  MarloweScriptsRefs (MarloweScriptsRefs, mrMarloweValidator, mrRolePayoutValidator, mrOpenRoleValidator),
   MintingAction (BurnAll, Mint, maIssuer),
   OutputQuery (..),
   OutputQueryResult (..),
@@ -257,7 +259,7 @@ import Language.Marlowe.CLI.Types (
   TokensRecipient (..),
   TxFile (TxFile),
   TxBuildupContext (..),
-  ValidatorInfo (ValidatorInfo, viHash, viScript),
+  ValidatorInfo (ValidatorInfo, viHash, viNetworkId, viScript),
   askEra,
   asksEra,
   defaultCoinSelectionStrategy,
@@ -270,6 +272,7 @@ import Language.Marlowe.CLI.Types (
   toQueryContext,
   validatorInfo', TxBodyFile (TxBodyFile),
  )
+import Marlowe.Plutus.Binaries.Api.Compile (MessageFormat (..))
 import Language.Marlowe.CLI.Types qualified as PayToScript (PayToScript (value))
 import Lens.Micro ((^.))
 import Ouroboros.Consensus.HardFork.History (interpreterToEpochInfo)
@@ -281,6 +284,20 @@ import System.IO (hPutStrLn, stderr)
 -- import qualified Data.ByteString.Lazy as BSL
 import qualified Cardano.Api.Error as CE
 import Language.Marlowe.CLI.Scripts (MarloweValidator (..), OpenRolesValidator (..), PayoutValidator (..))
+import Language.Marlowe.Runtime.Cardano.Api (fromCardanoTxId, fromCardanoTxIx)
+import Language.Marlowe.Runtime.ChainSync.Api qualified as Chain
+import Language.Marlowe.Runtime.Core.Api (SomeMarloweVersion (..), MarloweVersion (..))
+import Language.Marlowe.Runtime.Core.ScriptRegistry (
+  MarloweScripts (..),
+  ReferenceScriptUtxo (..),
+  ScriptDetails (..),
+  ScriptRegistry,
+  ScriptsSuiteName (..),
+  fromCardanoPlutusScriptV3,
+  mkScriptDetails,
+  mkScriptRegistry,
+  pattern ScriptRegistry,
+ )
 
 -- | Build a non-Marlowe transaction.
 buildSimple
@@ -967,7 +984,6 @@ buildPublishingImpl
   -- ^ The change address.
   -> PublishingStrategy era
   -> CoinSelectionStrategy
-  -> MessageFormat
   -> m ([TxBody era], MarloweScriptsRefs C.PlutusScriptV3 era)
 buildPublishingImpl
   (MarloweValidator marloweValidator)
@@ -978,8 +994,7 @@ buildPublishingImpl
   expires
   changeAddress
   publishingStrategy
-  coinSelectionStrategy
-  messageFormat = do
+  coinSelectionStrategy = do
   let queryCtx = toQueryContext buildupCtx
   pm <- buildScriptPublishingInfo queryCtx marloweValidator publishingStrategy
   pp <- buildScriptPublishingInfo queryCtx payoutValidator publishingStrategy
@@ -1080,40 +1095,6 @@ buildPublishingImpl
 
   let
     txBodies = [txBody1, txBody2]
-    serialiseAddress (_, addr, _) = T.unpack . C.serialiseAddress $ addr
-    getScriptHash (_, _, ValidatorInfo{viHash}) = viHash
-    getMinAda (ma, _, _) = ma
-
-    jsonInfo = A.object
-      [ "marlowe" .= fst marloweRef
-      , "payout" .= fst rolePayoutRef
-      , "openRole" .= fst openRoleRef
-      ]
-  liftIO $ case messageFormat of
-    MessageFormatText -> do
-      let
-        showScriptHash = show . getScriptHash
-        getTxIn (AUTxO (txIn, _), _) = txIn
-        showTxIn = show . getTxIn
-        showMinAda = show . getMinAda
-        summary =
-          "Marlowe script published at address: " <> serialiseAddress pm <> "\n"
-            <> "Marlowe script hash: " <> showScriptHash pm <> "\n"
-            <> "Marlowe ref script UTxO min ADA: " <> showMinAda pm <> "\n"
-            <> "Marlowe ref script UTxO: " <> showTxIn marloweRef <> "\n\n"
-            <> "Payout script published at address: " <> serialiseAddress pp <> "\n"
-            <> "Payout script hash: " <> showScriptHash pp <> "\n"
-            <> "Payout ref script UTxO min ADA: " <> showMinAda pp <> "\n"
-            <> "Payout ref script UTxO: " <> showTxIn rolePayoutRef <> "\n\n"
-            <> "Open role script published at address: " <> serialiseAddress po <> "\n"
-            <> "Open role script hash: " <> showScriptHash po <> "\n"
-            <> "Open role ref script UTxO min ADA: " <> showMinAda po <> "\n"
-            <> "Open role ref script UTxO: " <> showTxIn openRoleRef
-      putStrLn summary
-    MessageFormatJson ->
-      LBS8.putStrLn $ A.encodePretty jsonInfo
-    MessageFormatYaml ->
-      BS8.putStrLn $ Yaml.encode jsonInfo
 
   pure (txBodies, MarloweScriptsRefs marloweRef rolePayoutRef openRoleRef)
 
@@ -1127,6 +1108,10 @@ buildPublishing
   => MarloweValidator
   -> PayoutValidator
   -> OpenRolesValidator
+  -> ScriptsSuiteName
+  -- ^ The release name under which the registry should record the bundle.
+  -> Maybe T.Text
+  -- ^ Optional human-readable description of the release.
   -> LocalNodeConnectInfo
   -- ^ The connection info for the local node.
   -> SigningKeyFile
@@ -1139,34 +1124,27 @@ buildPublishing
   -> TxFile
   -> Maybe Second
   -> MessageFormat
-  -> m ()
-buildPublishing marloweValidator payoutValidator openRolesValidator connection signingKeyFile expires changeAddress strategy (TxFile txFile) timeout printStats = do
+  -> m ScriptRegistry
+buildPublishing marloweValidator payoutValidator openRolesValidator release description connection signingKeyFile expires changeAddress strategy txFile timeout printStats = do
   let strategy' = fromMaybe (PublishAtAddress changeAddress) strategy
   signingKey <- readSigningKey signingKeyFile
-  (txBodies, _) <-
-    buildPublishingImpl @era
+  let txBuildupCtx = mkNodeTxBuildup connection timeout
+  registry <-
+    publishImpl @era
       marloweValidator
       payoutValidator
       openRolesValidator
-      (mkNodeTxBuildup connection timeout)
+      release
+      description
+      txBuildupCtx
       signingKey
       expires
       changeAddress
       strategy'
       defaultCoinSelectionStrategy
-      printStats
-
-  for_ (zip [0..] txBodies) \(idx, txBody) -> do
-    let
-      txFile' = show (idx :: Int) <> txFile
-    doWithCardanoEra
-      . liftCliIO
-      . writeFileTextEnvelope (File txFile') Nothing
-      . C.makeSignedTransaction []
-      $ txBody
-  let txBuildupCtx = mkNodeTxBuildup connection timeout
-  for_ txBodies \txBody ->
-    void $ submitTxBody txBuildupCtx txBody [signingKey]
+      txFile
+  liftIO $ writeRegistryOutput registry printStats
+  pure registry
 
 publishImpl
   :: forall era m
@@ -1177,6 +1155,10 @@ publishImpl
   => MarloweValidator
   -> PayoutValidator
   -> OpenRolesValidator
+  -> ScriptsSuiteName
+  -- ^ The release name under which the registry should record the bundle.
+  -> Maybe T.Text
+  -- ^ Optional human-readable description of the release.
   -> TxBuildupContext era
   -- ^ The connection info for the local node.
   -> SomePaymentSigningKey
@@ -1187,9 +1169,9 @@ publishImpl
   -- ^ The change address.
   -> PublishingStrategy era
   -> CoinSelectionStrategy
-  -> MessageFormat
-  -> m ([TxBody era], MarloweScriptsRefs C.PlutusScriptV3 era)
-publishImpl marloweValidator payoutValidator openRolesValidator txBuildupCtx signingKey expires changeAddress publishingStrategy coinSelectionStrategy messageFormat = do
+  -> TxFile
+  -> m ScriptRegistry
+publishImpl marloweValidator payoutValidator openRolesValidator release description txBuildupCtx signingKey expires changeAddress publishingStrategy coinSelectionStrategy (TxFile txFile) = do
   (txBodies, _) <-
     buildPublishingImpl @era
       marloweValidator
@@ -1201,16 +1183,133 @@ publishImpl marloweValidator payoutValidator openRolesValidator txBuildupCtx sig
       changeAddress
       publishingStrategy
       coinSelectionStrategy
-      messageFormat
+
+  for_ (zip [0..] txBodies) \(idx, txBody) -> do
+    let
+      txFile' = show (idx :: Int) <> txFile
+    doWithCardanoEra
+      . liftCliIO
+      . writeFileTextEnvelope (File txFile') Nothing
+      . C.makeSignedTransaction []
+      $ txBody
   for_ txBodies \txBody ->
-    submitTxBody txBuildupCtx txBody [signingKey]
+    void $ submitTxBody txBuildupCtx txBody [signingKey]
 
   refs <- do
     let queryCtx = toQueryContext txBuildupCtx
     findMarloweScriptsRefs @era marloweValidator payoutValidator openRolesValidator queryCtx publishingStrategy (PrintStats False) >>= \case
       Nothing -> throwError . CliError $ "Unable to find just published scripts by tx:" <> show (map getTxId txBodies)
       Just m -> pure m
-  pure (txBodies, refs)
+
+  pure (mkSingletonScriptRegistry release description refs)
+
+-- | Render a 'ScriptRegistry' to the appropriate 'MessageFormat'
+-- destination. The text format emits a one-line summary; the JSON/YAML
+-- formats emit the full registry document so it is easy to pipe into
+-- other tools.
+writeRegistryOutput :: ScriptRegistry -> MessageFormat -> IO ()
+writeRegistryOutput registry messageFormat = case registry of
+  ScriptRegistry release _ ->
+    case messageFormat of
+      MessageFormatText -> do
+        putStrLn $
+          "Published Marlowe scripts in registry " <> show release
+        putStrLn ""
+      MessageFormatJson -> do
+        -- debug log
+        hPutStrLn stderr $
+          "Published Marlowe scripts in registry " <> show release
+        LBS8.putStrLn $ A.encodePretty registry
+      MessageFormatYaml ->
+        BS8.putStrLn $ Yaml.encode registry
+
+-- | FIXME [review]: This helper either already exist or should be moved to `Runtime.Cardano.Api`
+-- | Convert a cardano-api @'C.TxIn'@ to the chain API's 'Chain.TxOutRef'.
+txOutRefFromCardano :: C.TxIn -> Chain.TxOutRef
+txOutRefFromCardano (C.TxIn txId txIx) =
+  Chain.TxOutRef
+    { Chain.txId = fromCardanoTxId txId
+    , Chain.txIx = fromCardanoTxIx txIx
+    }
+
+-- | FIXME [review]: Same as above
+-- | Convert a cardano-api @'C.TxOut' 'C.CtxUTxO' era@ to a
+-- 'Chain.TransactionOutput', recovering at least the address and the
+-- ADA value. The datum fields are not part of a reference-script-only
+-- UTxO so they are set to 'Nothing'.
+txOutToChainTransactionOutput
+  :: C.IsCardanoEra era
+  => C.TxOut C.CtxUTxO era
+  -> Chain.TransactionOutput
+txOutToChainTransactionOutput (C.TxOut addr value _ _) =
+  let
+    bech32 = C.serialiseAddress addr
+    lovelaceAmount = Ledger.unCoin (C.txOutValueToLovelace value)
+    assets = case Chain.mkTxOutAssets (Chain.Assets (Chain.Lovelace lovelaceAmount) mempty) of
+      Just a -> a
+      Nothing -> Chain.unsafeTxOutAssets (Chain.Assets (Chain.Lovelace lovelaceAmount) mempty)
+   in
+    Chain.TransactionOutput
+      { Chain.address = case Chain.fromBech32 bech32 of
+          Just a -> a
+          Nothing ->
+            error
+              $ "txOutToChainTransactionOutput: failed to decode chain address "
+                <> show bech32
+      , Chain.assets = assets
+      , Chain.datum = Nothing
+      , Chain.datumHash = Nothing
+      }
+
+-- | FIXME [review]: This should be renamed to `singleton` and moved to the `ScriptRegistry` module.
+-- | Build a singleton 'ScriptRegistry' for the network whose address was
+-- used during publishing. The map inside the registry always contains
+-- exactly one entry: the suite named by the @release@ argument.
+mkSingletonScriptRegistry
+  :: forall era
+   . C.IsCardanoEra era
+  => ScriptsSuiteName
+  -> Maybe T.Text
+  -> MarloweScriptsRefs C.PlutusScriptV3 era
+  -> ScriptRegistry
+mkSingletonScriptRegistry release description refs =
+  case mkScriptRegistry release (Map.singleton release bundle) of
+    Just registry -> registry
+    Nothing ->
+      error
+        "mkSingletonScriptRegistry: registry construction failed (impossible: release is in the scripts map)"
+  where
+    marloweDetails = mkScriptDetailsFromRef (mrMarloweValidator refs)
+    payoutDetails = mkScriptDetailsFromRef (mrRolePayoutValidator refs)
+    openRoleDetails = mkScriptDetailsFromRef (mrOpenRoleValidator refs)
+    bundle =
+      MarloweScripts
+        { description
+        , marloweScript = marloweDetails
+        , marloweVersion = SomeMarloweVersion MarloweV1
+        , openRolesScript = Just openRoleDetails
+        , payoutScript = payoutDetails
+        }
+
+    mkScriptDetailsFromRef
+      :: (AUTxO era, ValidatorInfo C.PlutusScriptV3 era)
+      -> ScriptDetails
+    mkScriptDetailsFromRef (autxo, vi) =
+      let base = mkScriptDetails (fromCardanoPlutusScriptV3 vi.viScript)
+          utxo = refScriptUtxo autxo vi
+          network = vi.viNetworkId
+       in base{scriptUTxOs = Map.singleton network utxo}
+
+    refScriptUtxo
+      :: AUTxO era
+      -> ValidatorInfo C.PlutusScriptV3 era
+      -> ReferenceScriptUtxo
+    refScriptUtxo (AUTxO (txIn, txOut)) vi =
+      ReferenceScriptUtxo
+        { txOutRef = txOutRefFromCardano txIn
+        , txOut = txOutToChainTransactionOutput txOut
+        , script = fromCardanoPlutusScriptV3 vi.viScript
+        }
 
 findScriptRef
   :: forall era m

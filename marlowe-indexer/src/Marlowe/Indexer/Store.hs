@@ -15,17 +15,18 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Semigroup (Last (..))
 import GHC.Generics (Generic)
-import Language.Marlowe.Runtime.ChainSync.Api (ChainPoint, WithGenesis(..), IndexerTip(..), NodeTip, genesisIndexerTip, genesisNodeTip, ChainPoint, TxId, WithGenesis(..), chainTipFromChainPoint)
-import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1), ContractId)
+import Language.Marlowe.Runtime.ChainSync.Api (ChainPoint, WithGenesis(..), IndexerTip(..), NodeTip, genesisIndexerTip, genesisNodeTip, ChainPoint, TxId, WithGenesis(..), chainTipFromChainPoint, TxOutRef (TxOutRef))
+import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1), ContractId(ContractId))
 import Language.Marlowe.Runtime.Core.Api qualified as Core
-import Language.Marlowe.Runtime.History.Api (ExtractCreationError, ExtractMarloweTransactionError, MarloweCreateTransaction(..), MarloweApplyInputsTransaction(..))
+import Language.Marlowe.Runtime.History.Api (MarloweApplyInputsTransaction(..), ExtractMarloweTransactionError)
 import Language.Marlowe.Runtime.Indexer.Database (DatabaseQueries (..))
-import Language.Marlowe.Runtime.Indexer.MarloweBlock (MarloweBlock (..), MarloweTransaction (..))
+import Language.Marlowe.Runtime.Indexer.MarloweBlock (MarloweBlock (..), MarloweTransaction (..), ExtractCreationError, MarloweCreateTransaction(..), MarloweInvalidCreateTransaction(MarloweInvalidCreateTransaction))
 import Log (MonadLog, logInfo)
 import Marlowe.Indexer.MarloweChainFollower (ChainEvent (..))
 import UnliftIO (MonadUnliftIO, atomically)
 import Debug.Trace (traceM)
 import qualified Data.List.NonEmpty as NE
+import Marlowe.Contrib.Foldable (foldMapFlipped)
 
 data StoreDependencies m = StoreDependencies
   { databaseQueries :: DatabaseQueries m
@@ -191,10 +192,16 @@ mkAggregator pullEvent = mkComponent "indexer-store-aggregator" do
                   , indexerTip
                   , nodeTip
                   , eraHistory = Just eraHistory
-                  , invalidCreateTxs = flip foldMap blocks \(_, block) -> flip foldMap (transactions block) \case
-                      InvalidCreateTransaction contractId err -> Map.singleton contractId err
-                      _ -> mempty
-                  , invalidApplyInputsTxs = flip foldMap blocks \(_, block) -> flip foldMap (transactions block) \case
+                  , invalidCreateTxs =
+                      foldMapFlipped blocks \(_, block) ->
+                        foldMapFlipped block.transactions \case
+                          (InvalidCreateTransaction (MarloweInvalidCreateTransaction txId errors)) ->
+                            foldMapFlipped (Map.toList errors) \(txIx, err) -> do
+                              let
+                                contractId = ContractId $ TxOutRef txId txIx
+                              Map.singleton contractId err
+                          _ -> mempty
+                  , invalidApplyInputsTxs = flip foldMap blocks \(_, block) -> foldMapFlipped (transactions block) \case
                       InvalidApplyInputsTransaction txId _ err -> Map.singleton txId err
                       _ -> mempty
                   }
@@ -215,9 +222,6 @@ data PersisterDependencies m = PersisterDependencies
   { databaseQueries :: DatabaseQueries m
   , readChanges :: STM Changes
   }
-      
---       txs = [ txId | MarloweBlock{transactions = xs} <- blocks, mtx <- NE.toList xs, let CreateTransaction (MarloweCreateTransaction {txId}) = mtx ]
---             ++ [ Core.transactionId mt | MarloweBlock{transactions = xs} <- blocks, mtx <- NE.toList xs, let ApplyInputsTransaction (MarloweApplyInputsTransaction {marloweVersion=MarloweV1, marloweTransaction=mt}) = mtx  ]
 
 grabTxId :: MarloweTransaction -> Maybe (String, TxId)
 grabTxId (CreateTransaction (MarloweCreateTransaction {txId})) = Just ("Create", txId)

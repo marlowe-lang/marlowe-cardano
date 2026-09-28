@@ -12,39 +12,14 @@ import Marlowe.Plutus.Testing.Semantics.Arbitrary ()
 import Test.QuickCheck hiding (shrinkMap)
 import Test.QuickCheck.Instances ()
 
-instance Arbitrary ContractHistoryError where
-  arbitrary =
-    oneof
-      [ pure HansdshakeFailed
-      , FindTxFailed <$> arbitrary
-      , ExtractContractFailed <$> arbitrary
-      , FollowScriptUTxOFailed <$> arbitrary
-      , FollowPayoutUTxOsFailed <$> arbitrary
-      , ExtractMarloweTransactionFailed <$> arbitrary
-      , PayoutUTxONotFound <$> arbitrary
-      , pure CreateTxRolledBack
-      ]
-  shrink = genericShrink
-
-instance Arbitrary ExtractCreationError where
-  arbitrary =
-    elements
-      [ TxIxNotFound
-      , ByronAddress
-      , NonScriptAddress
-      , InvalidScriptHash
-      , NoInitDatum
-      , InvalidInitDatum
-      , NotCreationTransaction
-      ]
-  shrink = genericShrink
-
 instance Arbitrary ExtractMarloweTransactionError where
   arbitrary =
     oneof
       [ pure TxInNotFound
       , pure NoRedeemer
       , pure InvalidRedeemer
+      , pure MissingDatumHash
+      , pure InvalidContinuation
       , pure NoTransactionDatum
       , pure InvalidTransactionDatum
       , NoPayoutDatum <$> arbitrary
@@ -69,14 +44,6 @@ instance (ArbitraryMarloweVersion v) => Arbitrary (ContractStep v) where
       , RedeemPayout <$> arbitrary
       ]
   shrink = const []
-
-instance Arbitrary MarloweBlock where
-  arbitrary = MarloweBlock <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
-  shrink = genericShrink
-
-instance Arbitrary MarloweCreateTransaction where
-  arbitrary = MarloweCreateTransaction <$> arbitrary <*> arbitrary
-  shrink = genericShrink
 
 instance Arbitrary SomeCreateStep where
   arbitrary = SomeCreateStep MarloweV1 <$> arbitrary

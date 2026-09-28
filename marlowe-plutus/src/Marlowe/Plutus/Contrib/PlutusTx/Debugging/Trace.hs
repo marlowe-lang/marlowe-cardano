@@ -1,6 +1,16 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
+{-# OPTIONS -fno-full-laziness #-}
+{-# OPTIONS -fno-ignore-interface-pragmas #-}
+{-# OPTIONS -fno-omit-interface-pragmas #-}
+{-# OPTIONS -fno-spec-constr #-}
+{-# OPTIONS -fno-specialise #-}
+{-# OPTIONS -fno-strictness #-}
+{-# OPTIONS -fno-unbox-small-strict-fields #-}
+{-# OPTIONS -fno-unbox-strict-fields #-}
+
+
 module Marlowe.Plutus.Contrib.PlutusTx.Debugging.Trace where
 
 #ifdef TRACE_GHC
@@ -23,6 +33,7 @@ trace
 #ifdef TRACE_GHC
 trace s = Debug.trace (Text.unpack (Builtins.fromBuiltin s))
 #else
+{-# INLINEABLE trace #-}
 trace = P.trace
 #endif
 
@@ -36,6 +47,7 @@ traceError
 #ifdef TRACE_GHC
 traceError s = H.error (Text.unpack (Builtins.fromBuiltin s))
 #else
+{-# INLINEABLE traceError #-}
 traceError = P.traceError
 #endif
 
@@ -49,8 +61,8 @@ traceIfFalse
 traceIfFalse s H.False = trace s H.False
 traceIfFalse _ H.True = H.True
 #else
-traceIfFalse s P.False = trace s P.False
-traceIfFalse _ P.True = P.True
+{-# INLINEABLE traceIfFalse #-}
+traceIfFalse = P.traceIfFalse
 #endif
 
 traceVerbose
@@ -62,6 +74,7 @@ traceVerbose
 #ifdef TRACE_GHC
 traceVerbose verbose _ = trace verbose
 #else
+{-# INLINEABLE traceVerbose #-}
 traceVerbose _ = trace
 #endif
 
@@ -74,6 +87,7 @@ traceErrorVerbose
 #ifdef TRACE_GHC
 traceErrorVerbose verbose _ = traceError verbose
 #else
+{-# INLINEABLE traceErrorVerbose #-}
 traceErrorVerbose _ = traceError
 #endif
 
@@ -86,6 +100,7 @@ traceIfFalseVerbose
 #ifdef TRACE_GHC
 traceIfFalseVerbose verbose _ = traceIfFalse verbose
 #else
+{-# INLINEABLE traceIfFalseVerbose #-}
 traceIfFalseVerbose _ = traceIfFalse
 #endif
 
@@ -93,6 +108,7 @@ traceIfFalseVerbose _ = traceIfFalse
 showDebug :: (H.Show a) => a -> Builtins.BuiltinString
 showDebug = BI.BuiltinString H.. Text.pack H.. H.show
 #else
+{-# INLINEABLE showDebug #-}
 showDebug :: a -> P.BuiltinString
 showDebug _ = P.emptyString
 #endif

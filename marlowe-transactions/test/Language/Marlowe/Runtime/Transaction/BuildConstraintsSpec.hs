@@ -48,11 +48,10 @@ import qualified Marlowe.Plutus.Semantics.Types as V1
 import Marlowe.Plutus.Semantics (MarloweData (..), MarloweParams (..))
 import Marlowe.Plutus.Semantics.Types (unsafeMkPartyAddressBech32, ada)
 import qualified PlutusTx.AssocMap as AM
-import Marlowe.Plutus.Binaries.Devel (marloweValidatorBytes, marloweValidatorHash, rolePayoutValidatorBytes, rolePayoutValidatorHash)
 import Language.Marlowe.Runtime.ChainSync.Api hiding (Datum, ada)
 import qualified Language.Marlowe.Runtime.ChainSync.Api as Chain
 import qualified Language.Marlowe.Runtime.Core.Api as Core
-import Language.Marlowe.Runtime.Core.ScriptRegistry (ReferenceScriptUtxo (..), ScriptInPlutus(..))
+import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts (..), ReferenceScriptUtxo (..), ScriptInPlutus (..), ScriptDetails (..))
 import Language.Marlowe.Runtime.Cardano.Api (fromCardanoAddressInEra)
 import Language.Marlowe.Runtime.Transaction.Api (
   InitError,
@@ -65,15 +64,15 @@ import Language.Marlowe.Runtime.Transaction.BuildConstraints (
   buildWithdrawConstraints,
   RolesPolicyId (..), buildApplyInputsConstraints,
   )
-import Language.Marlowe.Runtime.Transaction.Constraints (
-  RoleTokenConstraints (RoleTokenConstraintsNone),
-  TxConstraints (..),
-  WalletContext (..),
-  PayoutContext (..),
-  MarloweContext (..),
-  HelpersContext (..),
-  solveConstraints,
-  )
+import Language.Marlowe.Runtime.Transaction.Constraints
+    ( RoleTokenConstraints(RoleTokenConstraintsNone),
+      TxConstraints(..),
+      WalletContext(..),
+      PayoutContext(..),
+      MarloweContext(..),
+      HelpersContext(..),
+      solveConstraints,
+      ThreadTokenConstraints(PassThreadToken) )
 import Data.Foldable (for_)
 import Cardano.Ledger.Slot (EpochSize (EpochSize))
 import Cardano.Slotting.Time (SystemStart (SystemStart), mkSlotLength)
@@ -89,7 +88,6 @@ import Cardano.Ledger.Shelley.API (
   Coin (..),
  )
 import Cardano.Ledger.Plutus.Language (Language (..))
-import Language.Marlowe.Runtime.Transaction.Constraints (ThreadTokenConstraints(PassThreadToken))
 
 type TestEra = C.ConwayEra
 
@@ -836,11 +834,11 @@ testEraHistory =
     one = nonEmptyHead $ Ouroboros.getSummary $ Ouroboros.neverForksSummary epochSize slotLength window Ouroboros.NoPerasEnabled
     summaries = Exactly $ K one :* K one :* K one :* K one :* K one :* K one :* K one :* K one :* Nil
 
-buildConstraintsSpec :: Spec
-buildConstraintsSpec = do
+buildConstraintsSpec :: MarloweScripts -> Spec
+buildConstraintsSpec marloweScripts = do
   describe "buildInitConstraints" buildCreateSpec
   describe "buildWithdrawConstraints" withdrawSpec
-  describe "E2E: Signing key pair and deposit contract" e2eSpec
+  describe "E2E: Signing key pair and deposit contract" (e2eSpec marloweScripts)
 
 runCreateTest
   :: WalletContext
@@ -946,8 +944,8 @@ expectJust errMsg = \case
   Just val -> pure val
 
 -- E2E Tests following the steps from the original plan
-e2eSpec :: Spec
-e2eSpec = do
+e2eSpec :: MarloweScripts -> Spec
+e2eSpec marloweScripts = do
   it "E2E Step 1: Generate a signing key pair" $ ioProperty $ do
     signingKey <- generateSigningKey AsPaymentKey
     let verificationKey = getVerificationKey signingKey
@@ -1020,7 +1018,7 @@ e2eSpec = do
     signingKey <- generateSigningKey AsPaymentKey
     let
       verificationKey = getVerificationKey signingKey
-      marloweContext = mkMarloweContext Devel testnetId Nothing
+      marloweContext = mkMarloweContext Devel testnetId Nothing marloweScripts
 
       constraints :: TxConstraints TestEra Core.V1
       constraints = TxConstraints
@@ -1061,12 +1059,12 @@ e2eSpec = do
       timeout = 1_640_995_300_000
       tipSlotNo = SlotNo 0
       contract = V1.When [V1.Case (V1.Notify V1.TrueObs) V1.Close] timeout V1.Close
-      marloweContext = mkMarloweContext Devel testnetId (Just (contract, Nothing))
+      marloweContext = mkMarloweContext Devel testnetId (Just (contract, Nothing)) marloweScripts
       walletCtx = mkWalletContext testnetId verificationKey
 
     marloweOutput <- expectJust "Expected Marlowe script output in context" marloweContext.scriptOutput
     (_applyResults, constraints) <- expectRight . runIdentity . runExceptT $ buildApplyInputsConstraints
-      (\_ -> pure Nothing) -- merkleizeInput
+      (\_contract _state _txInputs -> pure Nothing) -- merkleizeInput
       testSystemStart
       testEraHistory
       Core.MarloweV1
@@ -1100,23 +1098,36 @@ e2eSpec = do
 testnetId :: C.NetworkId
 testnetId = Testnet (NetworkMagic 0)
 
-mkValidatorAddress :: C.NetworkId -> PV2.SerialisedScript -> C.AddressInEra TestEra
-mkValidatorAddress network validatorBytes = makeShelleyAddressInEra ShelleyBasedEraConway network (PaymentCredentialByScript $ C.hashScript $ C.PlutusScript C.PlutusScriptV3 $ C.PlutusScriptSerialised validatorBytes) NoStakeAddress
+mkMarloweValidatorAddress :: C.NetworkId -> MarloweScripts -> C.AddressInEra TestEra
+mkMarloweValidatorAddress network marloweScripts =
+  makeShelleyAddressInEra
+    ShelleyBasedEraConway
+    network
+    (PaymentCredentialByScript $ C.hashScript $ C.PlutusScript C.PlutusScriptV3 $ C.PlutusScriptSerialised (scriptInPlutusToSerialised marloweScripts.marloweScript.script))
+    NoStakeAddress
 
-mkMarloweValidatorAddress :: C.NetworkId -> C.AddressInEra TestEra
-mkMarloweValidatorAddress network = mkValidatorAddress network marloweValidatorBytes
-
-mkRolePayoutValidatorAddress :: C.NetworkId -> C.AddressInEra TestEra
-mkRolePayoutValidatorAddress network = mkValidatorAddress network rolePayoutValidatorBytes
+mkRolePayoutValidatorAddress :: C.NetworkId -> MarloweScripts -> C.AddressInEra TestEra
+mkRolePayoutValidatorAddress network marloweScripts =
+  makeShelleyAddressInEra
+    ShelleyBasedEraConway
+    network
+    (PaymentCredentialByScript $ C.hashScript $ C.PlutusScript C.PlutusScriptV3 $ C.PlutusScriptSerialised (scriptInPlutusToSerialised marloweScripts.payoutScript.script))
+    NoStakeAddress
 
 -- TODO:
 -- * Add ability to use `Marlowe.Binaries.Production` and later also
 data ValidatorsVersion = Devel
 
-mkMarloweContext :: ValidatorsVersion -> NetworkId -> Maybe (V1.Contract, Maybe V1.State) -> MarloweContext 'Core.V1
-mkMarloweContext _version network possibleContractInfo = do
+-- Convert a ScriptInPlutus value into a serialised Plutus script for use in
+-- Cardano API helpers (e.g. hashing, address derivation).
+scriptInPlutusToSerialised :: ScriptInPlutus -> PV2.SerialisedScript
+scriptInPlutusToSerialised (ScriptInPlutusV2 bytes) = bytes
+scriptInPlutusToSerialised (ScriptInPlutusV3 bytes) = bytes
+
+mkMarloweContext :: ValidatorsVersion -> NetworkId -> Maybe (V1.Contract, Maybe V1.State) -> MarloweScripts -> MarloweContext 'Core.V1
+mkMarloweContext _version network possibleContractInfo marloweScripts = do
   let
-    marloweAddress = fromCardanoAddressInEra C.ConwayEra $ mkMarloweValidatorAddress network
+    marloweAddress = fromCardanoAddressInEra C.ConwayEra $ mkMarloweValidatorAddress network marloweScripts
 
     -- Existing on-chain contract output if the contract is ongoing
     scriptOutput = do
@@ -1143,7 +1154,7 @@ mkMarloweContext _version network possibleContractInfo = do
         , Core.datum = marloweData
         , Core.assets = do
             let
-              marlowePolicyId = Chain.PolicyId .  PV2.fromBuiltin . PV2.getScriptHash $ marloweValidatorHash
+              marlowePolicyId = Chain.PolicyId (Chain.unScriptHash marloweScripts.marloweScript.scriptHash)
               threadTokenAssetId = Chain.AssetId marlowePolicyId (Chain.TokenName . BS.pack . replicate 32 $ 0)
             let tokens = Chain.Tokens . Map.singleton threadTokenAssetId $ Chain.Quantity 1
             Chain.TxOutAssets . Chain.Assets (Chain.Lovelace 2_000_000) $ tokens
@@ -1160,9 +1171,9 @@ mkMarloweContext _version network possibleContractInfo = do
           , datumHash = Nothing
           , datum = Nothing
           }
-      , script = ScriptInPlutusV3 marloweValidatorBytes
+      , script = marloweScripts.marloweScript.script
       }
-    payoutAddress = fromCardanoAddressInEra C.ConwayEra $ mkRolePayoutValidatorAddress network
+    payoutAddress = fromCardanoAddressInEra C.ConwayEra $ mkRolePayoutValidatorAddress network marloweScripts
     payoutScriptUTxO :: ReferenceScriptUtxo
     payoutScriptUTxO = ReferenceScriptUtxo
       { txOutRef = payoutScriptTxOutRef
@@ -1172,10 +1183,10 @@ mkMarloweContext _version network possibleContractInfo = do
           , datumHash = Nothing
           , datum = Nothing
           }
-      , script = ScriptInPlutusV3 rolePayoutValidatorBytes
+      , script = marloweScripts.payoutScript.script
       }
-    marloweScriptHash = Chain.ScriptHash $ PV2.fromBuiltin (PV2.getScriptHash marloweValidatorHash)
-    payoutScriptHash = Chain.ScriptHash $ PV2.fromBuiltin (PV2.getScriptHash rolePayoutValidatorHash)
+    marloweScriptHash = marloweScripts.marloweScript.scriptHash
+    payoutScriptHash = marloweScripts.payoutScript.scriptHash
 
   MarloweContext
     { scriptOutput = scriptOutput

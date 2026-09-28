@@ -265,21 +265,13 @@ decodeConstraintError = A.withObject "ConstraintError" $ \o -> do
     "HelperScriptNotFound" -> HelperScriptNotFound <$> o .: "tokenName"
     _ -> fail "Unable to decode ConstraintError"
 
-extractCreationErrorDetails :: H.ExtractCreationError -> Value
-extractCreationErrorDetails = \case
-  H.TxIxNotFound -> tagged "TxIxNotFound" []
-  H.ByronAddress -> tagged "ByronAddress" []
-  H.NonScriptAddress -> tagged "NonScriptAddress" []
-  H.InvalidScriptHash -> tagged "InvalidScriptHash" []
-  H.NoInitDatum -> tagged "NoInitDatum" []
-  H.InvalidInitDatum -> tagged "InvalidInitDatum" []
-  H.NotCreationTransaction -> tagged "NotCreationTransaction" []
-
 extractMarloweTransactionErrorDetails :: H.ExtractMarloweTransactionError -> Value
 extractMarloweTransactionErrorDetails = \case
   H.TxInNotFound -> tagged "TxInNotFound" []
   H.NoRedeemer -> tagged "NoRedeemer" []
   H.InvalidRedeemer -> tagged "InvalidRedeemer" []
+  H.MissingDatumHash -> tagged "MissingDatumHash" []
+  H.InvalidContinuation -> tagged "InvalidContinuation" []
   H.NoTransactionDatum -> tagged "NoTransactionDatum" []
   H.InvalidTransactionDatum -> tagged "InvalidTransactionDatum" []
   H.NoPayoutDatum txOutRef ->
@@ -325,10 +317,6 @@ loadMarloweContextErrorToApiError err = ApiError (show err) errorCode details st
         tagged
           "PayoutScriptNotPublished"
           ["scriptHash" .= toJSON scriptHash]
-      ExtractCreationError extractCreationError ->
-        tagged
-          "ExtractCreationError"
-          ["extractCreationError" .= extractCreationErrorDetails extractCreationError]
       ExtractMarloweTransactionError extractMarloweTransactionError ->
         tagged
           "ExtractMarloweTransactionError"
@@ -342,7 +330,6 @@ loadMarloweContextErrorToApiError err = ApiError (show err) errorCode details st
       MarloweAddressNotScriptAddress _ -> 500
       CardanoConversionFailure _ -> 500
       PayoutScriptNotPublished _ -> 500
-      ExtractCreationError _ -> 500
       ExtractMarloweTransactionError _ -> 500
 
     errorCode = case err of
@@ -353,7 +340,6 @@ loadMarloweContextErrorToApiError err = ApiError (show err) errorCode details st
       MarloweAddressNotScriptAddress _ -> "MarloweAddressNotScriptAddress"
       CardanoConversionFailure _ -> "CardanoConversionFailure"
       PayoutScriptNotPublished _ -> "PayoutScriptNotPublished"
-      ExtractCreationError _ -> "ExtractCreationError"
       ExtractMarloweTransactionError _ -> "ExtractMarloweTransactionError"
 
 createBuildupErrorToApiError :: InitBuildupError -> ApiError
@@ -478,7 +464,6 @@ statusCodeLoadMarloweContextError = \case
   MarloweAddressNotScriptAddress _ -> 500
   CardanoConversionFailure _ -> 500
   PayoutScriptNotPublished _ -> 500
-  ExtractCreationError _ -> 500
   ExtractMarloweTransactionError _ -> 500
 
 toServerError :: ApiError -> ServerError

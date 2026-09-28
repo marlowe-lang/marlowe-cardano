@@ -13,7 +13,7 @@ import GHC.Generics (Generic)
 import PlutusLedgerApi.V3 (
   Redeemer (..),
   ScriptHash (..),
-  ScriptPurpose,
+  ScriptPurpose, ScriptContext,
  )
 import qualified PlutusTx.AssocMap as AssocMap
 
@@ -77,7 +77,7 @@ mkOpenRoleValidator
   -- -- ^ Datum should be a thread token name.
   -- - _
   -- -- ^ Redeemer
-  -> SubScriptContext
+  -> ScriptContext -- SubScriptContext
   -- ^ The script context.
   -> Bool
 -- mkOpenRoleValidator

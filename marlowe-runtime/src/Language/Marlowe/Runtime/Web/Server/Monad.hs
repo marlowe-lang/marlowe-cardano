@@ -9,6 +9,7 @@ module Language.Marlowe.Runtime.Web.Server.Monad (
   GetContractSource,
   ImportBundle,
   InitContract,
+  LoadTransactions,
   LoadTxError (..),
   ServerDependencies (..),
   ServerM (..),

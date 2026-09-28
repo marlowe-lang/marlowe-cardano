@@ -438,7 +438,7 @@ checkTransaction protocolParameters era version@MarloweV1 marloweContext@Marlowe
         runIdentity $ do
           runExceptT $
             buildApplyInputsConstraints
-              (const $ pure Nothing)
+              (\_contract _state _inputs -> pure Nothing)
               start
               history
               version

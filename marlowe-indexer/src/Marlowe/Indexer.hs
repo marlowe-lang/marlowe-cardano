@@ -7,8 +7,7 @@ module Marlowe.Indexer (
 ) where
 
 import Control.Concurrent.Component (Component (..), mkComponent, runComponent)
-import qualified Data.Set as Set
-import Language.Marlowe.Runtime.ChainSync.Api (ScriptHash)
+import Language.Marlowe.Runtime.Core.ScriptRegistry (ScriptRegistry)
 import Language.Marlowe.Runtime.Indexer.Database (DatabaseQueries(..))
 import Log (MonadLog)
 import Marlowe.Indexer.MarloweChainFollower (MarloweChainFollower (..), MarloweChainFollowerDependencies (..), mkMarloweChainFollower)
@@ -20,12 +19,14 @@ import qualified Cardano.Api as C
 import Ouroboros.Network.Point (WithOrigin(..))
 import Data.Maybe (mapMaybe)
 import Language.Marlowe.Runtime.Cardano.Api (toCardanoBlockHeader)
+import Language.Marlowe.Runtime.History.Api (MarloweScriptHashes)
 
 data IndexerDependencies m = IndexerDependencies
   { localNodeConnectInfo :: !C.LocalNodeConnectInfo
   , databaseQueries :: !(DatabaseQueries m)
   , memoryCostConfig :: !MemoryCostConfig
-  , marloweScriptHashes :: !(Set.Set ScriptHash)
+  , marloweScriptHashes :: !MarloweScriptHashes
+  , scriptRegistry :: !ScriptRegistry
   }
 
 mkIndexer
@@ -54,8 +55,10 @@ mkIndexer IndexerDependencies{..} =
         marloweChainFollowerComponent nodeQuerier (NodeFollower changes _) = mkMarloweChainFollower MarloweChainFollowerDependencies
           { changes
           , getLatestMarloweUTxO = databaseQueries.getLatestMarloweUTxO
-          , marloweScriptHashes
-          , nodeQuerier
+           , marloweScriptHashes
+           , scriptRegistry
+           , nodeQuerier
+
           }
 
         storeComponent :: MarloweChainFollower -> Component m ()

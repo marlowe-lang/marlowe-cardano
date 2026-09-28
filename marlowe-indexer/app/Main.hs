@@ -6,9 +6,7 @@ import Log.Backend.StandardOutputInlined (withStdOutInlinedLogger)
 import Control.Concurrent.Component (runComponent_)
 import Control.Monad (join, when)
 import Data.Version (showVersion)
-import qualified Data.Set as Set
 import qualified Hasql.Pool as Pool
-import Language.Marlowe.Runtime.Plutus.V2.Api (fromPlutusValidatorHash)
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL as PostgreSQL
 import Marlowe.Indexer (IndexerDependencies (..), mkIndexer)
 import Marlowe.Indexer.NodeFollower (MemoryCostConfig (..), ChangesMemoryCostModel (..))
@@ -26,28 +24,31 @@ import Options.Applicative (
   long,
   metavar,
   option,
+  optional,
   progDesc,
   short,
   strOption, ReadM, asum, flag', eitherReader, value, (<|>), showDefault,
  )
 import Paths_marlowe_indexer (version)
 import Cardano.Api qualified as C
-import Marlowe.Plutus.Binaries.Devel (marloweValidatorHash, rolePayoutValidatorHash)
-import Data.Foldable (Foldable(..))
+import Language.Marlowe.Runtime.History.Api (getRegistryMarloweScriptHashes)
+import Language.Marlowe.Runtime.Core.ScriptRegistry (ScriptRegistry, loadDefaultScriptRegistry, loadScriptRegistry)
+import System.Environment.Blank (getEnv)
 import qualified Hasql.Connection.Settings as Hasql
 import qualified Hasql.Pool.Config as Hasql
 import qualified Data.Text as T
-import Log.Class (logInfo_, logInfo)
 import qualified Text.Read as T
-import System.Environment.Blank (getEnv)
+import Data.Foldable (Foldable(..))
+import Log.Class (logInfo_, logInfo)
+import System.Exit (die)
 
 data Options = Options
   { databaseUri :: Hasql.Settings
   , logLevel :: LogLevel
   , nodeSocketPath :: FilePath
   , networkId :: C.NetworkId
+  , scriptRegistryFile :: Maybe FilePath
   }
-
 longOption :: ReadM a -> String -> String -> String -> Parser a
 longOption reader longText helpText metavarText =
   option reader (long longText <> help helpText <> metavar metavarText)
@@ -118,13 +119,18 @@ mkNodeSocketParser = do
       Just path -> opt <> value path
       Nothing -> opt
 
+loadRegistry :: Maybe FilePath -> IO ScriptRegistry
+loadRegistry file = do
+  result <- maybe loadDefaultScriptRegistry loadScriptRegistry file
+  either (die . show) pure result
+
 runIndexer :: Options -> IO ()
 runIndexer Options{..} = do
   pool <- do
     let
       cfg = Hasql.settings [ Hasql.staticConnectionSettings databaseUri ]
     Pool.acquire cfg
-  putStrLn "Database connection pool created"
+  registry <- loadRegistry scriptRegistryFile
   let
     localNodeConnectInfo = C.LocalNodeConnectInfo
       { C.localConsensusModeParams = C.CardanoModeParams $ C.EpochSlots 21_600
@@ -132,10 +138,7 @@ runIndexer Options{..} = do
       , C.localNodeSocketPath = C.File nodeSocketPath
       }
     dbQueries = PostgreSQL.databaseQueries pool
-    marloweScriptHashes = Set.fromList
-      [ fromPlutusValidatorHash marloweValidatorHash
-      , fromPlutusValidatorHash rolePayoutValidatorHash
-      ]
+    marloweScriptHashes = getRegistryMarloweScriptHashes registry
     memoryCostConfig = MemoryCostConfig
       { maxMemoryCost = 100_000
       , changesMemoryCostModel = ChangesMemoryCostModel
@@ -156,6 +159,7 @@ runIndexer Options{..} = do
       , databaseQueries = dbQueries
       , memoryCostConfig = memoryCostConfig
       , marloweScriptHashes = marloweScriptHashes
+      , scriptRegistry = registry
       }
 
 mkParser :: IO (Parser (IO ()))
@@ -168,6 +172,7 @@ mkParser = do
       <*> logLevelParser
       <*> nodeSocketPathParser
       <*> networkIdParser
+      <*> optional (strOption (long "script-registry" <> metavar "FILE" <> help "Script registry JSON file."))
 
     versionOption =
       infoOption ("marlowe-indexer " <> showVersion version) $

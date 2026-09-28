@@ -74,17 +74,18 @@ type TestContext = {
 
 let ctx: TestContext;
 
-const PARTY_FUNDING_AMOUNT_LOVELACE = 10_000_000; // 10 ADA per wallet
+const PARTY_FUNDING_AMOUNT_LOVELACE = 20_000_000;
 
 beforeAll(async () => {
+  const debug = true;
   const testEnv = parseEnv();
   const tempDir = path.join(testEnv.repoRoot, 'marlowe-integration', 'test-temp')
   if(!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
   const [party1, party2, oracle] = Result.combine([
-    cardanoCli.createWallet(testEnv.networkMagicNumber, `${tempDir}/party1`),
-    cardanoCli.createWallet(testEnv.networkMagicNumber, `${tempDir}/party2`),
-    cardanoCli.createWallet(testEnv.networkMagicNumber, `${tempDir}/oracle`),
+    cardanoCli.createWallet(testEnv.networkMagicNumber, `${tempDir}/party1`, debug),
+    cardanoCli.createWallet(testEnv.networkMagicNumber, `${tempDir}/party2`, debug),
+    cardanoCli.createWallet(testEnv.networkMagicNumber, `${tempDir}/oracle`, debug),
   ]).match(
     (wallets) => wallets,
     (err) => { throw new Error(`Failed to create wallets: ${String(err)}`); },
@@ -100,6 +101,7 @@ beforeAll(async () => {
     ],
     undefined,
     testEnv.networkMagicNumber,
+    debug
   );
   fundingResult.match(
     (_txId) => {},
@@ -107,7 +109,7 @@ beforeAll(async () => {
   );
 
   ctx = { env: testEnv, tempDir: tempDir as Path, party1, party2, oracle }
-});
+}, 120_000);
 
 afterAll(async () => {
   if (ctx && !ctx.env.preserveTempDir && ctx?.tempDir && fs.existsSync(ctx.tempDir)) {

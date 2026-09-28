@@ -150,7 +150,7 @@ import Language.Marlowe.Runtime.Core.Api (
  )
 import Language.Marlowe.Runtime.Core.ScriptRegistry (HelperScript)
 import Language.Marlowe.Object.Types (ContractHash)
-import Language.Marlowe.Runtime.History.Api (ExtractCreationError, ExtractMarloweTransactionError)
+import Language.Marlowe.Runtime.History.Api (ExtractMarloweTransactionError)
 import Network.HTTP.Media (MediaType)
 
 import Control.Lens (Plated (..), rewrite)
@@ -1650,7 +1650,7 @@ data LoadMarloweContextError
   | MarloweAddressNotScriptAddress Address
   | CardanoConversionFailure String
   | PayoutScriptNotPublished ScriptHash
-  | ExtractCreationError ExtractCreationError
+  -- | ExtractCreationError ExtractCreationError
   | ExtractMarloweTransactionError ExtractMarloweTransactionError
   deriving (Eq, Show, Ord, Generic)
   deriving anyclass (Binary, ToJSON, Variations)
@@ -1659,7 +1659,7 @@ data LoadHelpersContextError
   = HelperScriptNotFoundInRegistry HelperScript
   | LoadHelpersContextErrorNotFound
   | LoadHelpersContextErrorVersionMismatch SomeMarloweVersion
-  | ContractNotExtractedError ExtractCreationError
+  -- | ContractNotExtractedError ExtractCreationError
   | RollForwardToGenesisError
   | LoadHelpersContextTxOutRefNotFoundError TxOutRef
   deriving (Eq, Show, Ord, Generic)

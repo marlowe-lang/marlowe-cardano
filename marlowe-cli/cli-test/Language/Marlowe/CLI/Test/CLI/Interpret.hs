@@ -46,7 +46,7 @@ import Cardano.Api (
 import Cardano.Api qualified as C
 import Cardano.Api.Ledger qualified as Ledger
 import Contrib.Control.Monad.Except (note)
-import Contrib.Data.Foldable (anyFlipped, foldMapFlipped, foldMapMFlipped)
+import Marlowe.Contrib.Foldable (anyFlipped, foldMapFlipped, foldMapMFlipped)
 import Contrib.Data.List.Random (combinationWithRepetitions)
 import Control.Lens (assign, coerced, modifying, use, view)
 import Control.Monad (foldM, when)

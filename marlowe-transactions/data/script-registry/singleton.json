@@ -1,0 +1,26 @@
+{
+    "currentRelease": "auditV1",
+    "scripts": {
+        "auditV1": {
+            "description": "The scripts on which the Marlowe V1 audit was performed.",
+            "marloweScript": {
+                "script": {
+                    "version": "V1",
+                    "bytes": "0102030405060708090a0b0c0d0e0f1011121314"
+                },
+                "scriptHash": "6a9391d6aa51af28dd876ebb5565b69d1e83e5ac7861506bd29b56b0",
+                "scriptUTxOs": {}
+            },
+            "marloweVersion": "v1",
+            "openRolesScript": null,
+            "payoutScript": {
+                "script": {
+                    "version": "V1",
+                    "bytes": "1516171819202122232425262728292a2b2c2d2e"
+                },
+                "scriptHash": "49076eab20243dc9462511fb98a9cfb719f86e9692288139b7c91df3",
+                "scriptUTxOs": {}
+            }
+        }
+    }
+}

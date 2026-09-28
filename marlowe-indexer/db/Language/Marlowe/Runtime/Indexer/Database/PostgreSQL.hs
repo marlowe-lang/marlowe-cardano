@@ -13,6 +13,7 @@ import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitNodeTip qualif
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitRollback qualified as CommitRollback
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetIntersectionPoints qualified as GetIntersectionPoints
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetMarloweUTxO qualified as GetMarloweUTxO
+import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetStatus qualified as GetStatus
 import UnliftIO (throwIO)
 
 databaseQueries :: MonadIO m => Pool-> DB.DatabaseQueries m
@@ -26,6 +27,7 @@ databaseQueries pool =
     , getIntersectionPoints = \securityParameter -> runTransaction pool $ GetIntersectionPoints.getIntersectionPoints securityParameter
     , getLatestMarloweUTxO = runTransaction pool GetMarloweUTxO.getLatestMarloweUTxO
     , getMarloweUTxO = \slotNo -> runTransaction pool $ GetMarloweUTxO.getMarloweUTxO slotNo
+    , getStatus = runTransaction pool GetStatus.getStatus
     }
 
 runTransaction :: MonadIO m => Pool -> Transaction a -> m a

@@ -29,7 +29,7 @@ digraph "SchemaCrawler_Diagram" {
 	</tr>
 	<tr>
 		<td align='right'>generated on</td>
-		<td align='left'>2026-05-04 11:44:01</td>
+		<td align='left'>2026-09-21 10:39:58</td>
 	</tr>
       </table>
     >
@@ -380,6 +380,35 @@ digraph "SchemaCrawler_Diagram" {
   "withdrawaltxin_ec39492e":"createtxix_ec9b2a41.start":w -> "createtxout_f28a231e":"txix_5ef0cb55.end":e [label=<withdrawaltxin_createtxid_createtxix_fkey> style="solid" dir="both" arrowhead="teetee" arrowtail="crowodot"];
 
 
+  /* marlowe.indexer_status -=-=-=-=-=-=-=-=-=-=-=-=-=- */
+  "indexer_status_9e9fdb82" [
+    label=<
+      <table border="1" cellborder="0" cellspacing="0" color="#888888">
+	<tr>
+		<td colspan='2' bgcolor='#F2C2E2' align='left'><b><i>marlowe.indexer_status</i></b></td>
+		<td bgcolor='#F2C2E2' align='right'>[table]</td>
+	</tr>
+	<tr>
+		<td port='attr_35896eaf.start' align='left'><b><i>attr</i></b></td>
+		<td align='left'> </td>
+		<td port='attr_35896eaf.end' align='left'>indexer_status_attr not null</td>
+	</tr>
+	<tr>
+		<td align='left'></td>
+		<td align='left'> </td>
+		<td align='left'>'tip'</td>
+	</tr>
+	<tr>
+		<td port='value_3c08262f.start' align='left'>"value"</td>
+		<td align='left'> </td>
+		<td port='value_3c08262f.end' align='left'>bytea</td>
+	</tr>
+      </table>
+    >
+  ];
+
+
+
   /* marlowe.invalidapplytx -=-=-=-=-=-=-=-=-=-=-=-=-=- */
   "invalidapplytx_69554ceb" [
     label=<
@@ -412,6 +441,35 @@ digraph "SchemaCrawler_Diagram" {
 		<td port='error_c719227d.start' align='left'>error</td>
 		<td align='left'> </td>
 		<td port='error_c719227d.end' align='left'>text not null</td>
+	</tr>
+      </table>
+    >
+  ];
+
+
+
+  /* marlowe.node_status -=-=-=-=-=-=-=-=-=-=-=-=-=- */
+  "node_status_47b85d1f" [
+    label=<
+      <table border="1" cellborder="0" cellspacing="0" color="#888888">
+	<tr>
+		<td colspan='2' bgcolor='#F2C2E2' align='left'><b><i>marlowe.node_status</i></b></td>
+		<td bgcolor='#F2C2E2' align='right'>[table]</td>
+	</tr>
+	<tr>
+		<td port='attr_af8120b2.start' align='left'><b><i>attr</i></b></td>
+		<td align='left'> </td>
+		<td port='attr_af8120b2.end' align='left'>node_status_attr not null</td>
+	</tr>
+	<tr>
+		<td align='left'></td>
+		<td align='left'> </td>
+		<td align='left'>'tip', eraHistory'</td>
+	</tr>
+	<tr>
+		<td port='value_b5ffd832.start' align='left'>"value"</td>
+		<td align='left'> </td>
+		<td port='value_b5ffd832.end' align='left'>bytea</td>
 	</tr>
       </table>
     >

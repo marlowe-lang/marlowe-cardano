@@ -2,7 +2,6 @@ module Commands.Compile where
 
 import Cardano.Api (File (File), PlutusScriptVersion (PlutusScriptV3), Script (PlutusScript), writeFileTextEnvelope)
 import Cardano.Api.Plutus (PlutusScript (PlutusScriptSerialised))
-import Data.Aeson qualified as A
 import Data.Aeson.Encode.Pretty qualified as A
 import Data.ByteString (ByteString, pack)
 import Data.ByteString.Char8 qualified as BS8
@@ -12,6 +11,7 @@ import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
 import Data.Word (Word8)
 import Data.Yaml qualified as Y
+import Marlowe.Contrib.OptParse.MessageFormat (MessageFormat (..), messageFormatParser)
 import Marlowe.Plutus.Binaries.Devel qualified as Devel
 import Marlowe.Plutus.Binaries.Production qualified as Production
 import Options.Applicative (
@@ -33,7 +33,11 @@ import Options.Applicative (
    strOption,
    switch,
    value,
+   (<|>)
  )
+import Control.Monad (forM)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 import PlutusTx.Builtins (toBuiltin)
 import qualified Data.Text as T
 import qualified PlutusLedgerApi.V3 as PV3
@@ -41,7 +45,7 @@ import System.Directory (createDirectoryIfMissing, makeAbsolute)
 import System.Exit (die)
 import System.FilePath ((</>))
 import Marlowe.Plutus.RoleTokens (RoleTokens, mkRoleTokens)
-import Marlowe.Plutus.Binaries.Api.Compile (ScriptOutput(ScriptOutput, scriptName, scriptHash, scriptFile, hashFile), ScriptsSuite(ScriptsSuite, marloweSemantics, marloweRolePayout, openRoles), ScriptVariant(DevelScripts, ProductionScripts), scriptNameToText, ScriptName(MarloweSemantics, MarloweRolePayout, OpenRoles))
+import Marlowe.Plutus.Binaries.Api.Compile (ScriptOutput(ScriptOutput, scriptName, scriptHash, scriptFile, hashFile), ScriptsSuite(ScriptsSuite, suiteVariant, responseOutputDir, marloweSemantics, marloweRolePayout, openRoles, roleTokens), ScriptVariant(DevelScripts, ProductionScripts), scriptNameToText, ScriptName(MarloweSemantics, MarloweRolePayout, OpenRoles, MarloweRoleTokens))
 
 data CompileCommand
   = MarloweCompile MarloweCompileCommand
@@ -81,11 +85,37 @@ data RoleTokenMintingCompileCommand = RoleTokenMintingCompileCommand
   , outputAbsolutePaths :: Bool
   }
 
+-- | Optional role-token minting policy parameters. Captures the three CLI
+-- flags (@--role@, @--role-hex@, @--tx-out-ref@) so that the suite command
+-- can either compile the role-token policy (when all three are present) or
+-- skip it (when none are present).
+data RoleTokensSpec = RoleTokensSpec
+  { roleOptionsSpec :: [RoleOption]
+  , roleHexOptionsSpec :: [RoleOption]
+  , txOutRefSpec :: TxOutRef
+  }
+
+-- | Was at least one of the role-token flags supplied? We use this to
+-- decide whether the user intended to compile a role-token policy. The
+-- companion validator below rejects the "some but not all" case.
+roleTokensSpecProvided :: RoleTokensSpec -> Bool
+roleTokensSpecProvided RoleTokensSpec{roleOptionsSpec, roleHexOptionsSpec, txOutRefSpec} =
+  not (null roleOptionsSpec)
+    || not (null roleHexOptionsSpec)
+    || case txOutRefSpec of
+        TxOutRef "" 0 -> False
+        _ -> True
+
 data SuiteCompileCommand = SuiteCompileCommand
   { develScripts :: Bool
   , outputDir :: FilePath
   , messageFormat :: MessageFormat
   , outputAbsolutePaths :: Bool
+  , roleTokensSpec :: RoleTokensSpec
+  -- ^ Inputs needed to compile the role-token minting policy. When all
+  -- three components are supplied (see 'roleTokensSpecProvided') the
+  -- role-token policy is bundled into the emitted 'ScriptsSuite';
+  -- otherwise it is emitted as @null@.
   }
 
 data RoleOption = RoleOption
@@ -100,38 +130,6 @@ data TxOutRef = TxOutRef
   { txId :: ByteString
   , txIx :: Integer
   } deriving (Eq, Show)
-
-data MessageFormat = MessageFormatText | MessageFormatJson | MessageFormatYaml
-  deriving (Eq)
-
-instance Show MessageFormat where
-  show = \case
-    MessageFormatText -> "text"
-    MessageFormatJson -> "json"
-    MessageFormatYaml -> "yaml"
-
-instance A.ToJSON MessageFormat where
-  toJSON = A.String . \case
-    MessageFormatText -> "text"
-    MessageFormatJson -> "json"
-    MessageFormatYaml -> "yaml"
-
-readMessageFormat :: ReadM MessageFormat
-readMessageFormat = eitherReader $ \case
-  "text" -> Right MessageFormatText
-  "json" -> Right MessageFormatJson
-  "yaml" -> Right MessageFormatYaml
-  other -> Left $ "Unknown message format: " <> other <> ". Expected one of: text, json, yaml."
-
-messageFormatParser :: Parser MessageFormat
-messageFormatParser =
-  option readMessageFormat
-    ( long "message-format"
-        <> metavar "text|json|yaml"
-        <> value MessageFormatText
-        <> showDefault
-        <> help "Format of command output."
-    )
 
 parseTxOutRef :: ReadM TxOutRef
 parseTxOutRef = eitherReader $ \s -> case break (== '#') s of
@@ -199,6 +197,21 @@ txOutRefParser = option parseTxOutRef
       <> metavar "TXID#INDEX"
       <> help "Transaction output reference (txid#index)"
   )
+
+-- | Read a @--tx-out-ref@ option into the suite's role-token spec. When
+-- the user did not pass the flag at all we keep the field at its default
+-- empty 'TxOutRef' (which 'roleTokensSpecProvided' treats as absent).
+txOutRefSpecParser :: Parser TxOutRef
+txOutRefSpecParser = txOutRefParser <|> pure (TxOutRef "" 0)
+
+-- | Combined parser for the three role-token flags reused by both the
+-- dedicated @role-tokens-minting@ subcommand and the @suite@ subcommand.
+roleTokensSpecParser :: Parser RoleTokensSpec
+roleTokensSpecParser =
+  RoleTokensSpec
+    <$> roleOptionsParser
+    <*> roleHexOptionsParser
+    <*> txOutRefSpecParser
 
 develScriptsParser :: Parser Bool
 develScriptsParser = switch
@@ -276,8 +289,31 @@ suiteCompileParser =
         <*> outputDirParser
         <*> messageFormatParser
         <*> outputAbsolutePathsParser
+        <*> roleTokensSpecParser
     )
-    (progDesc "Compile the full Marlowe script suite (marlowe, payout, open roles) and emit a ScriptsSuite JSON/YAML description.")
+    (progDesc
+      ( "Compile the full Marlowe script suite (marlowe, payout, open roles) \
+        \and emit a ScriptsSuite JSON/YAML description. When --role, --role-hex \
+        \and --tx-out-ref are all supplied, the role-token minting policy is \
+        \included in the suite as well."
+      )
+  )
+
+-- | Validate that the three role-token flags are either all supplied or
+-- none of them. Called from 'runSuiteCompile' after parsing.
+validateRoleTokensSpec :: RoleTokensSpec -> Either String ()
+validateRoleTokensSpec spec =
+  let
+    RoleTokensSpec{roleOptionsSpec, roleHexOptionsSpec, txOutRefSpec = TxOutRef txid ix} = spec
+    hasRoles = not (null roleOptionsSpec) || not (null roleHexOptionsSpec)
+    hasTxOutRef = txid /= "" || ix /= 0
+  in case (hasRoles, hasTxOutRef) of
+    (False, False) -> Right ()
+    (True, True) -> Right ()
+    (False, True) ->
+      Left "When providing --tx-out-ref you must also provide --role and/or --role-hex."
+    (True, False) ->
+      Left "When providing --role/--role-hex you must also provide --tx-out-ref."
 
 compileCommandParser :: ParserInfo CompileCommand
 compileCommandParser = info parser (progDesc "Compile and export Marlowe validator scripts.")
@@ -341,13 +377,25 @@ runRoleTokenMintingCompile cmd = do
   either (emitError messageFormat) (emitSummary messageFormat) result
 
 runSuiteCompile :: SuiteCompileCommand -> IO ()
-runSuiteCompile SuiteCompileCommand{develScripts, outputDir, messageFormat, outputAbsolutePaths} = do
-  let variant = if develScripts then DevelScripts else ProductionScripts
-  case messageFormat of
-    MessageFormatText -> putStrLn $ "Writing " <> show variant <> " script suite to " <> show outputDir <> "."
-    _ -> pure ()
-  result <- compileSuite variant outputDir outputAbsolutePaths
-  either (emitError messageFormat) (emitSummarySuite messageFormat) result
+runSuiteCompile SuiteCompileCommand{develScripts, outputDir, messageFormat, outputAbsolutePaths, roleTokensSpec} = do
+  case validateRoleTokensSpec roleTokensSpec of
+    Left err -> emitError messageFormat err
+    Right () -> do
+      let variant = if develScripts then DevelScripts else ProductionScripts
+          RoleTokensSpec{roleOptionsSpec = ro, roleHexOptionsSpec = rh, txOutRefSpec = tr} = roleTokensSpec
+          includeRoleTokens = roleTokensSpecProvided roleTokensSpec
+          mRoleTokensInput
+            | includeRoleTokens =
+                Just (mkRoleTokens (map roleOptToPair (ro <> rh)), tr)
+            | otherwise = Nothing
+      case messageFormat of
+        MessageFormatText -> putStrLn $ "Writing " <> show variant <> " script suite to " <> show outputDir <> "."
+        _ -> pure ()
+      result <- compileSuite variant outputDir outputAbsolutePaths mRoleTokensInput
+      either (emitError messageFormat) (emitSummarySuite messageFormat) result
+  where
+    roleOptToPair (RoleOption (RoleName name) (Amount amount)) =
+      (PV3.TokenName . PV3.toBuiltin $ name, amount)
 
 toPV3TxOutRef :: TxOutRef -> PV3.TxOutRef
 toPV3TxOutRef (TxOutRef tid ix) =
@@ -426,7 +474,7 @@ compileRoleTokenMintingScript variant outputDir roles txOutRef outputAbsolutePat
   let (hash, bytes) = case variant of
         DevelScripts -> (Devel.mkRoleTokensPolicyHash roles (toPV3TxOutRef txOutRef), Devel.mkRoleTokensPolicyBytes roles (toPV3TxOutRef txOutRef))
         ProductionScripts -> (Production.mkRoleTokensPolicyHash roles (toPV3TxOutRef txOutRef), Production.mkRoleTokensPolicyBytes roles (toPV3TxOutRef txOutRef))
-      scriptName = MarloweRolePayout
+      scriptName = MarloweRoleTokens
       baseName = T.unpack . scriptNameToText $ scriptName
       scriptFile = outputDir </> baseName <> ".plutus"
       hashFile = outputDir </> baseName <> ".plutus.hash"
@@ -445,17 +493,31 @@ compileRoleTokenMintingScript variant outputDir roles txOutRef outputAbsolutePat
 
 -- | Compile the full Marlowe script suite (marlowe semantics + payout +
 -- open roles) into @outputDir@ and return a 'ScriptsSuite' describing the
--- generated files.
-compileSuite :: ScriptVariant -> FilePath -> Bool -> IO (Either String ScriptsSuite)
-compileSuite variant outputDir outputAbsolutePaths = do
-  semantics <- compileMarloweScript variant outputDir outputAbsolutePaths
-  payout <- compilePayoutScript variant outputDir outputAbsolutePaths
-  openRoles <- compileOpenRoles variant outputDir outputAbsolutePaths
-  resolvedOutputDir <- absPath outputDir
-  pure $ ScriptsSuite variant (if outputAbsolutePaths then resolvedOutputDir else outputDir)
-    <$> semantics
-    <*> payout
-    <*> openRoles
+-- generated files. When @mRoleTokens@ is supplied the role-token minting
+-- policy is bundled into the suite as well.
+compileSuite
+  :: ScriptVariant
+  -> FilePath
+  -> Bool
+  -> Maybe (RoleTokens, TxOutRef)
+  -> IO (Either String ScriptsSuite)
+compileSuite variant outputDir outputAbsolutePaths mRoleTokens = liftIO $ runExceptT $ do
+  semantics <- ExceptT $ compileMarloweScript variant outputDir outputAbsolutePaths
+  payout <- ExceptT $ compilePayoutScript variant outputDir outputAbsolutePaths
+  openRoles <- ExceptT $ compileOpenRoles variant outputDir outputAbsolutePaths
+  roleTokensOut <-
+    forM mRoleTokens $ \(tokens, txOutRef) ->
+      ExceptT $ compileRoleTokenMintingScript variant outputDir tokens txOutRef outputAbsolutePaths
+  resolvedOutputDir <- liftIO $ if outputAbsolutePaths then absPath outputDir else pure outputDir
+  pure
+    ScriptsSuite
+      { suiteVariant = variant
+      , responseOutputDir = resolvedOutputDir
+      , marloweSemantics = semantics
+      , marloweRolePayout = payout
+      , openRoles = openRoles
+      , roleTokens = roleTokensOut
+      }
 
 -- | Resolve @scriptFile@ and @hashFile@ to absolute paths when
 -- @outputAbsolutePaths@ is set, or leave them untouched otherwise.

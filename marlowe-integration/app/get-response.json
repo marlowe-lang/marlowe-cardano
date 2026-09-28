@@ -1,0 +1,308 @@
+{
+    "assets": {
+        "lovelace": 1301620,
+        "tokens": {
+            "4628842d8fb6075d813670bcea2acd09dc52d9881e842462891e6784": {
+                "?{e\u0004Ià\u0001£I tÇxr«,¿½³åú\"\u0004\u001b]\u000f\u001fË": 1
+            }
+        }
+    },
+    "block": {
+        "blockHeaderHash": "e4430ff5d12f88befa0d0d3a64024c09bc1994c0a1d25539c31b9f35907b476e",
+        "blockNo": 1492,
+        "slotNo": 14650
+    },
+    "contractId": "aa67bb60665e3d7fc7114aee6138f08cbda884f9fc538f5641e1821486953868#1",
+    "currentContract": {
+        "timeout": 1788176109796,
+        "timeout_continuation": "close",
+        "when": [
+            {
+                "case": {
+                    "deposits": 2000000,
+                    "into_account": {
+                        "address": "addr_test1vz8nhc532tf7q5m6380wkfw69ruxmrau7lt8dd8yj8jrftqkqrw6g"
+                    },
+                    "of_token": {
+                        "currency_symbol": "",
+                        "token_name": ""
+                    },
+                    "party": {
+                        "address": "addr_test1vz8nhc532tf7q5m6380wkfw69ruxmrau7lt8dd8yj8jrftqkqrw6g"
+                    }
+                },
+                "then": {
+                    "timeout": 1788176109796,
+                    "timeout_continuation": "close",
+                    "when": [
+                        {
+                            "case": {
+                                "deposits": 2000000,
+                                "into_account": {
+                                    "address": "addr_test1vzlnd9k27gdpmzws2jegx5fe0g328l356vuatezqke7gg9qz9h7jl"
+                                },
+                                "of_token": {
+                                    "currency_symbol": "",
+                                    "token_name": ""
+                                },
+                                "party": {
+                                    "address": "addr_test1vzlnd9k27gdpmzws2jegx5fe0g328l356vuatezqke7gg9qz9h7jl"
+                                }
+                            },
+                            "then": {
+                                "timeout": 1788176109796,
+                                "timeout_continuation": "close",
+                                "when": [
+                                    {
+                                        "case": {
+                                            "choose_between": [
+                                                {
+                                                    "from": 0,
+                                                    "to": 2
+                                                }
+                                            ],
+                                            "for_choice": {
+                                                "choice_name": "team-1-vs-team-2",
+                                                "choice_owner": {
+                                                    "address": "addr_test1vqf4qnf3l5n08cg4uc558x9057tuvmrrsfv8g4tspnwjevst5x9aw"
+                                                }
+                                            }
+                                        },
+                                        "then": {
+                                            "else": {
+                                                "else": "close",
+                                                "if": {
+                                                    "equal_to": 2,
+                                                    "value": {
+                                                        "value_of_choice": {
+                                                            "choice_name": "team-1-vs-team-2",
+                                                            "choice_owner": {
+                                                                "address": "addr_test1vqf4qnf3l5n08cg4uc558x9057tuvmrrsfv8g4tspnwjevst5x9aw"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "then": {
+                                                    "from_account": {
+                                                        "address": "addr_test1vz8nhc532tf7q5m6380wkfw69ruxmrau7lt8dd8yj8jrftqkqrw6g"
+                                                    },
+                                                    "pay": 2000000,
+                                                    "then": "close",
+                                                    "to": {
+                                                        "party": {
+                                                            "address": "addr_test1vzlnd9k27gdpmzws2jegx5fe0g328l356vuatezqke7gg9qz9h7jl"
+                                                        }
+                                                    },
+                                                    "token": {
+                                                        "currency_symbol": "",
+                                                        "token_name": ""
+                                                    }
+                                                }
+                                            },
+                                            "if": {
+                                                "equal_to": 1,
+                                                "value": {
+                                                    "value_of_choice": {
+                                                        "choice_name": "team-1-vs-team-2",
+                                                        "choice_owner": {
+                                                            "address": "addr_test1vqf4qnf3l5n08cg4uc558x9057tuvmrrsfv8g4tspnwjevst5x9aw"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "then": {
+                                                "from_account": {
+                                                    "address": "addr_test1vzlnd9k27gdpmzws2jegx5fe0g328l356vuatezqke7gg9qz9h7jl"
+                                                },
+                                                "pay": 2000000,
+                                                "then": "close",
+                                                "to": {
+                                                    "party": {
+                                                        "address": "addr_test1vz8nhc532tf7q5m6380wkfw69ruxmrau7lt8dd8yj8jrftqkqrw6g"
+                                                    }
+                                                },
+                                                "token": {
+                                                    "currency_symbol": "",
+                                                    "token_name": ""
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "initialContract": {
+        "timeout": 1788176109796,
+        "timeout_continuation": "close",
+        "when": [
+            {
+                "case": {
+                    "deposits": 2000000,
+                    "into_account": {
+                        "address": "addr_test1vz8nhc532tf7q5m6380wkfw69ruxmrau7lt8dd8yj8jrftqkqrw6g"
+                    },
+                    "of_token": {
+                        "currency_symbol": "",
+                        "token_name": ""
+                    },
+                    "party": {
+                        "address": "addr_test1vz8nhc532tf7q5m6380wkfw69ruxmrau7lt8dd8yj8jrftqkqrw6g"
+                    }
+                },
+                "then": {
+                    "timeout": 1788176109796,
+                    "timeout_continuation": "close",
+                    "when": [
+                        {
+                            "case": {
+                                "deposits": 2000000,
+                                "into_account": {
+                                    "address": "addr_test1vzlnd9k27gdpmzws2jegx5fe0g328l356vuatezqke7gg9qz9h7jl"
+                                },
+                                "of_token": {
+                                    "currency_symbol": "",
+                                    "token_name": ""
+                                },
+                                "party": {
+                                    "address": "addr_test1vzlnd9k27gdpmzws2jegx5fe0g328l356vuatezqke7gg9qz9h7jl"
+                                }
+                            },
+                            "then": {
+                                "timeout": 1788176109796,
+                                "timeout_continuation": "close",
+                                "when": [
+                                    {
+                                        "case": {
+                                            "choose_between": [
+                                                {
+                                                    "from": 0,
+                                                    "to": 2
+                                                }
+                                            ],
+                                            "for_choice": {
+                                                "choice_name": "team-1-vs-team-2",
+                                                "choice_owner": {
+                                                    "address": "addr_test1vqf4qnf3l5n08cg4uc558x9057tuvmrrsfv8g4tspnwjevst5x9aw"
+                                                }
+                                            }
+                                        },
+                                        "then": {
+                                            "else": {
+                                                "else": "close",
+                                                "if": {
+                                                    "equal_to": 2,
+                                                    "value": {
+                                                        "value_of_choice": {
+                                                            "choice_name": "team-1-vs-team-2",
+                                                            "choice_owner": {
+                                                                "address": "addr_test1vqf4qnf3l5n08cg4uc558x9057tuvmrrsfv8g4tspnwjevst5x9aw"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "then": {
+                                                    "from_account": {
+                                                        "address": "addr_test1vz8nhc532tf7q5m6380wkfw69ruxmrau7lt8dd8yj8jrftqkqrw6g"
+                                                    },
+                                                    "pay": 2000000,
+                                                    "then": "close",
+                                                    "to": {
+                                                        "party": {
+                                                            "address": "addr_test1vzlnd9k27gdpmzws2jegx5fe0g328l356vuatezqke7gg9qz9h7jl"
+                                                        }
+                                                    },
+                                                    "token": {
+                                                        "currency_symbol": "",
+                                                        "token_name": ""
+                                                    }
+                                                }
+                                            },
+                                            "if": {
+                                                "equal_to": 1,
+                                                "value": {
+                                                    "value_of_choice": {
+                                                        "choice_name": "team-1-vs-team-2",
+                                                        "choice_owner": {
+                                                            "address": "addr_test1vqf4qnf3l5n08cg4uc558x9057tuvmrrsfv8g4tspnwjevst5x9aw"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "then": {
+                                                "from_account": {
+                                                    "address": "addr_test1vzlnd9k27gdpmzws2jegx5fe0g328l356vuatezqke7gg9qz9h7jl"
+                                                },
+                                                "pay": 2000000,
+                                                "then": "close",
+                                                "to": {
+                                                    "party": {
+                                                        "address": "addr_test1vz8nhc532tf7q5m6380wkfw69ruxmrau7lt8dd8yj8jrftqkqrw6g"
+                                                    }
+                                                },
+                                                "token": {
+                                                    "currency_symbol": "",
+                                                    "token_name": ""
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "initialState": {
+        "accounts": [
+            [
+                [
+                    {
+                        "address": "addr_test1vrx0w4vg76d35ufy5g28njpsklj65ejqnjm76t6t8ghdxwcvvxjg8"
+                    },
+                    {
+                        "currency_symbol": "",
+                        "token_name": ""
+                    }
+                ],
+                1301620
+            ]
+        ],
+        "boundValues": [],
+        "choices": [],
+        "minTime": 0
+    },
+    "metadata": {},
+    "roleTokenMintingPolicyId": null,
+    "state": {
+        "accounts": [
+            [
+                [
+                    {
+                        "address": "addr_test1vrx0w4vg76d35ufy5g28njpsklj65ejqnjm76t6t8ghdxwcvvxjg8"
+                    },
+                    {
+                        "currency_symbol": "",
+                        "token_name": ""
+                    }
+                ],
+                1301620
+            ]
+        ],
+        "boundValues": [],
+        "choices": [],
+        "minTime": 0
+    },
+    "status": "confirmed",
+    "tags": {},
+    "txBody": null,
+    "unclaimedPayouts": [],
+    "utxo": "aa67bb60665e3d7fc7114aee6138f08cbda884f9fc538f5641e1821486953868#1",
+    "version": "v1"
+}

@@ -28,7 +28,7 @@ import Cardano.Api (
 import Cardano.Api qualified as C
 import Cardano.Api qualified as CAS
 import Contrib.Control.Monad.Except (note)
-import Contrib.Data.Foldable (foldMapFlipped, ifoldMapMFlipped)
+import Marlowe.Contrib.Foldable (foldMapFlipped, ifoldMapMFlipped)
 import Control.Category ((>>>))
 import Control.Error.Util qualified as Error
 import Control.Lens (ifor_, modifying, use, view, (.=))

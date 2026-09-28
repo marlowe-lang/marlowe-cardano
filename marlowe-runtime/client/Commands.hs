@@ -11,6 +11,7 @@ import Options.Applicative (
 import Commands.ApplyInputs (mkApplyInputsCommandParser, runApplyInputsCommand)
 import Commands.Init (mkInitCommandParser, runInitCommand)
 import Commands.GetContract (mkGetContractCommandParser, runGetContractCommand)
+import Commands.GetTransactions (mkGetTransactionsCommandParser, runGetTransactionsCommand)
 import Commands.Next (mkNextCommandParser, runNextCommand)
 import Commands.UploadContractSource (mkUploadContractSourceCommandParser, runUploadContractSourceCommand)
 import Commands.GetContractSource (mkGetContractSourceCommandParser, runGetContractSourceCommand)
@@ -30,11 +31,13 @@ mkContractCommandParser :: IO (Parser (IO ()))
 mkContractCommandParser = do
   initCommandParser <- mkInitCommandParser
   getContractParser <- mkGetContractCommandParser
+  getTransactionsParser <- mkGetTransactionsCommandParser
   nextCommandParser <- mkNextCommandParser
   applyInputsCommandParser <- mkApplyInputsCommandParser
   pure . hsubparser . fold $
     [ command "init" $ runInitCommand <$> initCommandParser
     , command "get" $ runGetContractCommand <$> getContractParser
+    , command "transactions" $ runGetTransactionsCommand <$> getTransactionsParser
     , command "next" $ runNextCommand <$> nextCommandParser
     , command "apply-inputs" $ runApplyInputsCommand <$> applyInputsCommandParser
     ]

@@ -111,6 +111,7 @@ import Language.Marlowe.CLI.Types (
   doWithCardanoEra,
   doWithShelleyBasedEra,
   queryContextNetworkId,
+  validatorAddress,
   validatorInfo',
  )
 import Marlowe.Plutus.Semantics (MarloweData (..), MarloweParams)
@@ -210,14 +211,13 @@ exportMarlowe marloweValidator marloweParams protocolVersion costModel network s
       . when printStats
       $ do
         hPutStrLn stderr ""
-        hPutStrLn stderr $ "Bare-validator cost: " <> show viCost
-        hPutStrLn stderr $ "Validator size: " <> show viSize
+        hPutStrLn stderr $ "Validator size: " <> show (SBS.length viBytes)
         case viTxIn of
           Just txIn -> hPutStrLn stderr $ "Validator script reference: " <> show txIn
           Nothing -> pure ()
         hPutStrLn stderr $ "Datum size: " <> show diSize
         hPutStrLn stderr $ "Redeemer size: " <> show riSize
-        hPutStrLn stderr $ "Total size: " <> show (viSize + diSize + riSize)
+        hPutStrLn stderr $ "Total size: " <> show (SBS.length viBytes + diSize + riSize)
 
 -- | Print information about a Marlowe contract and transaction.
 printMarlowe
@@ -265,18 +265,17 @@ printMarlowe marloweValidator marloweParams era protocolVersion costModel networ
         putStrLn ""
         putStrLn $
           "Validator address: "
-            <> T.unpack (cardanoEraConstraints (toCardanoEra era) $ serialiseAddress viAddress)
+            <> T.unpack (cardanoEraConstraints (toCardanoEra era) $ serialiseAddress (validatorAddress viScript era network stake))
         putStrLn ""
         putStrLn $ "Validator hash: " <> show viHash
         putStrLn ""
-        putStrLn $ "Validator size: " <> show viSize
+        putStrLn $ "Validator size: " <> show (SBS.length viBytes)
         putStrLn ""
         case viTxIn of
           Just txIn -> do
             putStrLn $ "Validator script reference: " <> show txIn
             putStrLn ""
           Nothing -> pure ()
-        putStrLn $ "Bare-validator cost: " <> show viCost
         putStrLn ""
         putStrLn $ "Datum:" <> LBS8.unpack (encode diJson)
         putStrLn ""
@@ -288,7 +287,7 @@ printMarlowe marloweValidator marloweParams era protocolVersion costModel networ
         putStrLn ""
         putStrLn $ "Redeemer size: " <> show riSize
         putStrLn ""
-        putStrLn $ "Total size: " <> show (viSize + diSize + riSize)
+        putStrLn $ "Total size: " <> show (SBS.length viBytes + diSize + riSize)
 
 -- | Compute the address of a validator.
 buildAddress
@@ -402,7 +401,7 @@ exportValidatorImpl plutusScript protocolVersion costModel network stake outputF
     doWithCardanoEra $
       liftIO $
         do
-          hPutStrLn stderr $ T.unpack $ serialiseAddress viAddress
+          hPutStrLn stderr $ T.unpack $ serialiseAddress (validatorAddress viScript era network stake)
           when printHash $
             do
               hPutStrLn stderr ""
@@ -415,8 +414,7 @@ exportValidatorImpl plutusScript protocolVersion costModel network stake outputF
           when printStats $
             do
               hPutStrLn stderr ""
-              hPutStrLn stderr $ "Validator size: " <> show viSize
-              hPutStrLn stderr $ "Bare-validator cost: " <> show viCost
+              hPutStrLn stderr $ "Validator size: " <> show (SBS.length viBytes)
 
 -- | Current Marlowe validator information.
 marloweValidatorInfo

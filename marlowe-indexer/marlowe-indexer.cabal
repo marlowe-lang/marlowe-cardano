@@ -61,6 +61,7 @@ common lang
 library db
   import:          lang
   hs-source-dirs:  db
+  visibility:      public
   build-depends:
     , aeson
     , base >=4.9 && <5
@@ -86,6 +87,7 @@ library db
     , transformers
     , unliftio
     , witherable
+    , variations
     , vector
 
   exposed-modules:
@@ -98,6 +100,7 @@ library db
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitRollback
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetIntersectionPoints
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetMarloweUTxO
+    Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetStatus
     Language.Marlowe.Runtime.Indexer.MarloweBlock
     Language.Marlowe.Runtime.Indexer.Party
 
@@ -121,10 +124,12 @@ library
     , cardano-ledger-shelley
     , cardano-strict-containers
     , containers
+    , errors
     , hasql
     , hasql-th >=0.5
     , hasql-transaction
     , log-base
+    , marlowe-contrib:foldable-traversable
     , marlowe-indexer:db
     , marlowe-plutus
     , marlowe-transactions
@@ -159,7 +164,7 @@ library
     Marlowe.Indexer.NodeQuerier
     Marlowe.Indexer.Store
 
-executable marlowe-indexer
+executable server
   import:          lang
   hs-source-dirs:  app
   main-is:         Main.hs
@@ -178,8 +183,9 @@ executable marlowe-indexer
     , hasql-transaction
     , log-base
     , log-base-inlined
-    , marlowe-binaries
+    , nonempty-containers
     , marlowe-indexer
+
     , marlowe-indexer:db
     , marlowe-transactions
     , optparse-applicative
@@ -187,6 +193,37 @@ executable marlowe-indexer
     , text
     , time
     , unliftio
+
+executable cli
+  import:          lang
+  hs-source-dirs:  cli
+  main-is:         Main.hs
+  other-modules:
+    Commands
+    Commands.Options.Database
+    Commands.Options.MessageFormat
+    Commands.Status
+    Options
+    Paths_marlowe_indexer
+
+  build-depends:
+    , aeson
+    , aeson-pretty
+    , base >=4.9 && <5
+    , binary
+    , bytestring
+    , cardano-api
+    , containers
+    , hasql
+    , hasql-pool
+    , hasql-th >=0.5
+    , hasql-transaction
+    , marlowe-indexer:db
+    , marlowe-contrib:optparse
+    , marlowe-transactions
+    , optparse-applicative
+    , text
+    , yaml
 
 test-suite marlowe-indexer-test
   import:          lang

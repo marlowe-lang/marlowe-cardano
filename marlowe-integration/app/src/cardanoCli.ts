@@ -1,4 +1,4 @@
-import { runCommand, type CommandError, execCliJsonTyped, runCommandJsonTyped, type CliArgs } from './exec.js';
+import { type CommandError, type CliArg, type CliArgs, execCli, execCliJsonTyped } from './exec.js';
 import * as nodeOs from "node:os";
 import * as nodeFs from "node:fs";
 import {
@@ -31,6 +31,15 @@ import { valueRecords2ValueCodec, type ValueRecord } from '@konduit/konduit-cons
 import { PositiveBigInt } from '@konduit/codec/integers/big';
 import type { Wallet } from './cardano.js';
 import type { Path as TaggedPath } from './exec.js';
+
+
+export const execCardanoCli = (args: CliArgs, debug: boolean = false): Result<string, CommandError> => {
+  return execCli('cardano-cli', args, debug);
+}
+
+export const execCardanoCliJsonTyped = <T>(args: CliArgs, deserialiser: JsonDeserialiser<T>, debug: boolean = false): Result<T, CommandError | JsonError> => {
+  return execCliJsonTyped('cardano-cli', args, deserialiser, debug);
+}
 
 export type Path = string;
 
@@ -161,11 +170,16 @@ export namespace Tip {
   });
 }
 
-export const getTip = (): Tip => {
+export const getTip = (debug: boolean = false): Tip => {
   const tip: Tip = unwrapOrPanicWith(
-    runCommandJsonTyped(
-      `cardano-cli query tip --testnet-magic 1097911063 --output-json`,
+    execCardanoCliJsonTyped(
+      [
+        "query", "tip",
+        ["--testnet-magic", 1097911063],
+        "--output-json",
+      ],
       Tip.jsonDeserialiser,
+      debug,
     ),
     (e) => `Failed to query tip: ${JSON.stringify(e)}`,
   );
@@ -186,17 +200,17 @@ const setNetworkArg = (args: CliArgs, networkMagicNumber?: NetworkMagicNumber): 
   }
 }
 
-export const queryUtxosByAddress = (address: AddressBech32, networkMagicNumber?: NetworkMagicNumber): Result<UtxoMap, CommandError | JsonError> => {
+export const queryUtxosByAddress = (address: AddressBech32, networkMagicNumber?: NetworkMagicNumber, debug: boolean = false): Result<UtxoMap, CommandError | JsonError> => {
   const args: CliArgs = [
     "query", "utxo",
     ["--address", address],
     "--output-json"
   ];
   setNetworkArg(args, networkMagicNumber);
-  return execCliJsonTyped(
-    "cardano-cli",
+  return execCardanoCliJsonTyped(
     args,
-    UtxoMap.jsonDeserialiser
+    UtxoMap.jsonDeserialiser,
+    debug,
   );
 };
 
@@ -204,8 +218,11 @@ export const getTxIdFromTxFile = (
   txFilePath: Path,
   debug = false
 ): Result<TxIdHex, CommandError | JsonError> => {
-  return runCommandJsonTyped(
-    `cardano-cli conway transaction txid --tx-file ${txFilePath}`,
+  return execCardanoCliJsonTyped(
+    [
+      "conway", "transaction", "txid",
+      ["--tx-file", txFilePath],
+    ],
     jsonCodecs.objectOf({ txhash: TxIdHex.jsonCodec, }).deserialise,
     debug
   ).map(obj => obj.txhash);
@@ -215,8 +232,11 @@ export const getTxIdFromTxBodyFile = (
   txBodyFilePath: Path,
   debug = false
 ): Result<TxIdHex, CommandError | JsonError> => {
-  return runCommandJsonTyped(
-    `cardano-cli conway transaction txid --tx-body-file ${txBodyFilePath}`,
+  return execCardanoCliJsonTyped(
+    [
+      "conway", "transaction", "txid",
+      ["--tx-body-file", txBodyFilePath],
+    ],
     TxIdHex.jsonCodec.deserialise,
     debug
   );
@@ -253,10 +273,14 @@ export const waitForUtxo: (
   const startTime = Date.now();
   const loop = async (): Promise<Result<TxOut, WaitForUtxoError>> => {
     if(Date.now() - startTime < timeoutMs) {
-      return runCommandJsonTyped(
-        `cardano-cli conway query utxo --tx-in "${txOutRef}" --output-json`,
+      return execCardanoCliJsonTyped(
+        [
+          "conway", "query", "utxo",
+          ["--tx-in", txOutRef],
+          "--output-json",
+        ],
         UtxoMap.jsonDeserialiser,
-        debug
+        debug,
       ).match(
         async (utxos) => {
           const entries = UtxoMap.toUtxos(utxos).filter(utxo => utxo.txOutRef === txOutRef);
@@ -303,7 +327,7 @@ export const waitForTx = (
 export const signTxEnvelope = function (
   skeyFile: string,
   txEnvelope: TxEnvelope,
-  debug = true,
+  debug = false,
   tmpDir: Path | null = null, // When null we will use system temp dir
 ): Result<TxEnvelope, jsonCodecs.JsonError | CommandError | string> {
   const txTmpDir = tmpDir || `${nodeOs.tmpdir()}`;
@@ -311,7 +335,15 @@ export const signTxEnvelope = function (
   const unsignedTxFile = `${txTmpDir}/unsigned.tx.json`;
   const signedTxFile = `${txTmpDir}/sined.tx.json`;
   nodeFs.writeFileSync(unsignedTxFile, txEnvelopeJson);
-  return runCommand(`cardano-cli conway transaction sign --tx-file ${unsignedTxFile} --signing-key-file ${skeyFile} --out-file ${signedTxFile}`, debug)
+  return execCardanoCli(
+    [
+      "conway", "transaction", "sign",
+      ["--tx-file", unsignedTxFile],
+      ["--signing-key-file", skeyFile],
+      ["--out-file", signedTxFile],
+    ],
+    debug,
+  )
     .andThen(() => {
       const signedTxJsonStr = nodeFs.readFileSync(signedTxFile, "utf8");
       return jsonCodecs.mkParser(TxEnvelope.jsonCodec)(signedTxJsonStr);
@@ -322,6 +354,7 @@ export const signTx = function (
   skeyFile: string,
   txHex: TxHex,
   tmpDir: Path | null = null, // When null we will use system temp dir
+  debug = false,
 ): Result<TxHex, CommandError | JsonError> {
   return getTxId(txHex).andThen(txIdHex => {
     // Create temp directory for transaction signing
@@ -340,8 +373,14 @@ export const signTx = function (
     nodeFs.writeFileSync(txBodyFile, JSON.stringify(txBodyJson));
 
     // Sign the transaction
-    return runCommand(
-      `cardano-cli conway transaction sign --tx-body-file ${txBodyFile} --signing-key-file ${skeyFile} --out-file ${txSignedFile}`,
+    return execCardanoCli(
+      [
+        "conway", "transaction", "sign",
+        ["--tx-body-file", txBodyFile],
+        ["--signing-key-file", skeyFile],
+        ["--out-file", txSignedFile],
+      ],
+      debug,
     ).map(() => {
       const signedTxJsonStr = nodeFs.readFileSync(txSignedFile, "utf8");
       const signedTxJson = JSON.parse(signedTxJsonStr);
@@ -359,7 +398,13 @@ export const submitTxFromEnvelopeFile = (
   intervalMs = 1_000,
   timeoutMs = 180_000,
 ): ResultAsync<TxIdHex, WaitForUtxoError> => {
-  return toAsync(runCommand(`cardano-cli conway transaction submit --tx-file ${txFile}`, debug))
+  return toAsync(execCardanoCli(
+    [
+      "conway", "transaction", "submit",
+      ["--tx-file", txFile],
+    ],
+    debug,
+  ))
     .andThen(
       () => toAsync(getTxIdFromTxFile(txFile, debug))
     ).andThen(
@@ -467,6 +512,7 @@ export async function transferFunds(
   recipients: Recipient[],
   tmpDir: Path | null = null,
   networkMagicNumber?: NetworkMagicNumber,
+  debug = false,
 ): Promise<Result<TxIdHex, CommandError | JsonError>> {
   if (recipients.length > MAX_TRANSFER_RECIPIENTS)
     throw new Error(
@@ -484,20 +530,26 @@ export async function transferFunds(
     nodeFs.mkdirSync(walletTmpDir, { recursive: true });
   }
 
-  const networkArg =
-    networkMagicNumber === undefined
-      ? ""
-      : networkMagicNumber === NetworkMagicNumber.MAINNET
-        ? " --mainnet"
-        : ` --testnet-magic ${networkMagicNumber}`;
-  const socketPathArg = process.env.CARDANO_NODE_SOCKET_PATH
-    ? ` --socket-path '${process.env.CARDANO_NODE_SOCKET_PATH}'`
-    : "";
+  const socketPath = process.env.CARDANO_NODE_SOCKET_PATH;
+  const appendSocketPathArg = (args: CliArgs): void => {
+    if (socketPath) {
+      args.push(["--socket-path", socketPath]);
+    }
+  };
+
+  const queryArgs: CliArgs = [
+    "conway", "query", "utxo",
+    ["--address", walletAddress],
+    "--output-json",
+  ];
+  setNetworkArg(queryArgs, networkMagicNumber);
+  appendSocketPathArg(queryArgs);
 
   const initialUtxoMap: UtxoMap = unwrapOrPanicWith(
-    runCommandJsonTyped(
-      `cardano-cli conway query utxo --address=${walletAddress} --output-json${networkArg}${socketPathArg}`,
-      UtxoMap.jsonDeserialiser
+    execCardanoCliJsonTyped(
+      queryArgs,
+      UtxoMap.jsonDeserialiser,
+      debug,
     ),
     (e) => `Failed to query utxo by address ${walletAddress}: ${JSON.stringify(e)}`,
   );
@@ -505,36 +557,32 @@ export async function transferFunds(
   const totalSplit = recipients.reduce((sum, r) => sum + r.amount, 0);
   const selectedUtxos = selectUtxos(totalSplit, initialUtxoMap);
 
-  // Prepare inputs
-  const txInsArgs = Array.from(selectedUtxos.selectedUtxos.keys())
-    .map((txOutRef) => `--tx-in '${txOutRef}'`)
-    .join(" ");
-
-  // Prepare outputs --tx-out args
-  const txOutArgs = recipients
-    .map((recipient) => `--tx-out ${recipient.address}+${recipient.amount}`)
-    .join(" ");
-
   const unsigedTxFile = `${walletTmpDir}/split.body.json`;
-  runCommand(
-    `cardano-cli conway transaction build \
-      ${txInsArgs} \
-      ${txOutArgs} \
-      --change-address '${walletAddress}' \
-      --out-file '${unsigedTxFile}'${networkArg}${socketPathArg}`,
-  );
+  const buildArgs: CliArgs = [
+    "conway", "transaction", "build",
+    ...Array.from(selectedUtxos.selectedUtxos.keys()).map((txOutRef) => ["--tx-in", txOutRef] as CliArg),
+    ...recipients.map((recipient) => ["--tx-out", `${recipient.address}+${recipient.amount}`] as CliArg),
+    ["--change-address", walletAddress],
+    ["--out-file", unsigedTxFile],
+  ];
+  setNetworkArg(buildArgs, networkMagicNumber);
+  appendSocketPathArg(buildArgs);
+  execCardanoCli(buildArgs, debug);
 
   const signedTxFile = `${walletTmpDir}/split.tx.json`;
 
-  runCommand(
-    `cardano-cli conway transaction sign \
-      --signing-key-file '${walletSkeyFile}' \
-      --tx-body-file '${unsigedTxFile}' \
-      --out-file '${signedTxFile}'`,
+  execCardanoCli(
+    [
+      "conway", "transaction", "sign",
+      ["--signing-key-file", walletSkeyFile],
+      ["--tx-body-file", unsigedTxFile],
+      ["--out-file", signedTxFile],
+    ],
+    debug,
   );
 
-  await submitTxFromEnvelopeFile(signedTxFile);
-  const txId = getTxIdFromTxFile(signedTxFile);
+  await submitTxFromEnvelopeFile(signedTxFile, debug);
+  const txId = getTxIdFromTxFile(signedTxFile, debug);
   return txId;
 }
 
@@ -545,6 +593,7 @@ export async function transferFunds(
 export const createWallet = (
   networkMagicNumber: NetworkMagicNumber,
   tmpDir: Path | null = null,
+  debug = false,
 ): Result<Wallet, CommandError | JsonError> => {
   const walletTmpDir =
     tmpDir ?? `${nodeOs.tmpdir()}/wallet-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
@@ -554,24 +603,22 @@ export const createWallet = (
   const skeyFile = `${walletTmpDir}/wallet.skey`;
   const addrFile = `${walletTmpDir}/wallet.addr`;
 
-  return runCommand(
-    `cardano-cli conway address key-gen ` +
-      `--verification-key-file ${vkeyFile} ` +
-      `--signing-key-file ${skeyFile}`,
-      true,
+  return execCardanoCli(
+    [
+      "conway", "address", "key-gen",
+      ["--verification-key-file", vkeyFile],
+      ["--signing-key-file", skeyFile],
+    ],
+    debug,
   ).andThen(() => {
-    const networkArg =
-      networkMagicNumber === NetworkMagicNumber.MAINNET
-        ? "--mainnet"
-        : `--testnet-magic ${networkMagicNumber}`;
+    const buildArgs: CliArgs = [
+      "conway", "address", "build",
+      ["--payment-verification-key-file", vkeyFile],
+      ["--out-file", addrFile],
+    ];
+    setNetworkArg(buildArgs, networkMagicNumber);
 
-    return runCommand(
-      `cardano-cli conway address build ` +
-        `--payment-verification-key-file ${vkeyFile} ` +
-        `${networkArg} ` +
-        `--out-file ${addrFile}`,
-        true,
-    );
+    return execCardanoCli(buildArgs, debug);
   }).map(() => {
     const addrStr = nodeFs.readFileSync(addrFile, "utf8").trim();
     const addr = unwrapOrPanicWith(

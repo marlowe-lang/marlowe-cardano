@@ -85,6 +85,7 @@ let
     pkgs.postgresql
     pkgs.postgresql.lib
     pkgs.postgresql.dev
+    pkgs.process-compose
     pkgs.python3
     pkgs.ripgrep
     pkgs.sqitchPg
@@ -97,37 +98,8 @@ let
     pkgs.zlib
   ];
 
-  commonShellHook = ''
-    ${preCommitCheck.shellHook}
-    export ROOT_DIR="$(git rev-parse --show-toplevel)"
-    export RUN_DIR="$ROOT_DIR/.run"
-
-    # Vars required by postgres part of the process compose:
-    export SQITCH_CHDIR="$ROOT_DIR/sql"
-    export POSTGRES_DIR="$RUN_DIR/postgres"
-    export PGPORT="15432"
-
-    # Vars required by testnet part of the process compose:
-    export TESTNET_DIR="$RUN_DIR/testnet"
-    export CARDONNAY_TESTNET_ID="9"
-    export CARDANO_NODE_NETWORK_ID=42
-    source <(cardonnay control print-env -i "$CARDONNAY_TESTNET_ID" -w "$TESTNET_DIR")
-
-    # This **will be** initialized by the testnet process compose when executed
-    export FAUCET_ADDR_FILE="$TESTNET_DIR/faucet.addr"
-    export FAUCET_SKEY_FILE="$TESTNET_DIR/faucet.skey"
-    export MARLOWE_PUBLISHING_INFO_FILE=$"$TESTNET_DIR/marlowe-publishing-info.json"
-
-    export PROCESS_COMPOSE_TESTNET_YAML=${process-compose-testnet-yaml}
-    export PROCESS_COMPOSE_POSTGRES_YAML=${process-compose-postgres-yaml}
-    export PROCESS_COMPOSE_DEV_ENV_YAML=${process-compose-dev-env-yaml}
-
-    export LD_LIBRARY_PATH="${ld-library-path}:$LD_LIBRARY_PATH"
-    export PATH=$PATH:"$ROOT_DIR/marlowe-integration/node_modules/.bin"
-  '';
-
   systemLevelLibDeps = project.shellFor {
-    packages = p: [p.cardano-crypto-class p.ouroboros-consensus];
+    packages = p: [p.cardano-crypto-class p.ouroboros-consensus p.zip ];
     withHoogle = false;
   };
 
@@ -158,7 +130,9 @@ let
         (jail.combinators.try-fwd-env "CARDANO_NODE_SOCKET_PATH")
         (jail.combinators.try-fwd-env "FAUCET_ADDR_FILE")
         (jail.combinators.try-fwd-env "FAUCET_SKEY_FILE")
-        (jail.combinators.try-fwd-env "MARLOWE_PUBLISHING_INFO_FILE")
+        (jail.combinators.try-fwd-env "MARLOWE_SCRIPTS_REGISTRY_FILE")
+        (jail.combinators.try-fwd-env "MARLOWE_RUNTIME_PORT")
+        (jail.combinators.try-fwd-env "MARLOWE_RUNTIME_HOST")
         # we pass only the information about the running dev env
         (jail.combinators.try-fwd-env "PROCESS_COMPOSE_DEV_ENV_YAML")
       ];
@@ -258,11 +232,10 @@ let
     nativeBuildInputs = commonPackages ++ [
       cardano-node
       # inputs.process-compose
-      pkgs.process-compose
       pkgs.dbeaver-bin
       pkgs.mitmproxy
 
-      # db-schema-info generator
+      db-schema-info
 
       # The main process compose for the full dev env.
       process-compose-dev-env
@@ -314,11 +287,16 @@ let
       # This **will be** initialized by the testnet process compose when executed
       export FAUCET_ADDR_FILE="$TESTNET_DIR/faucet.addr"
       export FAUCET_SKEY_FILE="$TESTNET_DIR/faucet.skey"
-      export MARLOWE_PUBLISHING_INFO_FILE=$"$TESTNET_DIR/marlowe-publishing-info.json"
+      export MARLOWE_SCRIPTS_REGISTRY_FILE="$TESTNET_DIR/marlowe-scripts-registry.json"
+      export MARLOWE_SCRIPTS_SUITE_DIR="$TESTNET_DIR/marlowe-scripts-suite"
+      export MARLOWE_SCRIPTS_SUITE_FILE="$TESTNET_DIR/marlowe-scripts-suite.json"
+      export MARLOWE_RUNTIME_PORT="8090"
+      export MARLOWE_RUNTIME_HOST="127.0.0.1"
 
       export PROCESS_COMPOSE_TESTNET_YAML=${process-compose-testnet-yaml}
       export PROCESS_COMPOSE_POSTGRES_YAML=${process-compose-postgres-yaml}
       export PROCESS_COMPOSE_DEV_ENV_YAML=${process-compose-dev-env-yaml}
+      export PC_PORT_NUM=8110
       export PATH=$PATH:"$ROOT_DIR/marlowe-integration/node_modules/.bin"
 
       export LD_LIBRARY_PATH="${ld-library-path}:$LD_LIBRARY_PATH"

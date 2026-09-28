@@ -17,27 +17,28 @@ import Debug.Trace (traceM)
 import Control.Concurrent.Component (Component, mkComponent)
 import Data.Foldable (for_)
 import Data.Maybe (catMaybes)
-import qualified Data.Set as Set
 import Data.Aeson (ToJSON)
 import Data.Text (Text)
 import Marlowe.Indexer.MarloweChainFollower.Extractor (extractMarloweBlock)
-import Language.Marlowe.Runtime.ChainSync.Api (ChainPoint, WithGenesis(..), ScriptHash, NodeTip (NodeTip), IndexerTip(IndexerTip))
+import Language.Marlowe.Runtime.ChainSync.Api (ChainPoint, WithGenesis(..), NodeTip (NodeTip), IndexerTip(IndexerTip))
 import Language.Marlowe.Runtime.Cardano.Api (fromCardanoBlockHeader, fromCardanoTransaction, fromCardanoChainTip)
 import Marlowe.Indexer.NodeQuerier (NodeQuerier(..), Query (QueryHistory, QueryStartup), hoistNodeQuerier)
 import Control.Monad.Reader.Class (MonadReader, ask)
 import Control.Monad.Trans.Reader (runReaderT, ReaderT (..))
 import Control.Monad.Trans.Class (lift, MonadTrans)
-import Data.Set (Set)
+import Language.Marlowe.Runtime.Core.ScriptRegistry (ScriptRegistry)
 import Control.Monad.State (runStateT)
 import Data.Traversable (for)
 import Control.Monad.Trans.Writer (runWriter)
 import qualified Data.Text as T
+import Language.Marlowe.Runtime.History.Api (MarloweScriptHashes)
 
 -- | The set of dependencies needed by the NodeFollower component.
 data MarloweChainFollowerDependencies m = MarloweChainFollowerDependencies
   { changes :: STM NodeFollower.Changes
   , getLatestMarloweUTxO :: m MarloweUTxO
-  , marloweScriptHashes  :: Set ScriptHash
+  , marloweScriptHashes  :: MarloweScriptHashes
+  , scriptRegistry :: ScriptRegistry
   , nodeQuerier :: NodeQuerier m
   }
 
@@ -49,7 +50,9 @@ hoistMarloweChainFollowerDependencies f MarloweChainFollowerDependencies{..} =
   MarloweChainFollowerDependencies
     { changes = changes
     , getLatestMarloweUTxO = f getLatestMarloweUTxO
-    , marloweScriptHashes = marloweScriptHashes
+     , marloweScriptHashes = marloweScriptHashes
+     , scriptRegistry = scriptRegistry
+
     , nodeQuerier = hoistNodeQuerier f nodeQuerier
     }
 
@@ -189,8 +192,9 @@ mkFollowerThread emit possibleSystemStart prevNodeTipRef prevIndexerTipRef = do
         systemStart
         eraHistory
         marloweScriptHashes
+        scriptRegistry
         blockHeader
-        (Set.fromList transactions)
+        transactions
       pure $ (chainPoint,) <$> possibleBlock
     marloweBlocks = catMaybes possibleBlocks
 

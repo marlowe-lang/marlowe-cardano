@@ -21,21 +21,24 @@ module Language.Marlowe.CLI.Command.Role (
 ) where
 
 import Cardano.Api (NetworkId (..), StakeAddressReference (..))
-import Control.Monad.Except (MonadError)
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader.Class (MonadReader)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Language.Marlowe.CLI.Command.Parse (
+  ScriptFilesOptions,
+  loadMarloweScripts,
   parseCurrencySymbol,
   parseNetworkId,
   parseStakeAddressReference,
   parseTokenName,
   protocolVersionOpt,
+  scriptsFilesOptions,
  )
 import Language.Marlowe.CLI.Export (exportRoleAddress, exportRoleDatum, exportRoleRedeemer, exportRoleValidator)
 import Language.Marlowe.CLI.IO (getDefaultCostModel)
-import Language.Marlowe.CLI.Types (CliEnv, CliError)
+import Language.Marlowe.CLI.Types (CliEnv, CliError (..))
 import Marlowe.Plutus.Semantics.Types (Token (Token))
 import Options.Applicative qualified as O
 import PlutusLedgerApi.Common (MajorProtocolVersion)
@@ -49,6 +52,8 @@ data RoleCommand
       -- ^ The network ID, if any.
       , stake :: Maybe StakeAddressReference
       -- ^ The stake address, if any.
+      , scriptFiles :: ScriptFilesOptions
+      -- ^ Paths to Marlowe Plutus scripts.
       }
   | -- | Export the role validator for a Marlowe contract.
     ExportValidator
@@ -64,6 +69,8 @@ data RoleCommand
       -- ^ Whether to print the validator hash.
       , printStats :: Bool
       -- ^ Whether to print statistics about the contract.
+      , scriptFiles :: ScriptFilesOptions
+      -- ^ Paths to Marlowe Plutus scripts.
       }
   | -- | Export the role datum for a Marlowe contract transaction.
     ExportDatum
@@ -92,7 +99,7 @@ runRoleCommand
   => RoleCommand
   -- ^ The command.
   -> m ()
-  -- ^ Action for running the command.
+-- ^ Action for running the command.
 runRoleCommand command =
   do
     -- FIXME: we should use `getPV2CostModel` here - add node socket path to the command.
@@ -100,16 +107,32 @@ runRoleCommand command =
     let network' = network command
         stake' = fromMaybe NoStakeAddress $ stake command
     case command of
-      ExportAddress{} -> exportRoleAddress @_ network' stake'
+      ExportAddress{..} -> do
+        loadedScripts <- liftIO $ loadMarloweScripts scriptFiles
+        case loadedScripts of
+          Left err -> throwError err
+          Right (_, _, _, mrt) -> do
+            case mrt of
+              Nothing ->
+                throwError
+                  $ CliError
+                  $ "Role address requires a role-token minting policy; pass --role-tokens-script-file or include roleTokens in --scripts-suite-file."
+              Just roleValidator ->
+                exportRoleAddress @_ roleValidator network' stake'
       ExportValidator{..} -> do
-        exportRoleValidator @_
-          protocolVersion
-          (Map.elems $ fromIntegral <$> costModel)
-          network'
-          stake'
-          outputFile
-          printHash
-          printStats
+        loadedScripts <- liftIO $ loadMarloweScripts scriptFiles
+        case loadedScripts of
+          Left err -> throwError err
+          Right (_, payoutValidator, _, _) ->
+            exportRoleValidator @_
+              payoutValidator
+              protocolVersion
+              (Map.elems $ fromIntegral <$> costModel)
+              network'
+              stake'
+              outputFile
+              printHash
+              printStats
       ExportDatum{..} ->
         exportRoleDatum
           (Token rolesCurrency' roleName)
@@ -151,6 +174,7 @@ exportAddressOptions network =
     <*> (O.optional . O.option parseStakeAddressReference)
       ( O.long "stake-address" <> O.metavar "ADDRESS" <> O.help "Stake address, if any."
       )
+    <*> scriptsFilesOptions
 
 -- | Parser for the "validator" command.
 exportValidatorCommand
@@ -181,6 +205,7 @@ exportValidatorOptions network =
     <*> O.switch
       ( O.long "print-stats" <> O.help "Print statistics."
       )
+    <*> scriptsFilesOptions
 
 -- | Parser for the "datum" command.
 exportDatumCommand :: O.Mod O.CommandFields RoleCommand

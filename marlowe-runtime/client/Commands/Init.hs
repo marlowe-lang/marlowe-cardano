@@ -124,7 +124,7 @@ runInitCommand cmd = do
       pure (Left (error "unreachable" :: Semantics.Contract))
   contractRef <- case (cmd.contractFile :: Maybe FilePath, cmd.contractSourceId :: Maybe T.Text) of
     (Just _, Just _) -> errBoth "Please specify exactly one of --contract-file or --contract-source-id."
-    (Just f, Nothing) -> Right <$> decodeFileStrict cmd.messageFormat f
+    (Just f, Nothing) -> Left <$> decodeFileStrict cmd.messageFormat f
     (Nothing, Just sidStr) -> case contractSourceIdFromText sidStr of
       Just cid -> pure $ Right cid
       Nothing -> errBoth $ "Invalid contract source id: " <> T.unpack sidStr <> ". It must be a 32-byte hex-encoded string."

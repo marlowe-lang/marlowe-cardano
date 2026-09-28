@@ -123,6 +123,7 @@ library
     , flat
     , ilist ==0.4.0.1
     , lens
+    , marlowe-contrib:foldable-traversable
     , mtl ^>=2.3.1
     , multiplate ==0.0.3
     , newtype-generics
@@ -151,7 +152,6 @@ library
     Marlowe.Plutus.Analysis.Safety.Types
     Marlowe.Plutus.Analysis.Safety.Types.Validator
     -- Marlowe.Plutus.AssocMap
-    Marlowe.Plutus.Contrib.Data.Foldable
     Marlowe.Plutus.Contrib.PlutusTx.Debugging.Trace
     Marlowe.Plutus.Contrib.PlutusTx.Dict
     Marlowe.Plutus.Contrib.PlutusTx.KeyHashedDict

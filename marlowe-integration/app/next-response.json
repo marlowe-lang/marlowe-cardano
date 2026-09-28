@@ -1,0 +1,43 @@
+{
+    "errorType": "FailureResponse",
+    "request": {
+        "accept": "fromList [application/json;charset=utf-8,application/json]",
+        "body": "?",
+        "headers": "fromList []",
+        "httpVersion": "HTTP/1.1",
+        "method": "\"GET\"",
+        "path": "(BaseUrl {baseUrlScheme = Http, baseUrlHost = \"localhost\", baseUrlPort = 8090, baseUrlPath = \"\"},\"/contracts/aa67bb60665e3d7fc7114aee6138f08cbda884f9fc538f5641e1821486953868%231/next\")",
+        "queryString": "fromList [(\"validityStart\",Just \"2026-08-31T11%3A26%3A40.257Z\"),(\"validityEnd\",Just \"2026-08-31T11%3A36%3A40.257Z\")]"
+    },
+    "response": {
+        "body": {
+            "details": {
+                "invalidInterval": {
+                    "from": 1788175600257,
+                    "to": 1788176200257
+                }
+            },
+            "errorCode": "invalidInterval",
+            "message": "Invalid Interval"
+        },
+        "headers": [
+            [
+                "Transfer-Encoding",
+                "chunked"
+            ],
+            [
+                "Date",
+                "Mon, 31 Aug 2026 11:28:50 GMT"
+            ],
+            [
+                "Server",
+                "Warp/3.4.13"
+            ],
+            [
+                "Content-Type",
+                "application/json"
+            ]
+        ],
+        "statusCode": "Status {statusCode = 400, statusMessage = \"Bad Request\"}"
+    }
+}

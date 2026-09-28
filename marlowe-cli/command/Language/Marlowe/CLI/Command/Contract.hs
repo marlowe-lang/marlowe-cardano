@@ -21,16 +21,19 @@ module Language.Marlowe.CLI.Command.Contract (
 ) where
 
 import Cardano.Api (NetworkId (..), StakeAddressReference (..))
-import Control.Monad.Except (MonadError)
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader.Class (MonadReader)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Language.Marlowe.CLI.Command.Parse (
+  ScriptFilesOptions,
+  loadMarloweScripts,
   parseCurrencySymbol,
   parseNetworkId,
   parseStakeAddressReference,
   protocolVersionOpt,
+  scriptsFilesOptions,
  )
 import Language.Marlowe.CLI.Export (
   exportDatum,
@@ -73,6 +76,8 @@ data ContractCommand
       -- ^ The output JSON file for Marlowe contract information.
       , printStats :: Bool
       -- ^ Whether to print statistics about the contract and transaction.
+      , scriptFiles :: ScriptFilesOptions
+      -- ^ Paths to Marlowe Plutus scripts.
       }
   | -- | Export the address for a Marlowe contract.
     ExportAddress
@@ -80,6 +85,8 @@ data ContractCommand
       -- ^ The network ID, if any.
       , stake :: Maybe StakeAddressReference
       -- ^ The stake address, if any.
+      , scriptFiles :: ScriptFilesOptions
+      -- ^ Paths to Marlowe Plutus scripts.
       }
   | -- | Export the validator for a Marlowe contract.
     ExportValidator
@@ -95,6 +102,8 @@ data ContractCommand
       -- ^ Whether to print the validator hash.
       , printStats :: Bool
       -- ^ Whether to print statistics about the contract.
+      , scriptFiles :: ScriptFilesOptions
+      -- ^ Paths to Marlowe Plutus scripts.
       }
   | -- | Export the datum for a Marlowe contract transaction.
     ExportDatum
@@ -135,28 +144,43 @@ runContractCommand command =
         marloweParams' = maybe defaultMarloweParams marloweParams $ rolesCurrency command
         stake' = fromMaybe NoStakeAddress $ stake command
     case command of
-      Export{..} ->
-        exportMarlowe @_
-          marloweParams'
-          protocolVersion
-          (Map.elems $ fromIntegral <$> costModel)
-          network'
-          stake'
-          contractFile
-          stateFile
-          inputFiles
-          outputFile
-          printStats
-      ExportAddress{} -> exportMarloweAddress @_ network' stake'
-      ExportValidator{..} ->
-        exportMarloweValidator @_
-          protocolVersion
-          (Map.elems $ fromIntegral <$> costModel)
-          network'
-          stake'
-          outputFile
-          printHash
-          printStats
+      Export{..} -> do
+        loadedScripts <- liftIO $ loadMarloweScripts scriptFiles
+        case loadedScripts of
+          Left err -> throwError err
+          Right (marloweValidator, _, _, _) ->
+            exportMarlowe @_
+              marloweValidator
+              marloweParams'
+              protocolVersion
+              (Map.elems $ fromIntegral <$> costModel)
+              network'
+              stake'
+              contractFile
+              stateFile
+              inputFiles
+              outputFile
+              printStats
+      ExportAddress{..} -> do
+        loadedScripts <- liftIO $ loadMarloweScripts scriptFiles
+        case loadedScripts of
+          Left err -> throwError err
+          Right (marloweValidator, _, _, _) ->
+            exportMarloweAddress @_ marloweValidator network' stake'
+      ExportValidator{..} -> do
+        loadedScripts <- liftIO $ loadMarloweScripts scriptFiles
+        case loadedScripts of
+          Left err -> throwError err
+          Right (marloweValidator, _, _, _) ->
+            exportMarloweValidator @_
+              marloweValidator
+              protocolVersion
+              (Map.elems $ fromIntegral <$> costModel)
+              network'
+              stake'
+              outputFile
+              printHash
+              printStats
       ExportDatum{..} ->
         exportDatum
           marloweParams'
@@ -221,6 +245,7 @@ exportMarloweOptions network =
     <*> O.switch
       ( O.long "print-stats" <> O.help "Print statistics."
       )
+    <*> scriptsFilesOptions
 
 -- | Parser for the "address" command.
 exportAddressCommand
@@ -241,6 +266,7 @@ exportAddressOptions network =
     <*> (O.optional . O.option parseStakeAddressReference)
       ( O.long "stake-address" <> O.metavar "ADDRESS" <> O.help "Stake address, if any."
       )
+    <*> scriptsFilesOptions
 
 -- | Parser for the "validator" command.
 exportValidatorCommand
@@ -271,6 +297,7 @@ exportValidatorOptions network =
     <*> O.switch
       ( O.long "print-stats" <> O.help "Print statistics."
       )
+    <*> scriptsFilesOptions
 
 -- | Parser for the "datum" command.
 exportDatumCommand :: O.Mod O.CommandFields ContractCommand

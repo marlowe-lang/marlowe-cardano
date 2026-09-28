@@ -1,71 +1,34 @@
 module Language.Marlowe.Runtime.History.Api where
 
-import Cardano.Api (EraHistory (EraHistory))
-import Control.Error (listToMaybe, note, runMaybeT)
-import Control.Error.Util (hoistMaybe)
-import Control.Monad (guard, join, unless)
-import Control.Monad.Trans.Class (lift)
-import Data.Aeson (ToJSON, object, toJSON, (.=))
-import Data.Bifunctor (first)
+import Data.Aeson (ToJSON, object, toJSON, (.=), FromJSON)
 import Data.Binary (Binary, get, put)
-import Data.Foldable (find)
 import qualified Data.List.NonEmpty as NE
 import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe (mapMaybe)
 import Data.Set (Set)
-import Data.Traversable (for)
 import GHC.Generics (Generic)
 import GHC.Show (showSpace)
-import qualified Marlowe.Plutus.Semantics.Types as V1
 import Language.Marlowe.Runtime.ChainSync.Api (
   Address,
-  BlockHeader,
   ScriptHash,
-  TxError,
   TxId,
-  TxIx,
   TxOutRef (..),
-  UTxOError, paymentCredential,
  )
 import qualified Language.Marlowe.Runtime.ChainSync.Api as Chain
 import Language.Marlowe.Runtime.Core.Api hiding (marloweVersion)
-import Language.Marlowe.Runtime.Core.ScriptRegistry (getMarloweVersion, MarloweScriptHashes (..), ScriptRegistry)
-import qualified Marlowe.Plutus.Scripts.Types as V1
-import Ouroboros.Consensus.BlockchainTime (SystemStart, fromRelativeTime)
-import Ouroboros.Consensus.HardFork.History (interpretQuery, slotToWallclock)
-import qualified Ouroboros.Network.Block as O
-import qualified PlutusLedgerApi.V2 as PV2
+import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts(marloweScript), ScriptDetails(scriptHash), ScriptRegistry, pattern ScriptRegistry)
 import Data.Variations (Variations (..), varyAp)
 import qualified Data.Set as Set
-
-data ContractHistoryError
-  = HansdshakeFailed
-  | FindTxFailed TxError
-  | ExtractContractFailed ExtractCreationError
-  | FollowScriptUTxOFailed UTxOError
-  | FollowPayoutUTxOsFailed (Map Chain.TxOutRef UTxOError)
-  | ExtractMarloweTransactionFailed ExtractMarloweTransactionError
-  | PayoutUTxONotFound Chain.TxOutRef
-  | CreateTxRolledBack
-  deriving stock (Show, Eq, Ord, Generic)
-  deriving anyclass (Binary, ToJSON, Variations)
-
-data ExtractCreationError
-  = TxIxNotFound
-  | ByronAddress
-  | NonScriptAddress
-  | InvalidScriptHash
-  | NoInitDatum
-  | InvalidInitDatum
-  | NotCreationTransaction
-  deriving stock (Show, Eq, Ord, Generic)
-  deriving anyclass (Binary, ToJSON, Variations)
+import Marlowe.Contrib.Foldable (foldMapFlipped)
+import qualified Data.List.NonEmpty as NEList
+import qualified Data.Map.NonEmpty as NEMap
+import Control.Monad (join)
 
 data ExtractMarloweTransactionError
   = TxInNotFound
   | NoRedeemer
   | InvalidRedeemer
+  | MissingDatumHash
+  | InvalidContinuation
   | NoTransactionDatum
   | InvalidTransactionDatum
   | NoPayoutDatum TxOutRef
@@ -89,13 +52,6 @@ instance ToJSON (CreateStep 'V1)
 instance Variations (CreateStep 'V1)
 
 data SomeCreateStep = forall v. SomeCreateStep (MarloweVersion v) (CreateStep v)
-
-data MarloweCreateTransaction = MarloweCreateTransaction
-  { txId :: TxId
-  , newContracts :: Map TxIx SomeCreateStep
-  }
-  deriving (Eq, Show, Generic)
-  deriving anyclass (Binary, Variations, ToJSON)
 
 -- | Information about an unspent contract transaction output.
 data UnspentContractOutput = UnspentContractOutput
@@ -160,15 +116,6 @@ instance Binary MarloweApplyInputsTransaction where
 data MarloweWithdrawTransaction = MarloweWithdrawTransaction
   { consumedPayouts :: Map ContractId (Set TxOutRef)
   , consumingTx :: TxId
-  }
-  deriving (Eq, Show, Generic)
-  deriving anyclass (Binary, Variations, ToJSON)
-
-data MarloweBlock = MarloweBlock
-  { blockHeader :: BlockHeader
-  , createTransactions :: [MarloweCreateTransaction]
-  , applyInputsTransactions :: [MarloweApplyInputsTransaction]
-  , withdrawTransactions :: [MarloweWithdrawTransaction]
   }
   deriving (Eq, Show, Generic)
   deriving anyclass (Binary, Variations, ToJSON)
@@ -280,135 +227,14 @@ extractThreadToken ownPolicyId mintedAssets = do
     [threadTokenName] -> Just threadTokenName
     _ -> Nothing
 
-extractThreadTokenPolicyId
-  :: Chain.Tokens
-  -> Chain.TransactionOutput
-  -> Set Chain.ScriptHash
-  -> Maybe Chain.PolicyId
-extractThreadTokenPolicyId (Chain.Tokens (Map.keys -> mintedAssets)) Chain.TransactionOutput{address} marloweScriptHashes = do
-  (Chain.ScriptCredential scriptHash) <- paymentCredential address
-  guard (Set.member scriptHash marloweScriptHashes)
-  let ownPolicyId = Chain.scriptHashToPolicyId scriptHash
-  threadTokenName <- extractThreadToken ownPolicyId mintedAssets
-  let threadTokenAssetId = Chain.AssetId ownPolicyId threadTokenName
-  guard (threadTokenAssetId `elem` mintedAssets)
-  pure ownPolicyId
+newtype MarloweScriptHashes = MarloweScriptHashes {hashes :: Set ScriptHash}
+  deriving stock (Show, Eq, Ord)
+  deriving newtype (Semigroup, Monoid, ToJSON, FromJSON, Variations)
 
-extractCreation :: ScriptRegistry -> ContractId -> Chain.Transaction -> Either ExtractCreationError SomeCreateStep
-extractCreation scriptRegistry contractId tx@Chain.Transaction{metadata = txMetadata} = do
-  Chain.TransactionOutput{assets, address = scriptAddress, datum = mdatum} <-
-    getOutput (txIx $ unContractId contractId) tx
-  marloweScriptHash <- getScriptHash scriptAddress
-  (SomeMarloweVersion version, MarloweScriptHashes{..}) <- note InvalidScriptHash $ getMarloweVersion scriptRegistry marloweScriptHash
-  let payoutValidatorHash = payoutScript
-  -- for_ inputs \Chain.TransactionInput{..} ->
-  --   when (isScriptAddress marloweScriptHash address) $ Left NotCreationTransaction
-  txDatum <- note NoInitDatum mdatum
-  datum <- note InvalidInitDatum $ fromChainDatum version txDatum
-  let createOutput = TransactionScriptOutput scriptAddress assets (unContractId contractId) datum
-  let metadata = decodeMarloweTransactionMetadataLenient txMetadata
-  pure $ SomeCreateStep version CreateStep{..}
-
-getScriptHash :: Chain.Address -> Either ExtractCreationError ScriptHash
-getScriptHash address = do
-  credential <- note ByronAddress $ Chain.paymentCredential address
-  case credential of
-    Chain.ScriptCredential scriptHash -> pure scriptHash
-    _ -> Left NonScriptAddress
-
-isScriptAddress :: ScriptHash -> Chain.Address -> Bool
-isScriptAddress scriptHash address = getScriptHash address == Right scriptHash
-
-getOutput :: Chain.TxIx -> Chain.Transaction -> Either ExtractCreationError Chain.TransactionOutput
-getOutput (Chain.TxIx i) Chain.Transaction{..} = go i outputs
-  where
-    go _ [] = Left TxIxNotFound
-    go 0 (x : _) = Right x
-    go i' (_ : xs) = go (i' - 1) xs
-
-extractMarloweTransaction
-  :: MarloweVersion v
-  -> SystemStart
-  -> EraHistory
-  -> ContractId
-  -> Chain.Address
-  -> Chain.ScriptHash
-  -> (Chain.TxOutRef, Maybe Chain.Redeemer)
-  -> BlockHeader
-  -> Chain.Transaction
-  -> Either ExtractMarloweTransactionError (Transaction v)
-extractMarloweTransaction version systemStart eraHistory contractId scriptAddress payoutValidatorHash (consumedTxOutRef, possibleRedeemer) blockHeader Chain.Transaction{..} = do
-  let
-    transactionId = txId
-  unless (elem consumedTxOutRef . Map.keys $ inputs) $
-    Left TxInNotFound
-
-  marloweInputs <- case version of
-    MarloweV1 -> do
-      redeemer <- do
-        rawRedeemer <- note NoRedeemer possibleRedeemer
-        note InvalidRedeemer $ Chain.fromRedeemer rawRedeemer
-      for redeemer \case
-        V1.Input content -> pure $ V1.NormalInput content
-        V1.MerkleizedTxInput content continuationHash ->
-          fmap (V1.MerkleizedInput content continuationHash) $
-            note InvalidRedeemer $
-              listToMaybe $
-                flip mapMaybe outputs \Chain.TransactionOutput{..} -> do
-                  guard $ datumHash == Just (Chain.DatumHash $ PV2.fromBuiltin continuationHash)
-                  Chain.fromDatum =<< datum
-  (minSlot, maxSlot) <- case validityRange of
-    Chain.MinMaxBound minSlot maxSlot -> pure (minSlot, maxSlot)
-    _ -> Left InvalidValidityRange
-  validityLowerBound <- slotStartTime minSlot
-  validityUpperBound <- slotStartTime maxSlot
-  scriptOutput <- runMaybeT do
-    (ix, Chain.TransactionOutput{assets, datum = mDatum}) <-
-      hoistMaybe $ find (isToAddress scriptAddress . snd) $ zip [0 ..] outputs
-    lift do
-      rawDatum <- note NoTransactionDatum mDatum
-      datum <- note InvalidTransactionDatum $ fromChainDatum version rawDatum
-      let txIx = Chain.TxIx ix
-      let utxo = Chain.TxOutRef{..}
-      let address = scriptAddress
-      pure TransactionScriptOutput{..}
-  let payoutOutputs =
-        Map.filter (isToScriptHash payoutValidatorHash) $
-          Map.fromList $
-            (\(txIx, output) -> (Chain.TxOutRef{txIx = Chain.TxIx txIx, ..}, output)) <$> zip [0 ..] outputs
-  payouts <- flip Map.traverseWithKey payoutOutputs \txOut Chain.TransactionOutput{address, datum = mPayoutDatum, assets} -> do
-    rawPayoutDatum <- note (NoPayoutDatum txOut) mPayoutDatum
-    payoutDatum <- note (InvalidPayoutDatum txOut) $ fromChainPayoutDatum version rawPayoutDatum
-    pure $ Payout address assets payoutDatum
-  let output = TransactionOutput{..}
-  pure
-    Transaction
-      { transactionId
-      , contractId
-      , metadata = decodeMarloweTransactionMetadataLenient metadata
-      , blockHeader
-      , validityLowerBound
-      , validityUpperBound
-      , inputs = marloweInputs
-      , output
-      }
-  where
-    EraHistory interpreter = eraHistory
-    slotStartTime (Chain.SlotNo slotNo) = do
-      (relativeTime, _) <-
-        first (const SlotConversionFailed) $
-          interpretQuery interpreter $
-            slotToWallclock $
-              O.SlotNo slotNo
-      pure $ fromRelativeTime systemStart relativeTime
-
-isToScriptHash :: Chain.ScriptHash -> Chain.TransactionOutput -> Bool
-isToScriptHash toScriptHash Chain.TransactionOutput{..} = case Chain.paymentCredential address of
-  Just (Chain.ScriptCredential hash) -> hash == toScriptHash
-  _ -> False
-
-isToAddress :: Chain.Address -> Chain.TransactionOutput -> Bool
-isToAddress toAddress Chain.TransactionOutput{..} = address == toAddress
+getRegistryMarloweScriptHashes :: ScriptRegistry -> MarloweScriptHashes
+getRegistryMarloweScriptHashes (ScriptRegistry _ allReleases) = do
+  foldMapFlipped (NEList.toList . NEMap.elems $ allReleases) \release -> do
+    MarloweScriptHashes $ Set.singleton release.marloweScript.scriptHash
 
 consumesUTxO :: TxOutRef -> Chain.TxOutRef -> Bool
 consumesUTxO TxOutRef{..} Chain.TxOutRef{txId = txInId, txIx = txInIx} =

@@ -13,7 +13,6 @@
 module Language.Marlowe.CLI.Command.Transaction (
   -- * Marlowe CLI Commands
   TransactionCommand (..),
-  exportRegistryCommand,
   findPublishedCommand,
   parseTransactionCommand,
   publishCommand,
@@ -21,6 +20,7 @@ module Language.Marlowe.CLI.Command.Transaction (
 ) where
 
 import Cardano.Api qualified as C
+import qualified Data.Text as T
 import Cardano.Api (
   AddressInEra,
   BabbageEraOnwards,
@@ -34,17 +34,15 @@ import Cardano.Api (
   TxIn,
   TxOutDatum (TxOutDatumNone),
   babbageEraOnwardsToShelleyBasedEra,
-  hashScript,
   shelleyBasedEraConstraints,
  )
-import Language.Marlowe.Runtime.Cardano.Api (
-  fromCardanoPlutusScript,
-  plutusScriptHash,
- )
-import Control.Monad.Except (MonadError)
+import Control.Monad (void)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Maybe (fromMaybe)
 import Language.Marlowe.CLI.Command.Parse (
+  ScriptFilesOptions,
+  loadMarloweScripts,
   parseAddress,
   parseNetworkId,
   parseSecond,
@@ -55,54 +53,32 @@ import Language.Marlowe.CLI.Command.Parse (
   publishingStrategyOpt,
   requiredSignerOpt,
   requiredSignersOpt,
+  scriptsFilesOptions,
   outTxFileOpt,
  )
 import Language.Marlowe.CLI.Transaction (
   buildContinuing,
   buildIncoming,
   buildOutgoing,
-  buildPublishing,
   buildSimple,
-  findPublished,
-  submit,
+  submit, buildPublishing, findPublished,
  )
-import Language.Marlowe.Scripts (
-  marloweDevelValidatorWithTraces,
-  payoutDevelValidatorWithTraces,
-  marloweDevelValidatorWithoutTraces,
-  payoutDevelValidatorWithoutTraces,
-  openRolesValidator,
- )
+-- (Previously imported: openRolesValidator - removed when embedded scripts were dropped)
 import Language.Marlowe.CLI.Types (
   CliEnv,
-  CliError,
-  MessageFormat(MessageFormatJson, MessageFormatText, MessageFormatYaml),
+  CliError (..),
   PublishingStrategy,
-  QueryExecutionContext (QueryNode),
   SigningKeyFile,
   TxFile,
   TxBodyFile (TxBodyFile),
-  mkNodeTxBuildup,
+  mkNodeTxBuildup, QueryExecutionContext (QueryNode),
  )
-import Language.Marlowe.Runtime.Core.ScriptRegistry (
-  HelperScript (..),
-  MarloweScripts (..),
-  ScriptRegistry (..),
-  ScriptsSuiteName (..),
-  unScriptsSuiteName,
- )
-import Language.Marlowe.Runtime.Core.ScriptRegistry.JSON ()
-import qualified Language.Marlowe.Runtime.ChainSync.Api as Chain
-import Language.Marlowe.Runtime.ChainSync.Api (ScriptHash)
+import Marlowe.Contrib.OptParse.MessageFormat (MessageFormat (..), messageFormatFromText)
+import Language.Marlowe.Runtime.Core.ScriptRegistry (ScriptsSuiteName (..))
 
 import Cardano.Api qualified as Api (Value)
-import Cardano.Api (hashScript)
 import Control.Monad.Reader.Class (MonadReader)
 import Data.Time.Units (Second)
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Map.Strict as Map
-import qualified Data.Text as T
 import Options.Applicative qualified as O
 
 -- | Marlowe CLI commands and options.
@@ -277,6 +253,12 @@ data TransactionCommand era
       , expires :: Maybe SlotNo
       , messageFormat :: MessageFormat
       -- ^ The format for messages printed by this command to the stdout.
+      , scriptFiles :: ScriptFilesOptions
+      -- ^ Paths to Marlowe Plutus scripts.
+      , releaseName :: ScriptsSuiteName
+      -- ^ The release name under which the registry should record the bundle.
+      , description :: Maybe T.Text
+      -- ^ Optional human-readable description of the release.
       }
   | FindPublished
       { network :: NetworkId
@@ -284,20 +266,8 @@ data TransactionCommand era
       , socketPath :: FilePath
       -- ^ The path to the node socket.
       , strategy :: Maybe (PublishingStrategy era)
-      }
-  | -- | Export the embedded Marlowe script bundle as a 'ScriptRegistry' JSON
-    -- document. The output can be written to a file (when 'outputFile' is set)
-    -- or printed to stdout (when 'outputFile' is 'Nothing').
-    ExportRegistry
-      { suiteName :: ScriptsSuiteName
-      -- ^ The name under which the script bundle will be recorded in the
-      -- registry (e.g. "auditV1", "caseAsDataV1").
-      , outputFile :: Maybe FilePath
-      -- ^ The file to write the JSON to. If 'Nothing', the JSON is written
-      -- to stdout.
-      , messageFormat :: MessageFormat
-      -- ^ The format for messages printed by this command to the stdout
-      -- (used only when 'outputFile' is 'Nothing').
+      , scriptFiles :: ScriptFilesOptions
+      -- ^ Paths to Marlowe Plutus scripts.
       }
 
 -- | Run a transaction-related command.
@@ -404,97 +374,73 @@ runTransactionCommand era command =
           signingKeyFiles
           (fromMaybe 0 submitTimeout)
           >>= printTxId
-      Publish{..} ->
-        buildPublishing @_
-          connection
-          signingKeyFile
-          expires
-          change
-           strategy
-           txFile
-           submitTimeout
-           messageFormat
-      FindPublished{..} ->
-        findPublished @_
-          (QueryNode connection)
-          strategy
-      ExportRegistry{..} ->
-        liftIO $ exportScriptRegistry suiteName outputFile
-
--- | Build a 'ScriptRegistry' for the embedded Marlowe script bundle and write
--- it to the requested destination (file or stdout).
-exportScriptRegistry
-  :: ScriptsSuiteName
-  -> Maybe FilePath
-  -> IO ()
-exportScriptRegistry suiteName mOutFile = do
-  let scripts = buildEmbeddedMarloweScripts suiteName
-      registry = ScriptRegistry $ Map.singleton suiteName scripts
-      payload = Aeson.encode registry
-  case mOutFile of
-    Just outFile -> LBS.writeFile outFile payload
-    Nothing      -> LBS.putStr payload
-
--- | Construct a 'MarloweScripts' value for the given suite name from the
--- scripts embedded in the marlowe-cli binary. Today only the 'devel' bundles
--- (with and without traces) are available; production variants live in
--- 'marlowe-transactions' and are loaded from the registry JSON files.
-buildEmbeddedMarloweScripts :: ScriptsSuiteName -> MarloweScripts
-buildEmbeddedMarloweScripts suiteName =
-  let (desc, mp, hv) = case T.unpack (unScriptsSuiteName suiteName) of
-        "marloweDevelValidatorWithTraces" ->
-          ( "Marlowe V1 devel validator (with execution traces)"
-          , marloweDevelValidatorWithTraces
-          , openRolesValidator
-          )
-        "payoutDevelValidatorWithTraces" ->
-          ( "Payout validator for the Marlowe V1 devel bundle (with execution traces)"
-          , marloweDevelValidatorWithTraces
-          , openRolesValidator
-          )
-        "marloweDevelValidatorWithoutTraces" ->
-          ( "Marlowe V1 devel validator (without execution traces)"
-          , marloweDevelValidatorWithoutTraces
-          , openRolesValidator
-          )
-        "payoutDevelValidatorWithoutTraces" ->
-          ( "Payout validator for the Marlowe V1 devel bundle (without execution traces)"
-          , payoutDevelValidatorWithoutTraces
-          , openRolesValidator
-          )
-        other ->
-          error
-            $ "buildEmbeddedMarloweScripts: unknown suite name \""
-            <> other
-            <> "\". Known names: marloweDevelValidatorWithTraces, "
-            <> "payoutDevelValidatorWithTraces, marloweDevelValidatorWithoutTraces, "
-            <> "payoutDevelValidatorWithoutTraces."
-  in MarloweScripts
-       { marloweScript = maybe (error "plutusScriptHash: unknown version") Prelude.id (plutusScriptHash (fromCardanoPlutusScript mp))
-       , payoutScript = maybe (error "plutusScriptHash: unknown version") Prelude.id (plutusScriptHash (fromCardanoPlutusScript mp))
-       , helperScripts = Map.singleton OpenRoleScript (maybe (error "plutusScriptHash: unknown version") Prelude.id (plutusScriptHash (fromCardanoPlutusScript hv)))
-       , marloweScriptUTxOs = mempty
-       , payoutScriptUTxOs = mempty
-       , helperScriptUTxOs = mempty
-       , description = Just desc
-       }
+      Publish{..} -> do
+        loadedScripts <- liftIO $ loadMarloweScripts scriptFiles
+        case loadedScripts of
+          Left err -> throwError err
+          Right (marloweV, payoutV, openRolesV, _) ->
+            void
+              $ buildPublishing @_
+                marloweV
+                payoutV
+                openRolesV
+                releaseName
+                description
+                connection
+                signingKeyFile
+                expires
+                change
+                strategy
+                txFile
+                submitTimeout
+                messageFormat
+      FindPublished{..} -> do
+        loadedScripts <- liftIO $ loadMarloweScripts scriptFiles
+        case loadedScripts of
+          Left err -> throwError err
+          Right (marloweV, payoutV, openRolesV, _) ->
+            findPublished @_
+              marloweV
+              payoutV
+              openRolesV
+              (QueryNode connection)
+              strategy
 
 messageFormatParser :: O.Parser MessageFormat
-messageFormatParser = do
-  let
-    readMessageFormat :: O.ReadM MessageFormat
-    readMessageFormat = O.eitherReader $ \case
-      "text" -> Right MessageFormatText
-      "json" -> Right MessageFormatJson
-      "yaml" -> Right MessageFormatYaml
-      other -> Left $ "Unknown message format: " <> other <> ". Expected one of: text, json, yaml."
-  O.option readMessageFormat
+messageFormatParser =
+  O.option (O.eitherReader (Right . messageFormatFromText))
     ( O.long "message-format"
         <> O.metavar "text|json|yaml"
         <> O.value MessageFormatText
         <> O.showDefault
         <> O.help "Format of command output."
     )
+
+-- | Parser for the @--release-name@ flag used by the @publish@ command.
+releaseNameOpt :: O.Parser ScriptsSuiteName
+releaseNameOpt =
+  O.option
+    (O.eitherReader (Right . ScriptsSuiteName . T.pack))
+    ( O.long "release-name"
+        <> O.metavar "NAME"
+        <> O.help
+          "Release name under which the registry should record the published \
+          \Marlowe script bundle. Used as the 'currentRelease' entry in the\
+          \ emitted 'ScriptRegistry' document."
+    )
+
+-- | Parser for the @--description@ flag. The free-form string is stored
+-- in the 'MarloweScripts.description' field of the emitted registry.
+descriptionOpt :: O.Parser (Maybe T.Text)
+descriptionOpt =
+  O.optional $
+    T.pack
+      <$> O.strOption
+        ( O.long "description"
+            <> O.metavar "TEXT"
+            <> O.help
+              "Optional human-readable description for the released scripts."
+        )
 
 -- | Parser for transaction-related commands.
 parseTransactionCommand
@@ -511,7 +457,6 @@ parseTransactionCommand era network socket =
       <> buildSimpleCommand era network socket
       <> findPublishedCommand era network socket
       <> publishCommand era network socket
-      <> exportRegistryCommand
       <> submitCommand network socket
 
 -- | Parser for the "simple" command.
@@ -908,6 +853,9 @@ publishOptions era network socket =
           <> O.help "The slot number after which minting is no longer possible."
       )
     <*> messageFormatParser
+    <*> scriptsFilesOptions
+    <*> releaseNameOpt
+    <*> descriptionOpt
 
 -- | Parser for the "find-publish" command.
 findPublishedCommand
@@ -937,29 +885,5 @@ findPublishedOptions era network socket =
              "Location of the cardano-node socket file. Defaults to the CARDANO_NODE_SOCKET_PATH environment variable's value."
        )
      <*> O.optional (publishingStrategyOpt era)
+     <*> scriptsFilesOptions
 
--- | Parser for the "export-registry" command.
-exportRegistryCommand
-  :: O.Mod O.CommandFields (TransactionCommand era)
-exportRegistryCommand =
-  O.command "export-registry" $
-    O.info exportRegistryOptions $
-      O.progDesc "Export the embedded Marlowe script bundle as a 'ScriptRegistry' JSON document."
-
--- | Parser for the "export-registry" options.
-exportRegistryOptions :: O.Parser (TransactionCommand era)
-exportRegistryOptions =
-  ExportRegistry
-    <$> O.strOption
-      ( O.long "suite-name"
-          <> O.metavar "NAME"
-          <> O.help "The name of the script suite (e.g. \"auditV1\", \"caseAsDataV1\")."
-      )
-    <*> O.optional
-      ( O.strOption
-          ( O.long "out-file"
-              <> O.metavar "FILE"
-              <> O.help "Write the JSON document to FILE. If omitted, the document is printed to stdout."
-          )
-      )
-    <*> messageFormatParser

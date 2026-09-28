@@ -111,6 +111,7 @@ library
     , lens-aeson
     , log-base
     , marlowe-contract-store:api
+    , marlowe-indexer:db
     , marlowe-object
     , marlowe-plutus ^>=0.2
     , marlowe-transactions
@@ -280,9 +281,10 @@ executable server
     , lifted-base
     , log-base
     , log-base-inlined
-    , marlowe-binaries
-    , marlowe-cli
+    , marlowe-binaries:marlowe-binaries-api
     , marlowe-contract-store:api
+    , marlowe-contrib:optparse
+
     , marlowe-object
     , marlowe-plutus ^>=0.2
     , marlowe-runtime
@@ -342,6 +344,7 @@ executable cli
     Commands.ApplyInputs
     Commands.Init
     Commands.GetContract
+    Commands.GetTransactions
     Commands.Next
     Commands.UploadContractSource
     Commands.GetContractSource
@@ -369,6 +372,7 @@ executable cli
     , filepath
     , http-client
     , marlowe-object
+    , marlowe-contrib:optparse
     , marlowe-plutus
     , marlowe-runtime
     , marlowe-transactions

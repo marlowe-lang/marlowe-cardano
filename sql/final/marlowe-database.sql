@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 2bd1n64Z4yZeovHxH1ejmCL7J4NEluqlY3xLQSQpyC54j3h0cHGVVvHlbCZHqdV
+\restrict XtTZM5zFU5QqjveN2CymLAA76zOxbXZHJtfNf0y4iYVgIsKAD5lq8gMlvXSjNMR
 
 -- Dumped from database version 17.7
 -- Dumped by pg_dump version 17.7
@@ -27,6 +27,29 @@ CREATE SCHEMA marlowe;
 
 
 ALTER SCHEMA marlowe OWNER TO marlowe;
+
+--
+-- Name: indexer_status_attr; Type: TYPE; Schema: marlowe; Owner: marlowe
+--
+
+CREATE TYPE marlowe.indexer_status_attr AS ENUM (
+    'tip'
+);
+
+
+ALTER TYPE marlowe.indexer_status_attr OWNER TO marlowe;
+
+--
+-- Name: node_status_attr; Type: TYPE; Schema: marlowe; Owner: marlowe
+--
+
+CREATE TYPE marlowe.node_status_attr AS ENUM (
+    'tip',
+    'eraHistory'
+);
+
+
+ALTER TYPE marlowe.node_status_attr OWNER TO marlowe;
 
 SET default_tablespace = '';
 
@@ -146,6 +169,18 @@ CREATE TABLE marlowe.createtxout (
 ALTER TABLE marlowe.createtxout OWNER TO marlowe;
 
 --
+-- Name: indexer_status; Type: TABLE; Schema: marlowe; Owner: marlowe
+--
+
+CREATE TABLE marlowe.indexer_status (
+    attr marlowe.indexer_status_attr NOT NULL,
+    value bytea
+);
+
+
+ALTER TABLE marlowe.indexer_status OWNER TO marlowe;
+
+--
 -- Name: invalidapplytx; Type: TABLE; Schema: marlowe; Owner: marlowe
 --
 
@@ -159,6 +194,18 @@ CREATE TABLE marlowe.invalidapplytx (
 
 
 ALTER TABLE marlowe.invalidapplytx OWNER TO marlowe;
+
+--
+-- Name: node_status; Type: TABLE; Schema: marlowe; Owner: marlowe
+--
+
+CREATE TABLE marlowe.node_status (
+    attr marlowe.node_status_attr NOT NULL,
+    value bytea
+);
+
+
+ALTER TABLE marlowe.node_status OWNER TO marlowe;
 
 --
 -- Name: payouttxout; Type: TABLE; Schema: marlowe; Owner: marlowe
@@ -302,11 +349,27 @@ ALTER TABLE ONLY marlowe.createtxout
 
 
 --
+-- Name: indexer_status indexer_status_pkey; Type: CONSTRAINT; Schema: marlowe; Owner: marlowe
+--
+
+ALTER TABLE ONLY marlowe.indexer_status
+    ADD CONSTRAINT indexer_status_pkey PRIMARY KEY (attr);
+
+
+--
 -- Name: invalidapplytx invalidapplytx_pkey; Type: CONSTRAINT; Schema: marlowe; Owner: marlowe
 --
 
 ALTER TABLE ONLY marlowe.invalidapplytx
     ADD CONSTRAINT invalidapplytx_pkey PRIMARY KEY (txid);
+
+
+--
+-- Name: node_status node_status_pkey; Type: CONSTRAINT; Schema: marlowe; Owner: marlowe
+--
+
+ALTER TABLE ONLY marlowe.node_status
+    ADD CONSTRAINT node_status_pkey PRIMARY KEY (attr);
 
 
 --
@@ -784,5 +847,5 @@ ALTER TABLE ONLY marlowe.withdrawaltxin
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 2bd1n64Z4yZeovHxH1ejmCL7J4NEluqlY3xLQSQpyC54j3h0cHGVVvHlbCZHqdV
+\unrestrict XtTZM5zFU5QqjveN2CymLAA76zOxbXZHJtfNf0y4iYVgIsKAD5lq8gMlvXSjNMR
 

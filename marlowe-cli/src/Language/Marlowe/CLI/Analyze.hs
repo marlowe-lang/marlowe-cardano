@@ -12,6 +12,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -36,7 +37,7 @@ import Data.Bifunctor (bimap)
 import Data.Foldable (toList)
 import Data.Function (on)
 import Data.List (maximumBy, nub, (\\))
-import Data.Maybe (catMaybes, isJust)
+import Data.Maybe (catMaybes, fromMaybe, isJust)
 import Data.String (IsString (..))
 import Marlowe.Plutus.Analysis.Safety.Ledger (worstValueSize)
 import Marlowe.Plutus.Analysis.Safety.Transaction (
@@ -74,6 +75,7 @@ import Language.Marlowe.CLI.Types (
   ),
   SomeMarloweTransaction (SomeMarloweTransaction),
   ValidatorInfo (..),
+  validatorAddress,
   validatorInfoScriptOrReference,
  )
 import Marlowe.Plutus.Merkle (Continuations, MerkleizedContract (..))
@@ -176,6 +178,7 @@ analyze connection marloweFile preconditions roles tokens maximumValue minimumUt
       result <-
         analyzeImpl
           era
+          (Api.localNodeNetworkId connection)
           (Api.LedgerProtocolParameters protocol)
           marlowe
           preconditions
@@ -218,6 +221,8 @@ analyzeImpl
   => (MonadIO m)
   => Api.BabbageEraOnwards era
   -- ^ The era.
+  -> Api.NetworkId
+  -- ^ The network ID.
   -> Api.LedgerProtocolParameters era
   -- ^ The connection info for the local node.
   -> MarloweTransaction lang era
@@ -242,8 +247,9 @@ analyzeImpl
   -- ^ Whether to include worst-case example in output.
   -> m A.Value
   -- ^ Action for finding estimates of worst-case bounds.
-analyzeImpl era protocol MarloweTransaction{..} preconditions roles tokens maximumValue minimumUtxo executionCost transactionSize best verbose =
+analyzeImpl era networkID protocol MarloweTransaction{..} preconditions roles tokens maximumValue minimumUtxo executionCost transactionSize best verbose =
   do
+    let network = networkID
     let checkAll = not $ preconditions || roles || tokens || maximumValue || minimumUtxo || executionCost || transactionSize
         ci =
           ContractInstance
@@ -282,9 +288,9 @@ analyzeImpl era protocol MarloweTransaction{..} preconditions roles tokens maxim
             Api.shelleyBasedEraConstraints (Api.babbageEraOnwardsToShelleyBasedEra era) $
               checkMinimumUtxo era protocol perhapsTransactions verbose
         , guardValue (executionCost || checkAll) $
-            checkExecutionCost era protocol ci transactions verbose
+            checkExecutionCost era network protocol ci transactions verbose
         , guardValue (transactionSize || checkAll) $
-            checkTransactionSizes era protocol ci transactions verbose
+            checkTransactionSizes era network protocol ci transactions verbose
         ]
 
 -- | Report invalid properties in the Marlowe state:
@@ -452,8 +458,12 @@ checkMinimumUtxo era protocol info verbose =
 
 -- | Check that transactions satisfy the execution-cost protocol limits.
 checkExecutionCost
-  :: (MonadError CliError m)
+  :: forall m lang era
+   . (C.IsPlutusScriptLanguage lang)
+  => (MonadError CliError m)
   => Api.BabbageEraOnwards era
+  -> Api.NetworkId
+  -- ^ The network ID.
   -> Api.LedgerProtocolParameters era
   -- ^ The protocol parameters.
   -> ContractInstance lang era
@@ -464,8 +474,9 @@ checkExecutionCost
   -- ^ Whether to include worst-case example in output.
   -> m A.Value
   -- ^ Action to print a report on validity of transaction execution costs.
-checkExecutionCost era protocol ContractInstance{..} transactions verbose = Api.babbageEraOnwardsConstraints era $
-  do
+checkExecutionCost era networkID protocol ContractInstance{..} transactions verbose = Api.babbageEraOnwardsConstraints era $
+ do
+    let network = networkID
     costModel <-
       liftCliMaybe "Plutus cost model not found." $
         P.PlutusV2 `M.lookup` P.costModelsValid (protocol ^. lppPParamsL . ppCostModelsL)
@@ -487,8 +498,10 @@ checkExecutionCost era protocol ContractInstance{..} transactions verbose = Api.
                 PV2.TxInInfo
                   (PV2.TxOutRef "6666666666666666666666666666666666666666666666666666666666666666" 1)
                   (PV2.TxOut referenceAddress (P.lovelaceValueOf 1) PV2.NoOutputDatum (Just semanticsHash))
-    semanticsAddress <- fmap snd . liftCli $ marloweAddressFromCardanoAddress $ viAddress ciSemanticsValidator
-    payoutAddress <- fmap snd . liftCli $ marloweAddressFromCardanoAddress $ viAddress ciPayoutValidator
+    semanticsAddress <- fmap snd . liftCli $ marloweAddressFromCardanoAddress $
+      validatorAddress (viScript ciSemanticsValidator) era network Api.NoStakeAddress
+    payoutAddress <- fmap snd . liftCli $ marloweAddressFromCardanoAddress $
+      validatorAddress (viScript ciPayoutValidator) era network Api.NoStakeAddress
     let protocolVersion = ledgerProtVerToPlutusMajorProtocolVersion $ protocol ^. lppPParamsL . ppProtocolVersionL
     script <- liftCli $ deserialiseScript protocolVersion $ viBytes ciSemanticsValidator
     let executor =
@@ -531,8 +544,11 @@ checkExecutionCost era protocol ContractInstance{..} transactions verbose = Api.
         ]
 
 calcMarloweTxExBudgets
-  :: (MonadError CliError m)
+  :: (C.IsPlutusScriptLanguage lang)
+  => (MonadError CliError m)
   => Api.BabbageEraOnwards era
+  -> Api.NetworkId
+  -- ^ The network ID.
   -> Api.LedgerProtocolParameters era
   -- ^ The protocol parameters.
   -> ContractInstance lang era
@@ -542,37 +558,47 @@ calcMarloweTxExBudgets
   -> [PV2.TokenName]
   -> m [MarloweExBudget]
   -- ^ Action to print a report on validity of transaction execution costs.
-calcMarloweTxExBudgets era protocol ContractInstance{..} transactionsPath lockedRoles = Api.babbageEraOnwardsConstraints era $ do
-  costModel <-
-    liftCliMaybe "Plutus cost model not found." $
-      P.PlutusV2 `M.lookup` P.costModelsValid (protocol ^. lppPParamsL . ppCostModelsL)
-  (evaluationContext, _) <- liftCli $ runWriterT $ PV2.mkEvaluationContext $ P.getCostModelParams costModel
-  let useSemanticsReferenceInput = UseReferenceInput $ isJust $ viTxIn ciSemanticsValidator
-      useOperatorReferenceInput = UseReferenceInput $ isJust $ viTxIn ciOpenRoleValidator
+calcMarloweTxExBudgets era networkID protocol ContractInstance{..} transactionsPath lockedRoles = Api.babbageEraOnwardsConstraints era $
+ do
+  do
+    let network = networkID
+    costModel <-
+      liftCliMaybe "Plutus cost model not found." $
+        P.PlutusV2 `M.lookup` P.costModelsValid (protocol ^. lppPParamsL . ppCostModelsL)
+    (evaluationContext, _) <- liftCli $ runWriterT $ PV2.mkEvaluationContext $ P.getCostModelParams costModel
+    let useSemanticsReferenceInput = UseReferenceInput $ isJust $ viTxIn ciSemanticsValidator
+        useOperatorReferenceInput = UseReferenceInput $ isJust $ viTxIn ciOpenRoleValidator
 
-  semanticsAddress <- fmap snd . liftCli $ marloweAddressFromCardanoAddress $ viAddress ciSemanticsValidator
-  payoutAddress <- fmap snd . liftCli $ marloweAddressFromCardanoAddress $ viAddress ciPayoutValidator
-  openRoleAddress <- fmap snd . liftCli $ marloweAddressFromCardanoAddress $ viAddress ciOpenRoleValidator
-  let protocolVersion = ledgerProtVerToPlutusMajorProtocolVersion $ protocol ^. lppPParamsL . ppProtocolVersionL
-  semanticsScript <- liftCli $ deserialiseScript protocolVersion $ viBytes ciSemanticsValidator
-  openRolesScript <- liftCli $ deserialiseScript protocolVersion $ viBytes ciOpenRoleValidator
-  let calcTxBudget transaction stillLockedRoles =
-        calcMarloweTxExBudget
-          evaluationContext
-          (semanticsScript, semanticsAddress, useSemanticsReferenceInput)
-          (openRolesScript, openRoleAddress, useOperatorReferenceInput, LockedRoles stillLockedRoles)
-          payoutAddress
-          (MarloweParams ciRolesCurrency)
-          transaction
-
-      step (budgets, stillLockedRoles) transaction = do
-        let Transaction _ _ TransactionInput{txInputs = txInputs} _ () = transaction
-            requiredRoles = inputsRequiredRoles txInputs
-            stillLockedRoles' = filter (`notElem` requiredRoles) stillLockedRoles
-        txBudgets <- calcTxBudget transaction stillLockedRoles
-        -- result@(MarloweExBudget _ (_, stillLockedRoles')) <- evaluator transaction stillLockeRoles
-        pure (txBudgets : budgets, stillLockedRoles')
-  reverse . fst <$> foldlM step ([], lockedRoles) transactionsPath
+    semanticsAddress <- do
+      addr <- liftCli $ marloweAddressFromCardanoAddress
+        (validatorAddress (viScript ciSemanticsValidator) era network Api.NoStakeAddress)
+      pure (snd addr)
+    payoutAddress <- do
+      addr <- liftCli $ marloweAddressFromCardanoAddress
+        (validatorAddress (viScript ciPayoutValidator) era network Api.NoStakeAddress)
+      pure (snd addr)
+    openRoleAddress <- do
+      addr <- liftCli $ marloweAddressFromCardanoAddress
+        (validatorAddress (viScript ciOpenRoleValidator) era network Api.NoStakeAddress)
+      pure (snd addr)
+    let protocolVersion = ledgerProtVerToPlutusMajorProtocolVersion $ protocol ^. lppPParamsL . ppProtocolVersionL
+    semanticsScript <- liftCli $ deserialiseScript protocolVersion $ viBytes ciSemanticsValidator
+    openRolesScript <- liftCli $ deserialiseScript protocolVersion $ viBytes ciOpenRoleValidator
+    let calcTxBudget transaction stillLockedRoles =
+          calcMarloweTxExBudget
+            evaluationContext
+            (semanticsScript, semanticsAddress, useSemanticsReferenceInput)
+            (openRolesScript, openRoleAddress, useOperatorReferenceInput, LockedRoles stillLockedRoles)
+            payoutAddress
+            (MarloweParams ciRolesCurrency)
+            transaction
+        step (budgets, stillLockedRoles) transaction = do
+          let Transaction _ _ TransactionInput{txInputs = txInputs} _ () = transaction
+              requiredRoles = inputsRequiredRoles txInputs
+              stillLockedRoles' = filter (`notElem` requiredRoles) stillLockedRoles
+          txBudgets <- calcTxBudget transaction stillLockedRoles
+          pure (txBudgets : budgets, stillLockedRoles')
+    reverse . fst <$> foldlM step ([], lockedRoles) transactionsPath
 
 -- | Check that transactions satisfy the transaction-size protocol limit.
 checkTransactionSizes
@@ -582,6 +608,8 @@ checkTransactionSizes
   => (MonadIO m)
   => Api.BabbageEraOnwards era
   -- ^ The era.
+  -> Api.NetworkId
+  -- ^ The network ID.
   -> Api.LedgerProtocolParameters era
   -- ^ The protocol parameters.
   -> ContractInstance lang era
@@ -592,9 +620,10 @@ checkTransactionSizes
   -- ^ Whether to include worst-case example in output.
   -> m A.Value
   -- ^ Action to print a report on validity of transaction size.
-checkTransactionSizes era protocol ci transactions verbose =
+checkTransactionSizes era networkID protocol ci transactions verbose =
   do
-    sizes <- mapM (liftM2 (<$>) (,) $ checkTransactionSize era protocol ci) transactions
+    let network = networkID
+    sizes <- mapM (liftM2 (<$>) (,) $ checkTransactionSize era network protocol ci) transactions
     let (worst, actual) = maximumBy (compare `on` snd) sizes
         (limit :: Word32) = Api.babbageEraOnwardsConstraints era $ protocol ^. lppPParamsL . ppMaxTxSizeL
     pure $
@@ -614,6 +643,8 @@ checkTransactionSize
   => (MonadIO m)
   => Api.BabbageEraOnwards era
   -- ^ The era.
+  -> Api.NetworkId
+  -- ^ The network ID.
   -> Api.LedgerProtocolParameters era
   -- ^ The protocol parameters.
   -> ContractInstance lang era
@@ -622,8 +653,9 @@ checkTransactionSize
   -- ^ The transaction-paths through the contract.
   -> m Int
   -- ^ Action to measure the transaction size.
-checkTransactionSize era protocol ContractInstance{..} (Transaction marloweState marloweContract TransactionInput{..} output ()) =
+checkTransactionSize era networkID protocol ContractInstance{..} (Transaction marloweState marloweContract TransactionInput{..} output ()) =
   do
+    let network = networkID
     -- We only attend to details that make affect the *size* of the transaction, so
     -- the transaction itself does not actually need to be valid.
     scriptInEra <- liftCliMaybe "Script language not supported in era" $ toScriptLanguageInEra era
@@ -669,9 +701,10 @@ checkTransactionSize era protocol ContractInstance{..} (Transaction marloweState
             then mempty
             else
               let outDatum = MarloweData marloweParams txOutState txOutContract
+                  semanticsAddr = validatorAddress (viScript ciSemanticsValidator) era network Api.NoStakeAddress
                in pure $
                     Api.TxOut
-                      (viAddress ciSemanticsValidator)
+                      semanticsAddr
                       (mkTxOutValue era outValue)
                       ( toTxOutDatumInTx era $
                           PV2.Datum $ toBuiltinData outDatum
@@ -699,9 +732,10 @@ checkTransactionSize era protocol ContractInstance{..} (Transaction marloweState
         makePayment (Payment _ (Party (Role role)) (Token currency name) amount) =
           do
             value <- liftCli $ toCardanoValue $ PV2.singleton currency name amount
+            let payoutAddr = validatorAddress (viScript ciPayoutValidator) era network Api.NoStakeAddress
             pure
               [ Api.TxOut
-                  (viAddress ciPayoutValidator)
+                  payoutAddr
                   (mkTxOutValue era value)
                   ( toTxOutDatumInTx era $
                       PV2.Datum $ toBuiltinData (ciRolesCurrency, role)

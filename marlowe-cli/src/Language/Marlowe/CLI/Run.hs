@@ -59,6 +59,7 @@ module Language.Marlowe.CLI.Run (
 
 import Cardano.Api (
   AddressInEra (..),
+  BabbageEraOnwards,
   File (..),
   LocalNodeConnectInfo (..),
   NetworkId (..),
@@ -100,6 +101,7 @@ import Data.Map.Strict qualified as M (toList)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Set qualified as S (fromList, singleton)
 import Data.String (IsString (..))
+import Data.ByteString.Short qualified as SBS
 import Data.Time.Units (Second)
 import Data.Traversable (for)
 import Data.Tuple.Extra (uncurry3)
@@ -166,8 +168,10 @@ import Language.Marlowe.CLI.Types (
   mrOpenRoleValidator,
   toAddressAny',
   toQueryContext,
+  queryContextNetworkId,
   toShelleyAddress,
   txIn,
+  validatorAddress,
   validatorInfoScriptOrReference, MarloweScriptsInfo (..)
  )
 import Marlowe.Plutus.Merkle (MerkleizedContract (..), merkleizeInputs)
@@ -346,21 +350,9 @@ initializeTransactionImpl marloweScripts marloweParams mtSlotConfig stake mtCont
   PlutusScriptV3 -> do
     era <- askEra
     let mtRolesCurrency = rolesCurrency marloweParams
-    (mtValidator, mtRoleValidator, mtOpenRoleValidator) <- do
-      let
-        MarloweScriptsInfo {..} = marloweScripts
-      vi' <-
-        case toShelleyAddress $ viAddress msMarloweValidator of
-          Nothing -> throwError "Expecting shelley address in reference validator info"
-          Just (CS.ShelleyAddress n p _) ->
-            pure $
-              msMarloweValidator
-                { viAddress =
-                    C.shelleyAddressInEra (C.babbageEraOnwardsToShelleyBasedEra era) $
-                      CS.ShelleyAddress n p $
-                        toShelleyStakeReference stake
-                }
-      pure (vi', msRolePayoutValidator, msOpenRoleValidator)
+    let mtValidator = msMarloweValidator marloweScripts
+        mtRoleValidator = msRolePayoutValidator marloweScripts
+        mtOpenRoleValidator = msOpenRoleValidator marloweScripts
     let ValidatorInfo{..} = mtValidator
         mtContinuations = mempty
         mtRange = Nothing
@@ -370,8 +362,7 @@ initializeTransactionImpl marloweScripts marloweParams mtSlotConfig stake mtCont
       when printStats $
         do
           hPutStrLn stderr ""
-          hPutStrLn stderr $ "Validator size: " <> show viSize
-          hPutStrLn stderr $ "Base-validator cost: " <> show viCost
+          hPutStrLn stderr $ "Validator size: " <> show (SBS.length viBytes)
     let marloweTransaction = MarloweTransaction{..}
     pure $ if merkleize then merkleizeMarlowe marloweTransaction else marloweTransaction
 
@@ -402,23 +393,12 @@ initializeTransactionUsingScriptRefsImpl
 initializeTransactionUsingScriptRefsImpl marloweParams mtSlotConfig scriptRefs stake mtContract mtState merkleize printStats =
   do
     let mtRolesCurrency = rolesCurrency marloweParams
-        setupStaking vi@ValidatorInfo{viAddress} = do
-          case toShelleyAddress viAddress of
-            Nothing -> throwError "Expecting shelley address in reference validator info"
-            Just (CS.ShelleyAddress n p _) -> do
-              let viAddress' =
-                    C.shelleyAddressInEra (C.shelleyBasedEra @era) $
-                      CS.ShelleyAddress
-                        n
-                        p
-                        (toShelleyStakeReference stake)
-              pure $ vi{viAddress = viAddress'}
 
         MarloweScriptsRefs{mrMarloweValidator = (_, mv), mrRolePayoutValidator = (_, pv), mrOpenRoleValidator = (_, ov)} = scriptRefs
 
-    mtValidator <- setupStaking mv
-    mtRoleValidator <- setupStaking pv
-    mtOpenRoleValidator <- setupStaking ov
+    let mtValidator = mv
+        mtRoleValidator = pv
+        mtOpenRoleValidator = ov
 
     let ValidatorInfo{..} = mtValidator
         mtContinuations = mempty
@@ -429,8 +409,7 @@ initializeTransactionUsingScriptRefsImpl marloweParams mtSlotConfig scriptRefs s
       when printStats $
         do
           hPutStrLn stderr ""
-          hPutStrLn stderr $ "Validator size: " <> show viSize
-          hPutStrLn stderr $ "Base-validator cost: " <> show viCost
+          hPutStrLn stderr $ "Validator size: " <> show (SBS.length viBytes)
     let marloweTransaction = MarloweTransaction{..}
     pure $ if merkleize then merkleizeMarlowe marloweTransaction else marloweTransaction
 
@@ -584,6 +563,7 @@ readMarloweTransactionFile era lang marloweInFile = do
 runTransaction
   :: forall era m
    . (MonadError CliError m)
+  => (C.IsShelleyBasedEra era)
   => (MonadIO m)
   => (MonadReader (CliEnv era) m)
   => LocalNodeConnectInfo
@@ -661,6 +641,7 @@ testSameEra = \case
 runTransactionImpl
   :: forall era lang m
    . (MonadError CliError m)
+  => (C.IsShelleyBasedEra era)
   => (C.IsPlutusScriptLanguage lang)
   => (MonadIO m)
   => (MonadReader (CliEnv era) m)
@@ -689,10 +670,13 @@ runTransactionImpl
 runTransactionImpl txBuildupCtx marloweInBundle marloweOut' inputs outputs changeAddress signingKeys metadata printStats invalid =
   do
     let queryCtx = toQueryContext txBuildupCtx
+        network = queryContextNetworkId queryCtx
     liftIO $ hPutStrLn stderr $ "Running transcation with marlowe out:" <> show marloweOut'
     era <- askEra @era
     protocol <- getLedgerProtocolParams queryCtx
     let marloweParams = MarloweParams { rolesCurrency = mtRolesCurrency marloweOut' }
+        scriptAddressFor :: ValidatorInfo lang era -> AddressInEra era
+        scriptAddressFor = validatorAddressNoStake network era
         go :: MarloweTransaction lang era -> m (TxBody era)
         go marloweOut = do
           (spend, collateral, datumOutputs) <-
@@ -725,7 +709,7 @@ runTransactionImpl txBuildupCtx marloweInBundle marloweOut' inputs outputs chang
                 when (marloweParams /= marloweParams') $
                   throwError "MarloweParams value is not preserved in continuation"
                 pure ([spend'], Just collateral, merkles)
-          let scriptAddress = viAddress $ mtValidator marloweOut
+          let scriptAddress = scriptAddressFor $ mtValidator marloweOut
               outputDatum = diDatum $ buildMarloweDatum marloweParams (mtContract marloweOut) (mtState marloweOut)
           outputValue <-
             mconcat
@@ -738,7 +722,7 @@ runTransactionImpl txBuildupCtx marloweInBundle marloweOut' inputs outputs chang
                   guard (outputValue /= mempty)
                   pure $
                     buildPayToScript era scriptAddress outputValue outputDatum
-              roleAddress = viAddress $ mtRoleValidator marloweOut
+              roleAddress = scriptAddressFor $ mtRoleValidator marloweOut
           (payments :: [(AddressInEra era, C.TxOutDatum C.CtxTx era, Api.Value)]) <-
             catMaybes
               <$> sequence
@@ -791,7 +775,9 @@ runTransactionImpl txBuildupCtx marloweInBundle marloweOut' inputs outputs chang
 
 -- | Withdraw funds for a specific role from the role address.
 withdrawFunds
-  :: (MonadError CliError m, MonadReader (CliEnv era) m)
+  :: forall era m
+   . (C.IsShelleyBasedEra era)
+  => (MonadError CliError m, MonadReader (CliEnv era) m)
   => (MonadIO m)
   => LocalNodeConnectInfo
   -- ^ The connection info for the local node.
@@ -820,64 +806,77 @@ withdrawFunds
   -> Bool
   -- ^ Assertion that the transaction is invalid.
   -> m TxId
-  -- ^ Action to build the transaction body.
 withdrawFunds connection marloweOutFile roleName collateral inputs outputs changeAddress signingKeyFiles metadataFile (TxFile txFile) timeout printStats invalid =
   do
     metadata <- readMaybeMetadata metadataFile
-    SomeMarloweTransaction _ _ marloweOut <- decodeFileStrict marloweOutFile
-    let rolesCurrency = mtRolesCurrency marloweOut
-        roleToken = Token rolesCurrency roleName
-    signingKeys <- mapM readSigningKey signingKeyFiles
-    roleHash <- liftCli . toCardanoScriptDataHash . diHash $ buildRoleDatum roleToken
-    let validatorInfo = mtRoleValidator marloweOut
-        roleScript = validatorInfoScriptOrReference validatorInfo
-        roleAddress = viAddress validatorInfo
-        roleDatum = diDatum $ buildRoleDatum roleToken
-        roleRedeemer = riRedeemer buildRoleRedeemer
-        checkRole (TxOut _ _ datum _) =
-          case datum of
-            TxOutDatumInline _ _ -> False
-            TxOutDatumNone -> False
-            TxOutDatumHash _ datumHash -> datumHash == roleHash
-    utxos <-
-      fmap (filter (checkRole . snd) . M.toList . unUTxO)
-        . queryInEra connection
-        . QueryUTxO
-        . QueryUTxOByAddress
-        . S.singleton
-        . toAddressAny'
-        $ roleAddress
-    let spend = buildPayFromScript roleScript (Just roleDatum) roleRedeemer . fst <$> utxos
-        withdrawal = (changeAddress, C.TxOutDatumNone, mconcat [txOutValueToValue value | (_, TxOut _ value _ _) <- utxos])
-    outputs' <- mapM (uncurry3 makeTxOut') $ withdrawal : outputs
-    body <-
-      doWithShelleyBasedEra $
-        buildBody
-          (QueryNode connection)
-          spend
-          Nothing
-          []
-          inputs
-          outputs'
-          (Just collateral)
-          changeAddress
-          Nothing
-          (hashSigningKey <$> signingKeys)
-          TxMintNone
-          metadata
-          printStats
-          invalid
-    doWithShelleyBasedEra
-      $ liftCliIO
-      $ writeFileTextEnvelope (File txFile) Nothing
-      $ C.makeSignedTransaction [] body
-    let txBuildupCtx = mkNodeTxBuildup connection timeout
-    submitBody txBuildupCtx body signingKeys invalid
+    SomeMarloweTransaction _ era' marloweOut <- decodeFileStrict marloweOutFile
+    era <- askEra @era
+    case testSameEra era era' of
+      Just Refl -> go era metadata marloweOut
+      Nothing -> throwError $ fromString $ "Running in " <> show era <> ", read file in " <> show era'
+   where
+    go
+      :: (C.IsPlutusScriptLanguage lang)
+      => BabbageEraOnwards era
+      -> TxMetadataInEra era
+      -> MarloweTransaction lang era
+      -> m TxId
+    go era metadata marloweOut = do
+      let rolesCurrency = mtRolesCurrency marloweOut
+          roleToken = Token rolesCurrency roleName
+      signingKeys <- mapM readSigningKey signingKeyFiles
+      roleHash <- liftCli . toCardanoScriptDataHash . diHash $ buildRoleDatum roleToken
+      let network = C.localNodeNetworkId connection
+          validatorInfo = mtRoleValidator marloweOut
+          roleScript = validatorInfoScriptOrReference validatorInfo
+          roleAddress = validatorAddressNoStake network era validatorInfo
+          roleDatum = diDatum $ buildRoleDatum roleToken
+          roleRedeemer = riRedeemer buildRoleRedeemer
+          checkRole (TxOut _ _ datum _) =
+            case datum of
+              TxOutDatumInline _ _ -> False
+              TxOutDatumNone -> False
+              TxOutDatumHash _ datumHash -> datumHash == roleHash
+      utxos <-
+        fmap (filter (checkRole . snd) . M.toList . unUTxO)
+          . queryInEra connection
+          . QueryUTxO
+          . QueryUTxOByAddress
+          . S.singleton
+          . toAddressAny'
+          $ roleAddress
+      let spend = buildPayFromScript roleScript (Just roleDatum) roleRedeemer . fst <$> utxos
+          withdrawal = (changeAddress, C.TxOutDatumNone, mconcat [txOutValueToValue value | (_, TxOut _ value _ _) <- utxos])
+      outputs' <- mapM (uncurry3 makeTxOut') $ withdrawal : outputs
+      body <-
+        doWithShelleyBasedEra $
+          buildBody
+            (QueryNode connection)
+            spend
+            Nothing
+            []
+            inputs
+            outputs'
+            (Just collateral)
+            changeAddress
+            Nothing
+            (hashSigningKey <$> signingKeys)
+            TxMintNone
+            metadata
+            printStats
+            invalid
+      doWithShelleyBasedEra
+        $ liftCliIO
+        $ writeFileTextEnvelope (File txFile) Nothing
+        $ C.makeSignedTransaction [] body
+      let txBuildupCtx = mkNodeTxBuildup connection timeout
+      submitBody txBuildupCtx body signingKeys invalid
 
 -- | Run a Marlowe transaction using FS, without selecting inputs or outputs.
 autoRunTransaction
   :: forall era m
    . (MonadError CliError m)
+  => (C.IsShelleyBasedEra era)
   => (MonadIO m)
   => (MonadReader (CliEnv era) m)
   => LocalNodeConnectInfo
@@ -942,6 +941,7 @@ autoRunTransaction connection marloweInBundle marloweOutFile changeAddress signi
 autoRunTransactionImpl
   :: forall era lang m
    . (MonadError CliError m)
+  => (C.IsShelleyBasedEra era)
   => (C.IsPlutusScriptLanguage lang)
   => (MonadIO m)
   => (MonadReader (CliEnv era) m)
@@ -966,8 +966,11 @@ autoRunTransactionImpl
 autoRunTransactionImpl txBuildupCtx marloweInBundle marloweOut' extraSpend changeAddress signingKeys metadata printStats invalid =
   do
     let queryCtx = toQueryContext txBuildupCtx
+        network = queryContextNetworkId queryCtx
     era <- askEra @era
     protocol <- getLedgerProtocolParams queryCtx
+    let scriptAddressFor :: ValidatorInfo lang era -> AddressInEra era
+        scriptAddressFor = validatorAddressNoStake network era
     -- Read the Marlowe transaction information for the output.
     -- Fetch the era.
     let go :: MarloweTransaction lang era -> m (TxBody era)
@@ -1010,7 +1013,7 @@ autoRunTransactionImpl txBuildupCtx marloweInBundle marloweOut' extraSpend chang
                 -- Return the spending witness and the extra datum for demerkleization.
                 pure (spend' : extraSpend, merkles)
           let -- Compute the script address.
-              scriptAddress = viAddress $ mtValidator marloweOut
+              scriptAddress = scriptAddressFor $ mtValidator marloweOut
               -- Build the datum output to the script.
               outputDatum = diDatum $ buildMarloweDatum marloweParams (mtContract marloweOut) (mtState marloweOut)
           -- Determine how much value the script should receive.
@@ -1028,7 +1031,7 @@ autoRunTransactionImpl txBuildupCtx marloweInBundle marloweOut' extraSpend chang
                     buildPayToScript era scriptAddress outputValue outputDatum
 
               -- Compute the role-payout address.
-              roleAddress = viAddress $ mtRoleValidator marloweOut
+              roleAddress = scriptAddressFor $ mtRoleValidator marloweOut
           -- Build the payments to the role-payout address.
           payments <-
             catMaybes
@@ -1194,6 +1197,7 @@ toPlutusScriptHash = PV1.ScriptHash . PV1.toBuiltin . serialiseToRawBytes
 autoWithdrawFunds
   :: forall era m
    . (MonadError CliError m)
+  => (C.IsShelleyBasedEra era)
   => (MonadReader (CliEnv era) m)
   => (MonadIO m)
   => LocalNodeConnectInfo
@@ -1265,6 +1269,7 @@ autoWithdrawFundsImpl
    . (MonadError CliError m)
   => (MonadReader (CliEnv era) m)
   => (MonadIO m)
+  => (C.IsShelleyBasedEra era)
   => (C.IsPlutusScriptLanguage lang)
   => TxBuildupContext era
   -- ^ The connection info for the local node.
@@ -1291,7 +1296,9 @@ autoWithdrawFundsImpl
 autoWithdrawFundsImpl txBuildupCtx token validatorInfo range changeAddress signingKeys possibleFilter metadata (PrintStats printStats) invalid =
   do
     let queryCtx = toQueryContext txBuildupCtx
+        network = queryContextNetworkId queryCtx
     -- Fetch the protocol parameters.
+    era <- askEra @era
     protocol <- getLedgerProtocolParams queryCtx
     let Token rolesCurrency roleName = token
         filterPayoutUtxos = fromMaybe id possibleFilter
@@ -1302,7 +1309,7 @@ autoWithdrawFundsImpl txBuildupCtx token validatorInfo range changeAddress signi
     let -- Fetch the role-payout validator script.
         roleScript = validatorInfoScriptOrReference validatorInfo
         -- Fetch the role address.
-        roleAddress = viAddress validatorInfo
+        roleAddress = validatorAddressNoStake network era validatorInfo
         -- Build the necessary redeemer.
         roleRedeemer = riRedeemer buildRoleRedeemer
         -- Test if a `TxOut` contains the role token datum.
@@ -1428,3 +1435,15 @@ toCardanoStakeKeyHash (P.PubKeyHash bs) =
   first show $
     deserialiseFromRawBytes (C.AsHash C.AsStakeKey) $
       fromBuiltin bs
+
+-- | Compute the 'AddressInEra' of a 'ValidatorInfo' without a stake
+-- reference. Used for script outputs (which don't take a stake reference).
+validatorAddressNoStake
+  :: forall lang era
+   . (C.IsShelleyBasedEra era, C.IsPlutusScriptLanguage lang)
+  => NetworkId
+  -> BabbageEraOnwards era
+  -> ValidatorInfo lang era
+  -> AddressInEra era
+validatorAddressNoStake network era vi =
+  validatorAddress (viScript vi) era network C.NoStakeAddress

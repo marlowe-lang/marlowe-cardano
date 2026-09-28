@@ -1,37 +1,38 @@
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 -- We "return" lambdas for clarity in some helpers.
 {- HLINT ignore "Redundant lambda" -}
 
 module Main where
 
+-- import Language.Marlowe.Runtime.ChainSync.Api (DatumHash(..)) -- removed for now
 import Cardano.Api qualified as C
 import Cardano.Api.Monad.Error (except)
 import Cardano.Ledger.Core qualified as L
 import Control.Applicative (Alternative((<|>)))
-import Control.Error (throwE, note)
+import Control.Error (throwE, note, hush)
 import Control.Exception (throwIO, Exception, SomeException, try)
 import Control.Exception.Lifted qualified as Exception.Lifted
-import Control.Monad (join, when, (<=<))
+import Control.Monad (join, when, (<=<), unless, guard)
 import Control.Monad.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans.Class (MonadTrans(lift))
 import Data.Aeson ((.=))
 import Data.Aeson qualified as A
-import Data.Aeson.Encode.Pretty qualified as A
 import Data.Aeson.Key qualified as A
+import Data.Bifunctor (Bifunctor(first))
 import Data.ByteString qualified as BS
 import Data.ByteString.Base16 qualified as Base16
-import Data.ByteString.Char8 qualified as BS8
 import Data.ByteString.Lazy qualified as BSL
-import Data.ByteString.Lazy.Char8 qualified as LBS8
 import Data.CaseInsensitive qualified as CI
 import Data.Data (type (:~:)(Refl))
 import Data.Foldable (Foldable(..), find)
 import Data.Functor ((<&>))
+import Data.List (uncons)
 import Data.Map qualified as Map
+import Data.Map.NonEmpty qualified as NEMap
+import Data.Maybe (isJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -40,40 +41,50 @@ import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Data.Type.Equality (TestEquality(testEquality))
 import Data.Version (showVersion)
-import Data.Yaml qualified as Yaml
 import Hasql.Connection.Settings qualified as Hasql
 import Hasql.Pool qualified as Pool
 import Hasql.Pool.Config qualified as Hasql
-import Language.Marlowe.CLI.Types (AUTxO(AUTxO), MessageFormat(MessageFormatText, MessageFormatJson, MessageFormatYaml))
-import Language.Marlowe.Runtime.Cardano.Api (fromPlutusSerialisedScript, fromCardanoAddressInEra, toCardanoScriptHash, fromCardanoTxIn, fromCardanoTxOutCtxUTxO)
+import Language.Marlowe.Runtime.Cardano.AUTxO (AUTxO(AUTxO))
+import Language.Marlowe.Runtime.Cardano.Api (fromCardanoAddressInEra, toCardanoScriptHash, fromCardanoTxIn, fromCardanoTxOutCtxUTxO)
 import Language.Marlowe.Runtime.ChainSync.Api (paymentCredential, fromCardanoScriptHash, SlotNo(SlotNo), NodeTip(NodeTip), ChainTip(ChainTip), BlockHeader(BlockHeader))
 import Language.Marlowe.Runtime.ChainSync.Api qualified as Core
--- import Language.Marlowe.Runtime.ChainSync.Api (DatumHash(..)) -- removed for now
-import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1))
-import qualified Marlowe.Plutus.Semantics as V1
+import Language.Marlowe.Runtime.Contract.Store qualified as ContractStore
+import Language.Marlowe.Runtime.Contract.Store qualified as Store
+import Language.Marlowe.Runtime.Contract.Store.Memory qualified as StoreMemory
+import Language.Marlowe.Runtime.Contract.TransferServer qualified as TransferServer
+import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1), Transaction(Transaction, transactionId))
 import Language.Marlowe.Runtime.Core.Api qualified as Core
-import Language.Marlowe.Runtime.Core.ScriptRegistry ( MarloweScripts(MarloweScripts, marloweScript, payoutScript, marloweScriptUTxOs, payoutScriptUTxOs), GetAllScripts(GetAllScripts), ReferenceScriptUtxo(ReferenceScriptUtxo, txOutRef, script, txOut), fromCardanoScriptInAnyLang, ScriptInPlutus, GetCurrentScripts(GetCurrentScripts) )
+import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts(..), ReferenceScriptUtxo(..), ScriptDetails(..), ScriptInPlutus, ScriptRegistry, fromCardanoScriptThrowing)
 import Language.Marlowe.Runtime.Core.ScriptRegistry qualified as ScriptRegistry
-import Language.Marlowe.Runtime.Web.Core.Object.Schema ()
-import Language.Marlowe.Runtime.Plutus.V3.Api (toPlutusTxOutRef)
-import Language.Marlowe.Runtime.Query (SomeContractState(SomeContractState), ContractState (ContractState, initialOutput, latestOutput))
-import Language.Marlowe.Runtime.Query.Database ( hoistDatabaseQueries, logDatabaseQueries, DatabaseQueries(getContractState, getEraHistory), getNodeTip, GetEraHistoryError )
+import Language.Marlowe.Runtime.Query
+    ( SomeContractState(SomeContractState),
+      ContractState(ContractState, initialOutput, latestOutput),
+      SomeTransactions(SomeTransactions) )
+import Language.Marlowe.Runtime.Query.Database ( hoistDatabaseQueries, logDatabaseQueries, DatabaseQueries(getContractState, getTransactions, getEraHistory), getNodeTip, GetEraHistoryError )
 import Language.Marlowe.Runtime.Query.Database.PostgreSQL (databaseQueries)
 import Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetContractState (GetContractState)
 import Language.Marlowe.Runtime.Transaction.Api (LoadHelpersContextError, RoleTokensConfig, InitError(InitEraHistoryNotInitialized), ApplyInputsError(ApplyInputsEraHistoryNotInitialized))
 import Language.Marlowe.Runtime.Transaction.Api qualified as T
 import Language.Marlowe.Runtime.Transaction.BuildConstraints (MkRoleTokenMintingPolicy)
 import Language.Marlowe.Runtime.Transaction.Builders (execInit, execApplyInputs, LoadMarloweContext)
-import Language.Marlowe.Runtime.Transaction.Constraints (MarloweContext(MarloweContext), MintingSeed(MintingSeed))
+import Language.Marlowe.Runtime.Transaction.Constraints (MarloweContext(MarloweContext))
 import Language.Marlowe.Runtime.Transaction.Constraints qualified as Constraints
+import Language.Marlowe.Runtime.Web.Contract.Source.Server (fromSourceId, toSourceId)
+import Language.Marlowe.Runtime.Web.Core.Object.Schema ()
 import Language.Marlowe.Runtime.Web.Server (runServer, runServerMExtract, serverWithOpenApi, ServerDependencies(..), RuntimeAPIWithOpenAPI)
-import Language.Marlowe.Runtime.Web.Server.Monad (ServerM, InitContract, ApplyInputs, GetContractSource, WithBundleImporter)
+import Language.Marlowe.Runtime.Web.Server.Monad
+    ( ServerM,
+      InitContract,
+      ApplyInputs,
+      LoadTransactions,
+      GetContractSource,
+      WithBundleImporter,
+      LoadTxError(ContractNotFound, TxNotFound) )
 import Log (LogLevel (..), runLogT, Logger, logAttention, LogT, MonadLog, logInfo)
 import Log.Backend.StandardOutput (withStdOutLogger)
 import Log.Backend.StandardOutputInlined (withStdOutInlinedLogger)
-import Marlowe.Plutus.Binaries.Devel qualified as Devel
-import Marlowe.Plutus.Binaries.Production qualified as Production
-import Marlowe.Plutus.RoleTokens (mkRoleTokens)
+import Marlowe.Contrib.OptParse.MessageFormat (MessageFormat (..), emitError)
+import Marlowe.Plutus.Semantics qualified as V1
 import Marlowe.Runtime.Server.Contrib.Servant.Err500 (err500, err500JSON)
 import Marlowe.Runtime.Server.Contrib.Servant.ResponseRewriterMiddleware as ResponseRewriterMiddleware
 import Network.HTTP.Types qualified as H
@@ -83,22 +94,23 @@ import Network.Wai.Logger qualified as Wai
 import Network.Wai.Middleware.Cors ( CorsResourcePolicy (corsRequestHeaders), cors, simpleCorsResourcePolicy,)
 import Options.Applicative ( Parser, ParserInfo, execParser, fullDesc, header, help, helper, info, infoOption, long, metavar, option, progDesc, short, ReadM, asum, flag', eitherReader, strOption, auto, showDefault, value, optional)
 import Paths_marlowe_runtime (version)
-import PlutusLedgerApi.V3 qualified as PV3
-import qualified Language.Marlowe.Runtime.Contract.Store as ContractStore
-import qualified Language.Marlowe.Runtime.Contract.Store.Memory as StoreMemory
-import qualified UnliftIO.STM
-import UnliftIO (bracket)
 import Servant ( Application, ServerError (..), hoistServer, serveWithContext, Handler (Handler), ErrorFormatter, ErrorFormatters, bodyParserErrorFormatter, urlParseErrorFormatter, headerParseErrorFormatter, defaultErrorFormatters, err400, Context(EmptyContext, (:.)))
+import Servant.Pipes ()
 import Servant.Server.Internal.ServerError (responseServerError)
 import System.Environment.Blank (getEnv)
 import System.Exit (die)
 import Text.Read qualified as T
-import Language.Marlowe.Runtime.Contract.TransferServer qualified as TransferServer
-import Servant.Pipes ()
-import Language.Marlowe.Runtime.Web.Contract.Source.Server (fromSourceId, toSourceId)
-import qualified Language.Marlowe.Runtime.Contract.Store as Store
+import UnliftIO (bracket)
+import UnliftIO.STM qualified
+import qualified Marlowe.Plutus.Semantics.Types as V1
+import qualified Language.Marlowe.Runtime.Query as Query
+import Servant.Pagination (RangeOrder(RangeAsc, RangeDesc))
+import Language.Marlowe.Runtime.Web.Server.Util (applyRangeToAscList)
 
 newtype Port = Port Int
+
+newtype GetAllScripts = GetAllScripts (forall v. MarloweVersion v -> Set MarloweScripts)
+newtype GetCurrentScripts = GetCurrentScripts (forall v. MarloweVersion v -> MarloweScripts)
 
 data Options = Options
   { databaseUri :: Hasql.Settings
@@ -122,13 +134,6 @@ decodeFileStrict msgFormat filePath = do
       liftIO . emitError msgFormat $
         "Failed to parse the publishing info file. Details: " <> err
     Right v -> pure v
-
-emitError :: MessageFormat -> String -> IO a
-emitError messageFormat err =
-  case messageFormat of
-    MessageFormatText -> die err
-    MessageFormatJson -> LBS8.putStrLn (A.encodePretty err) >> die "compile command failed"
-    MessageFormatYaml -> BS8.putStrLn (Yaml.encode err) >> die "compile command failed"
 
 longOption :: ReadM a -> String -> String -> String -> Parser a
 longOption reader longText helpText metavarText =
@@ -212,14 +217,14 @@ logLevelParser =
 
 newtype UseRoleTokenDevelScript = UseRoleTokenDevelScript Bool
 
-mkRoleTokensPolicy :: Applicative m => UseRoleTokenDevelScript -> MkRoleTokenMintingPolicy m
-mkRoleTokensPolicy (UseRoleTokenDevelScript useRoleTokenDevelScript) (MintingSeed txOutRef) tokens = do
-  let
-    mkPolicy = if useRoleTokenDevelScript then Devel.mkRoleTokensPolicyBytes else Production.mkRoleTokensPolicyBytes
-    roleTokens = mkRoleTokens $ Map.toList tokens <&> \(Core.TokenName bs, amount) -> do
-      (PV3.TokenName . PV3.toBuiltin $ bs, amount)
-  pure . fromPlutusSerialisedScript C.PlutusScriptV3 . mkPolicy roleTokens $ toPlutusTxOutRef txOutRef
+-- FIXME: paluh - we will likely need to depend on some helper executable that
+-- produces a role policy at runtime. For now this is a stub that errors on
+-- use; the flow needs to be rethought and replaced with a proper external
+-- call.
+mkRoleTokensPolicy :: UseRoleTokenDevelScript -> MkRoleTokenMintingPolicy m
+mkRoleTokensPolicy _ _ = pure $ error "marlowe-runtime:server:Main.mkRoleTokensPolicy:Role-token minting policy is not configured"
 
+-- FIXME: paluh - This is plain wrong and will fail at some point
 emptyLoadHelpersContext
   :: forall m v
    . Monad m
@@ -233,7 +238,6 @@ emptyLoadHelpersContext _version = do
       , helperPolicyId = ""
       , helperScriptStates = Map.empty
       }
-  -- FIXME: This is plain wrong and will fail at some point
   \case
     Left (_policyId, _roleTokens) -> pure emptyContext
     Right _contractId -> pure emptyContext
@@ -250,7 +254,7 @@ mkInitContract
   -> GetContractSource m
   -> UseRoleTokenDevelScript
   -> InitContract m
-mkInitContract (networkId, systemStart, protocolParams) fetchEraHistory getCurrentScripts getContractSource useRoleTokenDevelScript =
+mkInitContract (networkId, systemStart, protocolParams) fetchEraHistory resolvedCurrentScripts getContractSource useRoleTokenDevelScript =
   \stakeCredential walletContext threadTokenName roleTokensConfig transactionMetadata optMinAda accounts contract -> do
     eraHistory <- fetchEraHistory
     case eraHistory of
@@ -263,7 +267,7 @@ mkInitContract (networkId, systemStart, protocolParams) fetchEraHistory getCurre
           (mkRoleTokensPolicy useRoleTokenDevelScript)
           C.ConwayEra
           (getContractSource . toSourceId)
-          getCurrentScripts
+          (case resolvedCurrentScripts of GetCurrentScripts f -> f MarloweV1)
           solveConstraints
           protocolParams
           walletContext
@@ -285,13 +289,10 @@ mkApplyInputs
   => MonadLog m
   => LedgerInfo
   -> m (Either GetEraHistoryError C.EraHistory)
-  -- ^ Fetch a fresh era history for each request. Failing this fetch is a
-  -- hard error: we refuse to fall back to a stale value because that would
-  -- silently mask configuration drift between the indexer and the runtime.
   -> GetContractState m
   -> GetAllScripts
   -> m SlotNo
-  -> (V1.TransactionInput -> m (Maybe V1.TransactionInput))
+  -> (V1.Contract -> V1.State -> V1.TransactionInput -> m (Maybe V1.TransactionInput))
   -> GetContractSource m
   -> ApplyInputs m
 mkApplyInputs (networkId, systemStart, protocolParams) fetchEraHistory getContractState getAllScripts getCurrentSlotNo merkleizeInputs getContractSource =
@@ -351,26 +352,6 @@ mkWithBundleImporter store handler = do
         importBundle = TransferServer.mkImportBundle stagingArea
       handler importBundle
 
-mkGetContractSource
-  :: MonadIO m
-  => ContractStore.ContractStore m
-  -> GetContractSource m
-mkGetContractSource store hash = do
-  liftIO $ putStrLn ("Get contract source wrapper" :: String)
-  store.getContract (fromSourceId hash)
-
-merkleizeInputsWrapper
-  :: forall m
-   . MonadIO m
-  => ContractStore.ContractStore m
-  -> V1.TransactionInput -> m (Maybe V1.TransactionInput)
-merkleizeInputsWrapper store tx = do
-  liftIO $ putStrLn ("Merklize inputs wrapper" :: String)
-  result <- store.merkleizeInputs undefined undefined tx
-  case result of
-    Right tx' -> pure $ Just tx'
-    Left _ -> pure Nothing
-
 queryLedgerInfo :: C.NetworkId -> C.LocalNodeConnectInfo -> IO LedgerInfo
 queryLedgerInfo networkId connectInfo = do
   rawQueryResult <- C.executeLocalStateQueryExpr connectInfo C.VolatileTip $
@@ -383,28 +364,34 @@ queryLedgerInfo networkId connectInfo = do
     _ -> liftIO . die $ "Failed to query the cardano-node for necessary information."
 
 mkGetAllScripts
-  :: C.NetworkId
-  -> Maybe (PublishingInfo C.ConwayEra)
-  -> Either String GetAllScripts
-mkGetAllScripts networkId = \case
-  Nothing -> pure ScriptRegistry.getAllScripts
-  Just publishingInfo ->
-    case marloweScriptsFromPublishingInfo networkId publishingInfo of
-      Nothing -> Left "Failed to parse the provided script registry file. Please ensure it is correct and try again."
-      Just marloweScripts -> pure $ GetAllScripts \case
-        MarloweV1 -> Set.singleton marloweScripts
+  :: Maybe ScriptRegistry
+  -> IO (Either String GetAllScripts)
+mkGetAllScripts customScriptRegistry = runExceptT do
+  ScriptRegistry.ScriptRegistry _ scripts <- case customScriptRegistry of
+    Nothing -> ExceptT $ first show <$> ScriptRegistry.loadDefaultScriptRegistry
+    Just scriptRegistry -> pure scriptRegistry
+  pure $ GetAllScripts \_ -> Set.fromList . Map.elems . NEMap.toMap $ scripts
 
 mkGetCurrentScripts
   :: C.NetworkId
-  -> Maybe (PublishingInfo C.ConwayEra)
-  -> Either String GetCurrentScripts
-mkGetCurrentScripts networkId = \case
-  Nothing -> pure ScriptRegistry.getCurrentScripts
-  Just publishingInfo ->
-    case marloweScriptsFromPublishingInfo networkId publishingInfo of
-      Nothing -> Left "Failed to parse the provided script registry file. Please ensure it is correct and try again."
-      Just ms -> pure $ GetCurrentScripts \case
-        MarloweV1 -> ms
+  -> Maybe ScriptRegistry
+  -> IO (Either String GetCurrentScripts)
+mkGetCurrentScripts networkId customScriptRegistry = runExceptT do
+  marloweScripts <- case customScriptRegistry of
+    Nothing -> ExceptT $ first show <$> ScriptRegistry.loadDefaultMarloweScripts
+    Just scriptRegistry -> pure $ ScriptRegistry.getCurrentScripts scriptRegistry
+
+  let
+    ms@(ScriptRegistry.MarloweScripts { marloweScript, payoutScript }) = marloweScripts
+
+    isPublished :: ScriptRegistry.ScriptDetails -> Bool
+    isPublished (ScriptRegistry.ScriptDetails { scriptUTxOs }) = isJust $ Map.lookup networkId scriptUTxOs
+
+  unless (all isPublished [marloweScript, payoutScript ]) $
+    fail "Provided ScriptRegistry does not cover expected network"
+
+  pure $ GetCurrentScripts \case
+    MarloweV1 -> ms
 
 mkServerDependencies
   :: Pool.Pool
@@ -412,7 +399,7 @@ mkServerDependencies
   -> GetAllScripts
   -> GetCurrentScripts
   -> ServerM (ServerDependencies ServerM)
-mkServerDependencies pool ledgerInfo getAllScripts getCurrentScripts = do
+mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts = do
   contractStore <- mkServerMStore
   let
     dbQueries :: DatabaseQueries ServerM
@@ -430,12 +417,18 @@ mkServerDependencies pool ledgerInfo getAllScripts getCurrentScripts = do
             Just BlockHeader{..} -> pure slotNo
             Nothing -> pure $ SlotNo 0
 
+    getContractSource hash = contractStore.getContract (fromSourceId hash)
+
     initContract = mkInitContract
       ledgerInfo
       fetchEraHistory
-      getCurrentScripts
-      (mkGetContractSource contractStore)
+      resolvedCurrentScripts
+      getContractSource
       (UseRoleTokenDevelScript True)
+
+
+    merkleizeInputs contract state inputs =
+      hush <$> contractStore.merkleizeInputs contract state inputs
 
     applyInputs = mkApplyInputs
       ledgerInfo
@@ -443,21 +436,45 @@ mkServerDependencies pool ledgerInfo getAllScripts getCurrentScripts = do
       (getContractState dbQueries)
       getAllScripts
       getCurrentSlotNo
-      (merkleizeInputsWrapper contractStore)
-      (mkGetContractSource contractStore)
+      merkleizeInputs
+      getContractSource
 
-  let deps :: ServerDependencies ServerM
-      deps =
+    loadTransactions :: LoadTransactions ServerM
+    loadTransactions = \contractId Query.Range{..} -> do
+      mTxs <- dbQueries.getTransactions contractId
+      pure do
+        SomeTransactions MarloweV1 txs <- note ContractNotFound mTxs
+        let totalCount = length txs
+        let direction = case rangeDirection of
+              Query.Ascending -> RangeAsc
+              Query.Descending -> RangeDesc
+        items <- note TxNotFound $ applyRangeToAscList transactionId rangeStart rangeLimit rangeOffset direction txs
+        pure
+          Query.Page
+            { items
+            , nextRange = do
+                guard $ length items == rangeLimit
+                (Transaction{transactionId}, _) <- uncons $ reverse items
+                pure $
+                  Query.Range
+                    { rangeStart = Just transactionId
+                    , ..
+                    }
+            , totalCount
+            }
+
+    deps :: ServerDependencies ServerM
+    deps =
         ServerDependencies
           { applyInputs
           , burnRoleTokens = undefined
-          , getContractSource = mkGetContractSource contractStore
+          , getContractSource
           , initContract
-          , loadContract = fmap (fmap Right) . getContractState dbQueries
+          , loadContract = fmap (fmap Right) . dbQueries.getContractState
           , loadPayout = undefined
           , loadPayouts = undefined
           , loadTransaction = undefined
-          , loadTransactions = undefined
+          , loadTransactions
           , loadWithdrawal = undefined
           , loadWithdrawals = undefined
           , withBundleImporter = mkWithBundleImporter contractStore
@@ -472,14 +489,14 @@ runApp opts = do
       cfg = Hasql.settings [ Hasql.staticConnectionSettings opts.databaseUri ]
     Pool.acquire cfg
 
-  customPublishingInfo <- case opts.scriptRegistryFile of
+  customScriptRegistry <- case opts.scriptRegistryFile of
     Nothing -> pure Nothing
     Just filePath -> do
       putStrLn $ "Loading script registry from " ++ filePath
       decodeFileStrict MessageFormatText filePath <&> Just
 
   let
-    -- FIXME: Move these to Options
+    -- FIXME: paluh - Move these to Options
     debugInfoHttpResponse = True
 
   Wai.withStdoutLogger \waiLogger -> do
@@ -491,12 +508,15 @@ runApp opts = do
         , C.localNodeSocketPath = C.File opts.nodeSocketPath
         }
     ledgerInfo <- liftIO $ queryLedgerInfo opts.networkId localNodeConnectInfo
-    getAllScripts  <- case mkGetAllScripts opts.networkId customPublishingInfo of
+
+    getAllScripts  <- mkGetAllScripts customScriptRegistry >>= \case
       Left err -> die err
       Right getAllScripts -> pure getAllScripts
-    getCurrentScripts <- case mkGetCurrentScripts opts.networkId customPublishingInfo of
+
+    resolvedCurrentScripts <- mkGetCurrentScripts opts.networkId customScriptRegistry >>= \case
       Left err -> die err
-      Right getCurrentScripts -> pure getCurrentScripts
+      Right resolvedCurrentScripts -> pure resolvedCurrentScripts
+
     let
       prettyLog = True
       withLogger = if prettyLog then withStdOutLogger else withStdOutInlinedLogger
@@ -540,7 +560,7 @@ runApp opts = do
           , "scriptHashes" .= scriptHashes
           ]
 
-      dependencies <- runServerMExtract undefined (mkServerDependencies pool ledgerInfo getAllScripts getCurrentScripts)
+      dependencies <- runServerMExtract undefined (mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts)
 
       Wai.runSettings waiSettings $
         ResponseRewriterMiddleware.mkMiddleware errorRewriter $
@@ -568,12 +588,12 @@ customFormatters = defaultErrorFormatters
   , headerParseErrorFormatter = customErrorFormatter
   }
 
-scriptRegistryFileParser :: Parser FilePath
-scriptRegistryFileParser =
+scriptsRegistryFileParser :: Parser FilePath
+scriptsRegistryFileParser =
   strOption
-    ( long "script-registry-file"
+    ( long "scripts-registry-file"
         <> help "Path to a JSON file containing the script registry. If not provided, the server will use the default script registry."
-        <> metavar "SCRIPT_REGISTRY_FILE"
+        <> metavar "SCRIPTS_REGISTRY_FILE"
     )
 
 mkParser :: IO (Parser (IO ()))
@@ -587,7 +607,7 @@ mkParser = do
       <*> nodeSocketParser
       <*> networkIdParser
       <*> portParser
-      <*> optional scriptRegistryFileParser
+      <*> optional scriptsRegistryFileParser
 
     versionOption =
       infoOption ("marlowe-runtime-server " <> showVersion version) $
@@ -708,7 +728,7 @@ mkLoadMarloweContext networkId getContractState (GetAllScripts getAllScripts) de
             Just (Core.ScriptCredential hash) -> pure hash
             _ -> throwE $ T.MarloweAddressNotScriptAddress address
           let
-            matchesScriptHash MarloweScripts{..} = marloweScript == desiredMarloweScriptHash
+            matchesScriptHash MarloweScripts{..} = marloweScript.scriptHash == desiredMarloweScriptHash
             -- A set of marlowe scripts information which we
             -- lookup by marlowe validator hash and then
             -- by the specific field.
@@ -720,12 +740,12 @@ mkLoadMarloweContext networkId getContractState (GetAllScripts getAllScripts) de
             $ find matchesScriptHash scripts
 
           marloweScriptUTxO <- except
-            . note (T.MarloweScriptNotPublished marloweScripts.marloweScript)
-            $ Map.lookup networkId marloweScripts.marloweScriptUTxOs
+            . note (T.MarloweScriptNotPublished marloweScripts.marloweScript.scriptHash)
+            $ Map.lookup networkId marloweScripts.marloweScript.scriptUTxOs
 
           payoutScriptUTxO <- except
-            . note (T.PayoutScriptNotPublished marloweScripts.payoutScript)
-            $ Map.lookup networkId marloweScripts.payoutScriptUTxOs
+            . note (T.PayoutScriptNotPublished marloweScripts.payoutScript.scriptHash)
+            $ Map.lookup networkId marloweScripts.payoutScript.scriptUTxOs
 
           cardanoScriptHash <- except
             . note (T.CardanoConversionFailure "MarloweScriptHash")
@@ -733,7 +753,7 @@ mkLoadMarloweContext networkId getContractState (GetAllScripts getAllScripts) de
 
           pure MarloweContext
             { marloweAddress = address
-            , payoutScriptHash = marloweScripts.payoutScript
+            , payoutScriptHash = marloweScripts.payoutScript.scriptHash
             , marloweScriptHash = desiredMarloweScriptHash
             , payoutAddress =
                 fromCardanoAddressInEra C.BabbageEra $
@@ -781,7 +801,7 @@ fromCardanoReferenceScript
   -> Maybe ScriptInPlutus
 fromCardanoReferenceScript C.ReferenceScriptNone = Nothing
 fromCardanoReferenceScript (C.ReferenceScript _ script) =
-  fromCardanoScriptInAnyLang script
+      Just . fromCardanoScriptThrowing $ script
 
 referenceScriptUTxOFromAUTxO
   :: forall era
@@ -796,34 +816,19 @@ referenceScriptUTxOFromAUTxO (AUTxO (txIn, txOutOrig)) = do
   txOut <- fromCardanoTxOutCtxUTxO C.cardanoEra txOutOrig
   pure ReferenceScriptUtxo{..}
 
--- data MarloweScripts = MarloweScripts
---   { marloweScript :: ScriptHash
---   , payoutScript :: ScriptHash
---   , helperScripts :: Map HelperScript ScriptHash
---   , marloweScriptUTxOs :: Map NetworkId ReferenceScriptUtxo
---   , payoutScriptUTxOs :: Map NetworkId ReferenceScriptUtxo
---   , helperScriptUTxOs :: Map (HelperScript, NetworkId) ReferenceScriptUtxo
---   }
---   deriving (Show, Eq, Ord)
---
 marloweScriptsFromPublishingInfo
   :: C.NetworkId
   -> PublishingInfo C.ConwayEra
   -> Maybe MarloweScripts
 marloweScriptsFromPublishingInfo networkId PublishingInfo{..} = do
-  marloweScriptHash <- calcReferenceScriptHash marlowe
-  payoutScriptHash <- calcReferenceScriptHash payout
-  let
-    helpersScriptsPlaceholder = mempty
   marloweScriptUTxO <- referenceScriptUTxOFromAUTxO marlowe
   payoutScriptUTxO <- referenceScriptUTxOFromAUTxO payout
   pure $ MarloweScripts
-    { marloweScript = marloweScriptHash
-    , payoutScript = payoutScriptHash
-    , helperScripts = helpersScriptsPlaceholder
-    , marloweScriptUTxOs = Map.singleton networkId marloweScriptUTxO
-    , payoutScriptUTxOs = Map.singleton networkId payoutScriptUTxO
-    , helperScriptUTxOs = mempty
+    { description = Nothing
+    , marloweScript = (ScriptRegistry.mkScriptDetails marloweScriptUTxO.script){scriptUTxOs = Map.singleton networkId marloweScriptUTxO}
+    , marloweVersion = Core.SomeMarloweVersion MarloweV1
+    , openRolesScript = Nothing
+    , payoutScript = (ScriptRegistry.mkScriptDetails payoutScriptUTxO.script){scriptUTxOs = Map.singleton networkId payoutScriptUTxO}
     }
 
 

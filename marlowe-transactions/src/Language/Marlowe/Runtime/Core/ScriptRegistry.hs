@@ -2,9 +2,10 @@
 
 module Language.Marlowe.Runtime.Core.ScriptRegistry
   ( HelperScript (..)
-  , MarloweScriptHashes (..)
   , MarloweScripts (..)
   , ReferenceScriptUtxo (..)
+  , ReleaseScriptHashes (..)
+  , ScriptDetails (..)
   , ScriptInPlutus (..)
   , ScriptRegistry
   , ScriptRegistryError (..)
@@ -12,21 +13,21 @@ module Language.Marlowe.Runtime.Core.ScriptRegistry
   , fromCardanoPlutusScriptV2
   , fromCardanoPlutusScriptV3
   , fromCardanoScriptThrowing
+  , getCurrentScripts
   , getMarloweVersion
+  , getScriptsForRelease
   , hashScriptInPlutus
+  , loadDefaultMarloweScripts
   , loadDefaultScriptRegistry
   , loadScriptRegistry
-  , mainnetNetworkId
+  , mkScriptDetails
   , mkScriptRegistry
   , pattern ScriptRegistry
-  , preprodNetworkId
-  , previewNetworkId
-  , sanchonetNetworkId
   , toCardanoScriptInAnyLang
   )
   where
 
-import Cardano.Api (NetworkId (..), NetworkMagic (..))
+import Cardano.Api (NetworkId)
 import Cardano.Api qualified as C
 import Cardano.Api.Monad.Error (throwError)
 import Control.Exception (catch, SomeException)
@@ -51,55 +52,13 @@ import Data.String (IsString (..))
 import Data.Text qualified as T
 import Data.Variations (Variations)
 import GHC.Generics (Generic)
-import Language.Marlowe.Runtime.ChainSync.Api ( Assets (..), Lovelace (Lovelace), ScriptHash, TxOutRef (..), mkTxOutAssets,)
+import Language.Marlowe.Runtime.ChainSync.Api (ScriptHash, TxOutRef (..))
 import Language.Marlowe.Runtime.ChainSync.Api qualified as Chain
 import Language.Marlowe.Runtime.Core.Api (SomeMarloweVersion)
-import Marlowe.Plutus.Contrib.Data.Foldable (foldMapFlipped)
+import Marlowe.Contrib.Foldable (foldMapFlipped)
 import Paths_marlowe_transactions qualified as Paths
 import PlutusLedgerApi.Common qualified as PLA
-import Text.Read qualified as T
 import qualified Data.List.NonEmpty as NEList
-
-mainnetNetworkId :: NetworkId
-mainnetNetworkId = Mainnet
-
-preprodNetworkId :: NetworkId
-preprodNetworkId = Testnet $ NetworkMagic 1
-
-previewNetworkId :: NetworkId
-previewNetworkId = Testnet $ NetworkMagic 2
-
-sanchonetNetworkId :: NetworkId
-sanchonetNetworkId = Testnet $ NetworkMagic 4
-
-instance Ord NetworkId where
-  compare Mainnet Mainnet = EQ
-  compare Mainnet _ = LT
-  compare _ Mainnet = GT
-  compare (Testnet (NetworkMagic a)) (Testnet (NetworkMagic b)) =
-    compare a b
-
-networkIdToText :: NetworkId -> T.Text
-networkIdToText Mainnet = "mainnet"
-networkIdToText (Testnet (NetworkMagic n)) = "testnet/" <> T.pack (show (toInteger n))
-
-networkIdFromText :: T.Text -> Maybe NetworkId
-networkIdFromText t = case T.splitOn "/" . T.toLower $ t of
-  ["mainnet"] -> Just Mainnet
-  ["testnet", m] -> case T.reads (T.unpack m) :: [(Int, String)] of
-    [(n, "")] -> Just $ Testnet $ NetworkMagic (toEnum n)
-    _ -> Nothing
-  _ -> Nothing
-
--- | 'NetworkId' encodes as @\"mainnet\"@ or @\"testnet/<networkMagic>\"@.
-instance ToJSON NetworkId where
-  toJSON networkId = Aeson.String $ networkIdToText networkId
-
-instance FromJSON NetworkId where
-  parseJSON = Aeson.withText "NetworkId" $ \t ->
-    case networkIdFromText t of
-      Just nid -> pure nid
-      Nothing -> fail $ "Invalid NetworkId: " <> T.unpack t
 
 -- Instead of using `C.ScriptInAnyLang`
 -- we can restrict ourselves to Plutus versions
@@ -189,38 +148,18 @@ data ReferenceScriptUtxo = ReferenceScriptUtxo
 
 instance ToJSON ReferenceScriptUtxo where
   toJSON ReferenceScriptUtxo{txOutRef, txOut, script} = do
-    let
-      -- | Render a minimal TransactionOutput: address + lovelace only.
-      renderTxOut :: Chain.TransactionOutput -> Aeson.Value
-      renderTxOut Chain.TransactionOutput{Chain.address = Chain.Address addr, Chain.assets = Chain.TxOutAssets (Assets (Lovelace l) _)} =
-        Aeson.object
-          [ "address" .= addr
-          , "lovelace" .= l
-          ]
     Aeson.object
       [ "txOutRef" .= Chain.renderTxOutRef txOutRef
-      , "txOut" .= renderTxOut txOut
+      , "txOut" .= txOut
       , "script" .= script
       ]
 
 instance FromJSON ReferenceScriptUtxo where
   parseJSON = Aeson.withObject "ReferenceScriptUtxo" $ \o -> do
     txOutRefStr <- o .: "txOutRef"
-    txOutObj <- o .: "txOut"
+    txOut <- o .: "txOut"
     script <- o .: "script"
     txOutRef <- maybe (fail $ "Invalid txOutRef: " <> T.unpack txOutRefStr) pure $ Chain.parseTxOutRef txOutRefStr
-    addrStr <- txOutObj .: "address"
-    lovelaceInt <- (txOutObj .: "lovelace") :: Parser Integer
-    addr <- maybe (fail $ "Invalid address: " <> T.unpack addrStr) pure
-      $ Chain.fromBech32 addrStr
-    let assets = fromMaybe mempty $ mkTxOutAssets (Assets (Lovelace lovelaceInt) mempty)
-        txOut =
-          Chain.TransactionOutput
-            { Chain.address = addr
-            , Chain.assets = assets
-            , Chain.datum = Nothing
-            , Chain.datumHash = Nothing
-            }
     pure ReferenceScriptUtxo{txOutRef, txOut, script}
 
 
@@ -234,16 +173,72 @@ newtype ScriptsSuiteName = ScriptsSuiteName { unScriptsSuiteName :: T.Text }
 instance IsString ScriptsSuiteName where
   fromString = ScriptsSuiteName . T.pack
 
--- | A set of script hashes for a marlowe version.
+-- | The full information about a single Marlowe script: the serialised
+-- Plutus bytes, its script hash, and the per-network reference script UTxOs
+-- where it has been published. This is the middle ground between the
+-- fully-decoded 'ValidatorInfo' from @marlowe-cli@ and the flattened
+-- @scriptHash@/@scriptUTxOs@ pair that used to live directly on
+-- 'MarloweScripts'.
+data ScriptDetails = ScriptDetails
+  { script :: ScriptInPlutus
+  , scriptHash :: ScriptHash
+  , scriptUTxOs :: Map NetworkId ReferenceScriptUtxo
+  }
+  deriving (Show, Eq, Ord)
+
+-- | Build a 'ScriptDetails' value from a Plutus script. The hash is derived
+-- from the bytes, so the smart constructor keeps the two in sync.
+mkScriptDetails :: ScriptInPlutus -> ScriptDetails
+mkScriptDetails script =
+  ScriptDetails
+    { script
+    , scriptHash = hashScriptInPlutus script
+    , scriptUTxOs = mempty
+    }
+
+instance ToJSON ScriptDetails where
+  toJSON ScriptDetails{..} =
+    Aeson.object
+      [ "script" .= script
+      , "scriptHash" .= scriptHash
+      , "scriptUTxOs" .= renderRefMap scriptUTxOs
+      ]
+   where
+    renderRefMap m =
+      Aeson.object
+        [ Key.fromString (T.unpack (renderNetworkKey k)) .= v
+        | (k, v) <- Map.toList m
+        ]
+
+    renderNetworkKey :: NetworkId -> T.Text
+    renderNetworkKey = \case
+      C.Mainnet -> "mainnet"
+      C.Testnet (C.NetworkMagic n) ->
+        "testnet/" <> T.pack (show (toInteger n))
+
+instance FromJSON ScriptDetails where
+  parseJSON = Aeson.withObject "ScriptDetails" $ \o -> do
+    script <- o .: "script"
+    let scriptHash = hashScriptInPlutus script
+    scriptUTxOsRaw <- o .:? "scriptUTxOs" .!= mempty :: Parser Aeson.Object
+    scriptUTxOs <- parseRefMap scriptUTxOsRaw
+    pure ScriptDetails{..}
+   where
+    parseRefMap :: Aeson.Object -> Parser (Map NetworkId ReferenceScriptUtxo)
+    parseRefMap obj = Map.fromList <$> mapM parseEntry (KeyMap.toList obj)
+      where
+        parseEntry (k, v) = do
+          net <- Aeson.parseJSON (Aeson.String (Key.toText k))
+          ref <- Aeson.parseJSON v
+          pure (net, ref)
+
+-- | A bundle of Marlowe scripts at a particular version.
 data MarloweScripts = MarloweScripts
   { description :: Maybe T.Text
-  , marloweScript :: ScriptHash
-  , marloweScriptUTxOs :: Map NetworkId ReferenceScriptUtxo
+  , marloweScript :: ScriptDetails
   , marloweVersion :: SomeMarloweVersion
-  , openRolesScript :: Maybe ScriptHash
-  , openRolesScriptUTxOs :: Map NetworkId ReferenceScriptUtxo
-  , payoutScript :: ScriptHash
-  , payoutScriptUTxOs :: Map NetworkId ReferenceScriptUtxo
+  , openRolesScript :: Maybe ScriptDetails
+  , payoutScript :: ScriptDetails
   }
   deriving (Show, Eq, Ord)
 
@@ -297,11 +292,16 @@ instance FromJSON ScriptRegistry where
       Just registry -> pure registry
       Nothing -> fail $ "Current release " <> T.unpack (unScriptsSuiteName currentRelease) <> " not found in scripts."
 
-getCurrentRelease :: ScriptRegistry -> MarloweScripts
-getCurrentRelease (ScriptRegistry currentRelease scripts) =
+-- | The 'MarloweScripts' selected as the registry's current release.
+-- Errors if the registry is missing that suite.
+getCurrentScripts :: ScriptRegistry -> MarloweScripts
+getCurrentScripts (ScriptRegistry currentRelease scripts) =
   fromMaybe (error $ "Current release " <> T.unpack (unScriptsSuiteName currentRelease) <> " not found in scripts.") $
     NEMap.lookup currentRelease scripts
 
+getScriptsForRelease :: ScriptsSuiteName -> ScriptRegistry -> Maybe MarloweScripts
+getScriptsForRelease suiteName (ScriptRegistry _currentRelease scripts) =
+  NEMap.lookup suiteName scripts
 
 data HelperScript = OpenRoleScript
   deriving stock (Read, Show, Bounded, Enum, Eq, Ord, Generic)
@@ -326,82 +326,49 @@ loadScriptRegistry jsonFile = runExceptT do
 -- Fails if the directory is missing, the registry is empty, or the
 -- registry is malformed.
 loadDefaultScriptRegistry :: IO (Either ScriptRegistryError ScriptRegistry)
-loadDefaultScriptRegistry = Paths.getDataFileName "script-registry.json" >>= loadScriptRegistry
+loadDefaultScriptRegistry = Paths.getDataFileName "script-registry/singleton.json" >>= loadScriptRegistry
+
+loadDefaultMarloweScripts :: IO (Either ScriptRegistryError MarloweScripts)
+loadDefaultMarloweScripts = runExceptT do
+  registryResult <- ExceptT loadDefaultScriptRegistry
+  pure $ getCurrentScripts registryResult
 
 instance ToJSON MarloweScripts where
-  toJSON MarloweScripts{..} = do
-    let
-      renderRefMap m =
-        Aeson.object [ Key.fromString (T.unpack (renderNetworkKey k)) .= v | (k, v) <- Map.toList m ]
-
-      renderNetworkKey :: NetworkId -> T.Text
-      renderNetworkKey Mainnet = "mainnet"
-      renderNetworkKey (Testnet (NetworkMagic n)) =
-        "testnet/" <> T.pack (show (toInteger n))
-
+  toJSON MarloweScripts{..} =
     Aeson.object
       [ "description" .= description
       , "marloweScript" .= marloweScript
-      , "marloweScriptUTxOs" .= renderRefMap marloweScriptUTxOs
       , "marloweVersion" .= marloweVersion
       , "openRolesScript" .= openRolesScript
-      , "openRolesScriptUTxOs" .= renderRefMap openRolesScriptUTxOs
       , "payoutScript" .= payoutScript
-      , "payoutScriptUTxOs" .= renderRefMap payoutScriptUTxOs
       ]
 
 instance FromJSON MarloweScripts where
   parseJSON = Aeson.withObject "MarloweScripts" $ \o -> do
-    let
-      -- | Parse the \"Network -> ReferenceScriptUtxo\" object.
-      parseRefMap :: Aeson.Object -> Parser (Map NetworkId ReferenceScriptUtxo)
-      parseRefMap obj = Map.fromList <$> mapM parseEntry (KeyMap.toList obj)
-        where
-          parseEntry (k, v) = do
-            net <- Aeson.parseJSON (Aeson.String (Key.toText k))
-            ref <- Aeson.parseJSON v
-            pure (net, ref)
-
     description <- o .:? "description"
-
     marloweScript <- o .: "marloweScript"
-    marloweUTxOsRaw <- o .:? "marloweScriptUTxOs" .!= mempty :: Parser Aeson.Object
-    marloweScriptUTxOs <- parseRefMap marloweUTxOsRaw
     marloweVersion <- o .: "marloweVersion"
-
     openRolesScript <- o .:? "openRolesScript"
-    openRolesUTxOsRaw <- o .:? "openRolesScriptUTxOs" .!= mempty :: Parser Aeson.Object
-    openRolesScriptUTxOs <- parseRefMap openRolesUTxOsRaw
-
     payoutScript <- o .: "payoutScript"
-    payoutUTxOsRaw <- o .:? "payoutScriptUTxOs" .!= mempty :: Parser Aeson.Object
-    payoutScriptUTxOs <- parseRefMap payoutUTxOsRaw
+    pure MarloweScripts{..}
 
-    pure MarloweScripts
-      { description
-      , marloweScript
-      , marloweScriptUTxOs
-      , marloweVersion
-      , openRolesScript
-      , openRolesScriptUTxOs
-      , payoutScript
-      , payoutScriptUTxOs
-      }
-
-data MarloweScriptHashes = MarloweScriptHashes
-  { marloweScript :: ScriptHash
-  , openRolesScript :: Maybe ScriptHash
-  , payoutScript :: ScriptHash
+data ReleaseScriptHashes = ReleaseScriptHashes
+  { marloweScriptHash :: ScriptHash
+  , openRolesScriptHash :: Maybe ScriptHash
+  , payoutScriptHash :: ScriptHash
   }
 
-getMarloweVersion :: ScriptRegistry -> ScriptHash -> Maybe (SomeMarloweVersion, MarloweScriptHashes)
+getMarloweVersion :: ScriptRegistry -> ScriptHash -> Maybe (SomeMarloweVersion, ReleaseScriptHashes)
 getMarloweVersion (ScriptRegistry _currentRelease scripts) hash = listToMaybe $ foldMapFlipped (Map.toList . NEMap.toMap $ scripts) \(_, MarloweScripts{..}) -> do
   let
-    marloweScriptHashes = MarloweScriptHashes
-      { marloweScript = marloweScript
-      , openRolesScript = openRolesScript
-      , payoutScript = payoutScript
+    marloweScriptHash = marloweScript.scriptHash
+    openRolesScriptHash = (.scriptHash) <$> openRolesScript
+    payoutScriptHash = payoutScript.scriptHash
+    releaseScriptHashes = ReleaseScriptHashes
+      { marloweScriptHash
+      , openRolesScriptHash
+      , payoutScriptHash
       }
-  guard (hash == marloweScript || Just hash == openRolesScript || hash == payoutScript)
-  pure (marloweVersion, marloweScriptHashes)
+  guard (hash == marloweScriptHash || Just hash == openRolesScriptHash || hash == payoutScriptHash)
+  pure (marloweVersion, releaseScriptHashes)
 

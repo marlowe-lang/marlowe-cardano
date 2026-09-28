@@ -68,8 +68,8 @@
   #
   # The script is stateful across invocations: the initial UTxO dump is
   # persisted to $TESTNET_DIR and reused on subsequent probes.
-  await-testnet-config = writeShellApplication {
-    name = "await-testnet-config";
+  await-testing-tx = writeShellApplication {
+    name = "await-testing-tx";
     runtimeInputs = [cardano-cli coreutils];
     text = ''
       set -euo pipefail
@@ -137,7 +137,7 @@ in {
     };
     readiness_probe = {
       exec = {
-        command = "${await-testnet-config}/bin/await-testnet-config";
+        command = "${await-testing-tx}/bin/await-testing-tx";
       };
       initial_delay_seconds = 10;      # after we reduced the internal sleep
       period_seconds = 2;

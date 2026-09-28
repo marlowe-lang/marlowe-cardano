@@ -3,20 +3,24 @@ module Marlowe.Plutus.Binaries.Api.Compile
   , ScriptVariant(..)
   , ScriptOutput(..)
   , ScriptsSuite(..)
+  , MessageFormat(..)
+  , messageFormatFromText
   , scriptNameToText
   , scriptNameFromText
   ) where
 
+import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), object, (.=), (.:), (.:?), withObject)
 import Data.Aeson qualified as Aeson
-import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), object, (.=), (.:), withObject)
-import GHC.Generics (Generic)
 import Data.Text (Text)
 import qualified Data.Text as T
+import GHC.Generics (Generic)
+import Marlowe.Contrib.OptParse.MessageFormat (MessageFormat (..), messageFormatFromText)
 
 data ScriptName
   = MarloweSemantics
   | MarloweRolePayout
   | OpenRoles
+  | MarloweRoleTokens
   deriving stock (Eq, Show, Generic)
 
 scriptNameToText :: ScriptName -> Text
@@ -24,12 +28,14 @@ scriptNameToText = \case
   MarloweSemantics -> "marlowe-semantics"
   MarloweRolePayout -> "marlowe-rolepayout"
   OpenRoles -> "marlowe-openroles"
+  MarloweRoleTokens -> "marlowe-roletokens"
 
 scriptNameFromText :: Text -> Maybe ScriptName
 scriptNameFromText = \case
   "marlowe-semantics" -> Just MarloweSemantics
   "marlowe-rolepayout" -> Just MarloweRolePayout
   "marlowe-openroles" -> Just OpenRoles
+  "marlowe-roletokens" -> Just MarloweRoleTokens
   _ -> Nothing
 
 instance ToJSON ScriptName where
@@ -39,7 +45,7 @@ instance FromJSON ScriptName where
   parseJSON = Aeson.withText "ScriptName" $ \txt ->
     case scriptNameFromText txt of
       Just name -> pure name
-      Nothing -> fail $ "Expected 'marlowe-semantics' or 'marlowe-rolepayout', got: " <> T.unpack txt
+      Nothing -> fail $ "Expected one of: 'marlowe-semantics', 'marlowe-rolepayout', 'marlowe-openroles', 'marlowe-roletokens'; got: " <> T.unpack txt
 
 data ScriptVariant
   = DevelScripts
@@ -93,18 +99,23 @@ data ScriptsSuite = ScriptsSuite
   , marloweSemantics :: ScriptOutput
   , marloweRolePayout :: ScriptOutput
   , openRoles :: ScriptOutput
+  , roleTokens :: Maybe ScriptOutput
+  -- ^ Optional role-token minting policy. Encoded as @null@ when missing
+  -- so the public ScriptsSuite JSON stays stable regardless of whether
+  -- the caller supplied the role-token flags.
   }
   deriving stock (Eq, Show, Generic)
 
 
 instance ToJSON ScriptsSuite where
-  toJSON ScriptsSuite{suiteVariant, responseOutputDir, marloweSemantics, marloweRolePayout, openRoles} =
+  toJSON ScriptsSuite{suiteVariant, responseOutputDir, marloweSemantics, marloweRolePayout, openRoles, roleTokens} =
     object
       [ "suiteVariant" .= suiteVariant
       , "responseOutputDir" .= responseOutputDir
       , "marloweSemantics" .= marloweSemantics
       , "marloweRolePayout" .= marloweRolePayout
       , "openRoles" .= openRoles
+      , "roleTokens" .= roleTokens
       ]
 
 instance FromJSON ScriptsSuite where
@@ -115,3 +126,4 @@ instance FromJSON ScriptsSuite where
       <*> obj .: "marloweSemantics"
       <*> obj .: "marloweRolePayout"
       <*> obj .: "openRoles"
+      <*> obj .:? "roleTokens"

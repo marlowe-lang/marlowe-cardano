@@ -1,55 +1,45 @@
 module Marlowe.Indexer.MarloweChainFollower.Extractor where
 
-import qualified Cardano.Api as C
-import qualified Data.Text.Encoding as T
-import Control.Applicative (empty)
-import Control.Monad (guard, mfilter, unless, join)
+import Cardano.Api qualified as C
+import Control.Error (note)
+import Control.Monad (guard, mfilter, unless, join, void, forM_ )
 import Control.Monad.Except (MonadError (throwError), runExceptT, withExceptT)
 import Control.Monad.State (StateT)
 import Control.Monad.State.Class (gets, modify)
 import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Except (except)
+import Control.Monad.Trans.Except (except, ExceptT (ExceptT))
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Control.Monad.Trans.Writer (WriterT, execWriterT, Writer)
 import Control.Monad.Writer.Class (MonadWriter, listens, tell)
-import Data.Foldable (for_)
-import Data.List.NonEmpty (NonEmpty (..))
-import qualified Data.Map as Map
-import Data.Maybe (mapMaybe, isJust)
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Language.Marlowe.Runtime.ChainSync.Api
-    ( BlockHeader(..),
-      Credential(..),
-      ScriptHash,
-      Transaction(..),
-      TransactionOutput(..),
-      TxIx(TxIx),
-      TxOutRef(..),
-      paymentCredential
-    )
-import Language.Marlowe.Runtime.Core.Api (ContractId (..))
-import qualified Language.Marlowe.Runtime.Core.Api as Core
-import qualified Language.Marlowe.Runtime.ChainSync.Api as Chain
-import Language.Marlowe.Runtime.History.Api (
-  ExtractCreationError (NotCreationTransaction),
-  ExtractMarloweTransactionError (MultipleContractInputs),
-  MarloweApplyInputsTransaction (..),
-  MarloweCreateTransaction (..),
-  MarloweWithdrawTransaction (..),
-  UnspentContractOutput (..),
-  createStepToUnspentContractOutput,
-  extractCreation,
-  extractMarloweTransaction,
- )
-import Witherable (Witherable, wither)
-import Language.Marlowe.Runtime.Indexer.MarloweBlock (MarloweUTxO (..), MarloweBlock (..), MarloweTransaction (..))
-import Data.Text (Text)
-import qualified Data.Text as T
 import Data.Aeson (ToJSON, toJSON)
-import qualified Data.ByteString.Lazy as BSL
 import Data.Aeson.Encode.Pretty (encodePretty)
-import Debug.Trace (traceM)
+import Data.Bifunctor (Bifunctor(bimap, first))
+import Data.ByteString.Lazy qualified as BSL
+import Data.Either (partitionEithers)
+import Data.Foldable (for_, find)
+import Data.List.NonEmpty (NonEmpty (..))
+import Data.Map qualified as Map
+import Data.Maybe (mapMaybe, listToMaybe, isJust)
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Data.Traversable (for)
+import Language.Marlowe.Runtime.ChainSync.Api ( BlockHeader(..), Credential(..), Transaction(..), TransactionOutput(..), TxOutRef(..), paymentCredential, AssetId(AssetId), PolicyId(PolicyId), Quantity(Quantity), Tokens(Tokens), TransactionMetadata, TxId, Address, ScriptHash (ScriptHash), TxOutAssets (TxOutAssets), Assets (Assets), TxIx(TxIx))
+import Language.Marlowe.Runtime.ChainSync.Api qualified as Chain
+import Language.Marlowe.Runtime.Core.Api (ContractId (..), SomeMarloweVersion (SomeMarloweVersion), fromChainDatum, TransactionScriptOutput(TransactionScriptOutput), decodeMarloweTransactionMetadataLenient, MarloweVersion (MarloweV1), fromChainPayoutDatum)
+import Language.Marlowe.Runtime.Core.Api qualified as Core
+import Language.Marlowe.Runtime.Core.ScriptRegistry (ScriptRegistry, ReleaseScriptHashes(ReleaseScriptHashes, payoutScriptHash), getMarloweVersion)
+import Language.Marlowe.Runtime.History.Api ( ExtractMarloweTransactionError (..), MarloweApplyInputsTransaction (..), MarloweScriptHashes (..), MarloweWithdrawTransaction (..), UnspentContractOutput (..), createStepToUnspentContractOutput, SomeCreateStep (SomeCreateStep), CreateStep (CreateStep))
+import Language.Marlowe.Runtime.Indexer.MarloweBlock (MarloweUTxO (..), MarloweBlock (..), MarloweTransaction (..), ExtractCreationError (..), MarloweCreateTransaction (..), MarloweInvalidCreateTransaction(..))
+import Marlowe.Plutus.Scripts.Types qualified as V1
+import Marlowe.Plutus.Semantics.Types qualified as V1
+import Ouroboros.Consensus.BlockchainTime (fromRelativeTime)
+import Ouroboros.Consensus.HardFork.History (interpretQuery, slotToWallclock)
+import Ouroboros.Network.Block qualified as O
+import PlutusLedgerApi.V3 qualified as PV3
+import Witherable (Witherable, wither)
 
 type ExtractM = WriterT [MarloweTransaction] (StateT MarloweUTxO (Writer [Text]))
 
@@ -63,22 +53,25 @@ logJson = logMsg . T.decodeUtf8 . BSL.toStrict . encodePretty . toJSON
 extractMarloweBlock
   :: C.SystemStart
   -> C.EraHistory
-  -> Set ScriptHash
+  -> MarloweScriptHashes
   -- ^ All known Marlowe script hashes.
+  -> ScriptRegistry
+  -- ^ Script registry.
   -> BlockHeader
   -- ^ The BlockHeader of the block.
-  -> Set Transaction
-  -- ^ The current MarloweUTxO
+  -> [Transaction]
+  -- ^ The transactions in the block.
   -> StateT MarloweUTxO (Writer [Text]) (Maybe MarloweBlock)
-extractMarloweBlock systemStart eraHistory marloweScriptHashes blockHeader txs = do
+extractMarloweBlock systemStart eraHistory marloweScriptHashes registry blockHeader txs = do
   transactions <- execWriterT $ do
     let
       BlockHeader{blockNo} = blockHeader
     logMsg $ "Processing block: " <> T.pack (show blockNo)
-    retrySilentUntilAllSilent (Set.toList txs) \tx -> do
-      logMsg "Extracting transaction: "
-      logJson tx
-      extractCreateTx marloweScriptHashes tx
+    -- FIXME: I've left this for a reference but I don't believe we need any retries.
+    -- Seems like a ugly work around for some internal bug.
+    -- retrySilentUntilAllSilent (Set.toList txs) \tx -> do
+    forM_ txs \tx -> do
+      extractCreateTx registry marloweScriptHashes tx
       extractApplyInputsTx systemStart eraHistory blockHeader tx
       extractWithdrawTx tx
   pure case transactions of
@@ -95,92 +88,17 @@ retrySilentUntilAllSilent as f = do
     pure $ a <$ guard isSilent
   if allSilent then pure () else retrySilentUntilAllSilent as' f
 
--- | Extracts a MarloweCreateTransaction from a Chain transaction. A single
--- transaction can create multiple Marlowe contracts, and this function returns
--- a map of outputs that it failed to extract as well as the map of contracts
--- it successfully extracted.
-extractCreateTx
-  :: Set ScriptHash
-  -- ^ All known Marlowe script hashes.
-  -> Transaction
-  -> ExtractM ()
-extractCreateTx marloweScriptHashes Transaction{..} = do
-  -- Creation transactions cannot consume outputs from other Marlowe contracts.
-  let -- Find all outputs that create a new Marlowe contract
-    contractIds =
-      mapMaybe (uncurry $ extractContractId marloweScriptHashes) $
-        zip (TxOutRef txId . TxIx <$> [0 ..]) outputs
-  logMsg $ "Found " <> T.pack (show (length contractIds))
-  logJson contractIds
-  existingContracts <- gets $ Map.keysSet . unspentContractOutputs
-
-  -- Try to extract a creation step for each prospective contract ID, reporting
-  -- any errors found.
-  newContracts <-
-    Map.fromList <$> flip wither contractIds \contractId ->
-      if Set.member contractId existingContracts
-        then do
-          tell [InvalidCreateTransaction contractId NotCreationTransaction]
-          pure Nothing
-        else case extractCreation contractId Transaction{..} of
-          Left err -> do
-            tell [InvalidCreateTransaction contractId err]
-            pure Nothing
-          Right creationStep -> pure $ Just (case Core.unContractId contractId of TxOutRef{txIx} -> txIx, creationStep)
-
-  -- Prevent the creation of empty create transactions.
-  unless (null newContracts) do
-    -- Add the new contract outputs to the MarloweUTxO
-    let newUnspentContractOutputs = Map.mapKeys (Core.ContractId . TxOutRef txId) $ createStepToUnspentContractOutput <$> newContracts
-    modify \utxo -> utxo{unspentContractOutputs = unspentContractOutputs utxo <> newUnspentContractOutputs}
-
-    tell [CreateTransaction MarloweCreateTransaction{..}]
-  where
-
-    --   , outputs :: [TransactionOutput]
-    -- -- | An output of a transaction.
-    -- data TransactionOutput = TransactionOutput
-    --   { address :: Address
-    --   -- ^ The address that receives the assets of this output.
-    --   , assets :: TxOutAssets
-    --   -- ^ The assets this output produces.
-    --   , datumHash :: Maybe DatumHash
-    --   -- ^ FIXME: I'm guessing - The hash of the script non-inlined datum associated with this output.
-    --   , datum :: Maybe Datum
-    --   -- ^ FIXME: I'm guessing - The script inlined-datum associated with this output.
-    --   }
-    --   deriving stock (Show, Eq, Ord, Generic)
-    --   deriving anyclass (Binary, ToJSON, Variations)
-    --
-    --   , mintedTokens :: Tokens
-    -- -- | A collection of token quantities by their asset ID.
-    -- newtype Tokens = Tokens {unTokens :: Map AssetId Quantity}
-    --
-    -- newtype TxOutAssets = TxOutAssets {unTxOutAssets :: Assets}
-    -- data Assets = Assets
-    --   { ada :: Lovelace
-    --   -- ^ The ADA sent by the tx output.
-    --   , tokens :: Tokens
-    --   -- ^ Additional tokens sent by the tx output.
-    --   }
-    --   deriving stock (Show, Eq, Generic)
-    --   deriving anyclass (Binary, ToJSON, Variations)
-    -- isNewMarloweOutput
-    --   :: Chain.Tokens
-    --   -> Chain.TransactionOutput
-    --   -> Bool
-    -- isNewMarloweOutput txMintedTokens output = isJust $ extractThreadTokenPolicyId txMintedTokens output
 
 -- | Extracts a ContractId from a transaction output if it is a Marlowe contract output.
 extractContractId
-  :: Set ScriptHash
+  :: MarloweScriptHashes
   -- ^ All known Marlowe script hashes.
   -> TxOutRef
   -- ^ The txOutRef of the transaction output.
   -> TransactionOutput
   -- ^ The transaction output.
   -> Maybe ContractId
-extractContractId marloweScriptHashes txOutRef TransactionOutput{..} = do
+extractContractId (MarloweScriptHashes marloweScriptHashes) txOutRef TransactionOutput{..} = do
   -- Extract the payment credential from the address.
   credential <- paymentCredential address
 
@@ -188,6 +106,178 @@ extractContractId marloweScriptHashes txOutRef TransactionOutput{..} = do
   case credential of
     ScriptCredential hash -> ContractId txOutRef <$ guard (Set.member hash marloweScriptHashes)
     _ -> Nothing
+
+extractMintedThreadTokens
+  :: MarloweScriptHashes
+  -- ^ All known Marlowe script hashes.
+  -> Tokens
+  -- ^ The tokens minted by the transaction.
+  -> MintedThreadTokens
+extractMintedThreadTokens (MarloweScriptHashes marloweScriptHashes) (Tokens mintedTokens) = do
+  let
+    isThreadToken (AssetId (PolicyId policyIdHash) _, Quantity q) = Set.member (ScriptHash policyIdHash) marloweScriptHashes && q == 1
+  MintedThreadTokens . Set.fromList $ fst <$> filter isThreadToken (Map.toList mintedTokens)
+
+extractCreation
+  :: ScriptRegistry
+  -> TransactionMetadata
+  -> TxId
+  -> TxIx
+  -> TransactionOutput
+  -> Either ExtractCreationError SomeCreateStep
+extractCreation scriptRegistry txMetadata txId txIx txOut = do
+  let
+    getScriptHash :: Address -> Either ExtractCreationError ScriptHash
+    getScriptHash address = do
+      credential <- note ByronAddress $ Chain.paymentCredential address
+      case credential of
+        ScriptCredential scriptHash -> pure scriptHash
+        _ -> throwError NonScriptAddress
+
+  marloweScriptHash <- getScriptHash txOut.address
+  (SomeMarloweVersion version, ReleaseScriptHashes{payoutScriptHash}) <- note InvalidScriptHash $ getMarloweVersion scriptRegistry marloweScriptHash
+
+  txDatum <- maybe (throwError NoInitDatum) pure txOut.datum
+  marloweDatum <- note InvalidInitDatum $ fromChainDatum version txDatum
+
+  let
+    txOutRef = TxOutRef txId txIx
+    createOutput = TransactionScriptOutput txOut.address txOut.assets txOutRef marloweDatum
+    metadata = decodeMarloweTransactionMetadataLenient txMetadata
+    createStep = CreateStep
+      createOutput
+      metadata
+      payoutScriptHash
+  pure $ SomeCreateStep version createStep
+
+newtype MintedThreadTokens = MintedThreadTokens (Set AssetId)
+  deriving stock (Show, Eq, Ord)
+  deriving newtype (Semigroup, Monoid)
+
+extractThreadToken
+  :: MintedThreadTokens
+  -> TransactionOutput
+  -> Maybe AssetId
+extractThreadToken (MintedThreadTokens mintedThreadTokens) txOut = do
+  let
+    TxOutAssets (Assets _ (Tokens (Map.keys -> assetsIds))) = txOut.assets
+  find (`Set.member` mintedThreadTokens) assetsIds
+
+-- | Extracts a MarloweCreateTransaction from a Chain transaction. A single
+-- transaction can create multiple Marlowe contracts, and this function returns
+-- a map of outputs that it failed to extract as well as the map of contracts
+-- it successfully extracted.
+extractCreateTx
+  :: ScriptRegistry
+  -> MarloweScriptHashes
+  -- ^ All known Marlowe spending validator script hashes.
+  -> Transaction
+  -> ExtractM ()
+extractCreateTx registry marloweScriptHashes Transaction{..} = do
+  let
+    mintedThreadTokens = extractMintedThreadTokens marloweScriptHashes mintedTokens
+    extracted :: [Either (TxIx, ExtractCreationError) (TxIx, SomeCreateStep)]
+    extracted = flip mapMaybe (zip [0 ..] outputs) \(txIxRaw, output) -> do
+      let
+        txIx = TxIx txIxRaw
+      -- Guard for the Marlowe output
+      void $ extractThreadToken mintedThreadTokens output
+      pure $ bimap (txIx,) (txIx,) $ extractCreation registry metadata txId txIx output
+    (failed, successful) = partitionEithers extracted
+
+  unless (null successful) do
+    -- Add the new contract outputs to the MarloweUTxO
+    let newUnspentContractOutputs = createStepToUnspentContractOutput <$> Map.fromList (first (Core.ContractId . TxOutRef txId) <$> successful)
+    modify \utxo -> utxo{unspentContractOutputs = unspentContractOutputs utxo <> newUnspentContractOutputs}
+    tell [CreateTransaction MarloweCreateTransaction{txId, newContracts = Map.fromList successful}]
+
+  unless (null failed) do
+    let errors = Map.fromList failed
+    tell [InvalidCreateTransaction MarloweInvalidCreateTransaction{txId, errors}]
+
+isToScriptHash :: Chain.ScriptHash -> Chain.TransactionOutput -> Bool
+isToScriptHash toScriptHash Chain.TransactionOutput{..} = case Chain.paymentCredential address of
+  Just (Chain.ScriptCredential hash) -> hash == toScriptHash
+  _ -> False
+
+isToAddress :: Chain.Address -> Chain.TransactionOutput -> Bool
+isToAddress toAddress Chain.TransactionOutput{..} = address == toAddress
+
+extractMarloweTransaction
+  :: MarloweVersion v
+  -> C.SystemStart
+  -> C.EraHistory
+  -> ContractId
+  -> Chain.Address
+  -> Chain.ScriptHash
+  -> (Chain.TxOutRef, Maybe Chain.Redeemer)
+  -> BlockHeader
+  -> Transaction
+  -> Either ExtractMarloweTransactionError (Core.Transaction v)
+extractMarloweTransaction version systemStart eraHistory contractId scriptAddress payoutValidatorHash (consumedTxOutRef, possibleRedeemer) blockHeader Chain.Transaction{..} = do
+  let
+    transactionId = txId
+  unless (elem consumedTxOutRef . Map.keys $ inputs) $
+    Left TxInNotFound
+
+  marloweInputs <- case version of
+    MarloweV1 -> do
+      redeemer <- do
+        rawRedeemer <- note NoRedeemer possibleRedeemer
+        note InvalidRedeemer $ Chain.fromRedeemer rawRedeemer
+      for redeemer \case
+        V1.Input content -> pure $ V1.NormalInput content
+        V1.MerkleizedTxInput content continuationHash -> do
+          datum <- note MissingDatumHash $ listToMaybe $
+            flip mapMaybe outputs \Chain.TransactionOutput{..} -> do
+              guard $ datumHash == Just (Chain.DatumHash $ PV3.fromBuiltin continuationHash)
+              datum
+          contract <- note InvalidContinuation $ Chain.fromDatum datum
+          pure $ V1.MerkleizedInput content continuationHash contract
+  (minSlot, maxSlot) <- case validityRange of
+    Chain.MinMaxBound minSlot maxSlot -> pure (minSlot, maxSlot)
+    _ -> Left InvalidValidityRange
+  validityLowerBound <- slotStartTime minSlot
+  validityUpperBound <- slotStartTime maxSlot
+  scriptOutput <- runMaybeT do
+    (ix, Chain.TransactionOutput{assets, datum = mDatum}) <-
+      hoistMaybe $ find (isToAddress scriptAddress . snd) $ zip [0 ..] outputs
+    lift do
+      rawDatum <- note NoTransactionDatum mDatum
+      datum <- note InvalidTransactionDatum $ fromChainDatum version rawDatum
+      let txIx = Chain.TxIx ix
+      let utxo = Chain.TxOutRef{..}
+      let address = scriptAddress
+      pure TransactionScriptOutput{..}
+  let payoutOutputs =
+        Map.filter (isToScriptHash payoutValidatorHash) $
+          Map.fromList $
+            (\(txIx, output) -> (Chain.TxOutRef{txIx = Chain.TxIx txIx, ..}, output)) <$> zip [0 ..] outputs
+  payouts <- flip Map.traverseWithKey payoutOutputs \txOut Chain.TransactionOutput{address, datum = mPayoutDatum, assets} -> do
+    rawPayoutDatum <- note (NoPayoutDatum txOut) mPayoutDatum
+    payoutDatum <- note (InvalidPayoutDatum txOut) $ fromChainPayoutDatum version rawPayoutDatum
+    pure $ Core.Payout address assets payoutDatum
+  let output = Core.TransactionOutput{..}
+  pure
+    Core.Transaction
+      { transactionId
+      , contractId
+      , metadata = decodeMarloweTransactionMetadataLenient metadata
+      , blockHeader
+      , validityLowerBound
+      , validityUpperBound
+      , inputs = marloweInputs
+      , output
+      }
+  where
+    C.EraHistory interpreter = eraHistory
+    slotStartTime (Chain.SlotNo slotNo) = do
+      (relativeTime, _) <-
+        first (const SlotConversionFailed) $
+          interpretQuery interpreter $
+            slotToWallclock $
+              O.SlotNo slotNo
+      pure $ fromRelativeTime systemStart relativeTime
 
 -- | Extracts an apply inputs transaction from a chain transaction. Returns
 -- nothing if the transaction does not apply an input to any unspent contract
@@ -200,23 +290,22 @@ extractApplyInputsTx
   -- ^ The transaction to extract an apply inputs tx from.
   -> ExtractM ()
 extractApplyInputsTx systemStart eraHistory blockHeader tx@Transaction{inputs, txId = txId'} = do
+  -- MaybeT $ ExceptT $ WriterT $ StateT $ WriterT $ Identity
   mTransaction <- runMaybeT $ runExceptT $ withExceptT (txId',) do
     -- Get the unspentContractOutputs from  the MarloweUTxO
-    contractUTxO <- gets unspentContractOutputs
+    contractsUTxOs <- gets unspentContractOutputs
     -- Find an unspent contract output that the transaction spends.
     (contractId, marloweInput@UnspentContractOutput{..}) <- do
       let
         inputs' = Set.fromList . Map.keys $ inputs
-        matchingMarloweInputs = filter (flip Set.member inputs' . txOutRef . snd) $ Map.toList contractUTxO
+        matchingMarloweInputs = filter (flip Set.member inputs' . txOutRef . snd) $ Map.toList contractsUTxOs
       let contractIds = Set.fromList $ fst <$> matchingMarloweInputs
       -- Update the MarloweUTxO to remove the unspent contract outputs.
       modify \utxo -> utxo{unspentContractOutputs = Map.withoutKeys (unspentContractOutputs utxo) contractIds}
       case matchingMarloweInputs of
         [] -> do
-          lift . lift $ do
-            logMsg "No matching Marlowe inputs found for transaction"
-            logJson contractUTxO
-          lift empty
+          lift $ lift $ logMsg "No matching Marlowe inputs found for transaction"
+          ExceptT $ MaybeT $ pure Nothing
         [x] -> pure x
         _ -> do
           let matchingRefs = Set.fromList $ txOutRef . snd <$> matchingMarloweInputs

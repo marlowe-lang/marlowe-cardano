@@ -5,8 +5,7 @@ import Data.ByteString.Lazy.Char8 qualified as LBS8
 import Data.Aeson qualified as A
 import Data.Aeson.Encode.Pretty qualified as A
 import Data.Yaml qualified as Yaml
-import qualified Marlowe.Plutus.Binaries.Devel as Devel
-import qualified Marlowe.Plutus.Binaries.Production as Production
+import Marlowe.Contrib.OptParse.MessageFormat (MessageFormat (..), messageFormatParser)
 import Options.Applicative (
   Parser,
   ParserInfo,
@@ -22,25 +21,21 @@ import Options.Applicative (
   showDefault,
   strOption,
   switch,
-  value, flag', Alternative ((<|>)), auto,
+  value, flag', Alternative ((<|>)), auto, optional,
  )
 import qualified Text.Read as T
 import qualified Cardano.Api as C
+import Data.Text qualified as T
 import System.Environment.Blank (getEnv)
 import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1), emptyMarloweTransactionMetadata, MarloweVersionTag(V1))
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Language.Marlowe.Runtime.ChainSync.Api
-    ( TokenName(TokenName),
-      fromCardanoShelleyAddress,
+    ( fromCardanoShelleyAddress,
       UTxOs(utxosMap) )
-import Data.Functor ((<&>))
 import qualified Data.Map.Strict as Map
-import qualified PlutusLedgerApi.V3 as PV3
-import Language.Marlowe.Runtime.Plutus.V3.Api (toPlutusTxOutRef)
-import Language.Marlowe.Runtime.Transaction.Constraints (WalletContext(WalletContext), MintingSeed(MintingSeed))
+import Language.Marlowe.Runtime.Transaction.Constraints (WalletContext(WalletContext))
 import Control.Monad (when)
 import qualified Language.Marlowe.Runtime.Transaction.Constraints as Constraints
-import Marlowe.Plutus.RoleTokens (mkRoleTokens)
 import Data.Bifunctor (first)
 import Data.Foldable (Foldable(fold))
 import Data.String (IsString(fromString))
@@ -49,41 +44,9 @@ import qualified Language.Marlowe.Runtime.Core.ScriptRegistry as ScriptRegistry
 import System.Exit (die)
 import Language.Marlowe.Runtime.Transaction.Api (LoadHelpersContextError(LoadHelpersContextErrorNotFound), RoleTokensConfig(RoleTokensNone), ContractInitialized(ContractInitialized), ContractInitializedInEra(txBody, contractId))
 import Language.Marlowe.Runtime.Transaction.Builders (execInit)
-import Language.Marlowe.Runtime.Cardano.Api (fromCardanoUTxO, fromPlutusSerialisedScript)
+import Language.Marlowe.Runtime.Cardano.Api (fromCardanoUTxO)
 import Log (LogLevel(LogTrace), runLogT)
 import Log.Backend.StandardOutput (withStdOutLogger)
-
-data MessageFormat = MessageFormatText | MessageFormatJson | MessageFormatYaml
-  deriving (Eq)
-
-instance Show MessageFormat where
-  show = \case
-    MessageFormatText -> "text"
-    MessageFormatJson -> "json"
-    MessageFormatYaml -> "yaml"
-
-instance A.ToJSON MessageFormat where
-  toJSON = A.String . \case
-    MessageFormatText -> "text"
-    MessageFormatJson -> "json"
-    MessageFormatYaml -> "yaml"
-
-messageFormatParser :: Parser MessageFormat
-messageFormatParser = do
-  let
-    readMessageFormat :: ReadM MessageFormat
-    readMessageFormat = eitherReader $ \case
-      "text" -> Right MessageFormatText
-      "json" -> Right MessageFormatJson
-      "yaml" -> Right MessageFormatYaml
-      other -> Left $ "Unknown message format: " <> other <> ". Expected one of: text, json, yaml."
-  option readMessageFormat
-    ( long "message-format"
-        <> metavar "text|json|yaml"
-        <> value MessageFormatText
-        <> showDefault
-        <> help "Format of command output."
-    )
 
 readAddress :: ReadM (C.Address C.ShelleyAddr)
 readAddress =
@@ -107,6 +70,8 @@ data InitCommand = InitCommand
   , networkId :: C.NetworkId
   , nodeSocketPath :: FilePath
   , outputDir :: FilePath
+  , scriptsRegistryFile :: Maybe FilePath
+  , scriptsSuiteName :: Maybe ScriptRegistry.ScriptsSuiteName
   }
 
 mkNodeSocketParser :: IO (Parser FilePath)
@@ -163,6 +128,17 @@ mkInitCommandParser = do
   socketPathParser <- mkNodeSocketParser
   let
     desc = progDesc "Build initial marlowe transaction"
+    scriptsSuiteNameParser :: Parser (Maybe ScriptRegistry.ScriptsSuiteName)
+    scriptsSuiteNameParser = optional $ ScriptRegistry.ScriptsSuiteName . T.pack <$> strOption do
+      long "scripts-suite-name"
+        <> metavar "SUITE_NAME"
+        <> help "Name of the script suite to use from the registry. Defaults to the registry's current release."
+    scriptsRegistryFileParser :: Parser (Maybe FilePath)
+    scriptsRegistryFileParser = optional $ strOption do
+      long "scripts-registry-file"
+        <> metavar "FILE"
+        <> help "Path to a JSON script registry file. Defaults to the registry shipped with the package."
+
     cmd = InitCommand
       <$> strOption do
         long "contract-file"
@@ -181,7 +157,28 @@ mkInitCommandParser = do
           <> value "out"
           <> showDefault
           <> help "Directory where transaction file will be written."
+      <*> scriptsRegistryFileParser
+      <*> scriptsSuiteNameParser
   pure $ info cmd desc
+
+-- | Resolve a `MarloweScripts` value using the same precedence rules as the
+-- dev-env: custom registry path overrides the default registry; custom
+-- release name is looked up in the registry and falls back to the registry's
+-- own `currentRelease` when missing.
+loadMarloweScriptsFromEnv
+  :: Maybe FilePath
+  -> Maybe ScriptRegistry.ScriptsSuiteName
+  -> IO (Either ScriptRegistry.ScriptRegistryError ScriptRegistry.MarloweScripts)
+loadMarloweScriptsFromEnv registryFileOverride suiteNameOverride = do
+  registryResult <- case registryFileOverride of
+    Just path | not (null path) -> ScriptRegistry.loadScriptRegistry path
+    _ -> ScriptRegistry.loadDefaultScriptRegistry
+  case registryResult of
+    Left err -> pure $ Left err
+    Right registry -> pure $ Right $ case suiteNameOverride of
+      Just name
+        | Just scripts <- ScriptRegistry.getScriptsForRelease name registry -> scripts
+      _ -> ScriptRegistry.getCurrentScripts registry
 
 runInitCommand :: InitCommand -> IO ()
 runInitCommand cmd = do
@@ -189,13 +186,19 @@ runInitCommand cmd = do
     MessageFormatText -> putStrLn $ "Creating initial Marlowe transaction to: " <> show cmd.outputDir <> "."
     _ -> pure ()
 
+  scriptsResult <- loadMarloweScriptsFromEnv cmd.scriptsRegistryFile cmd.scriptsSuiteName
+  scripts <- case scriptsResult of
+    Left err -> emitError cmd.messageFormat $ "Failed to load script registry: " <> show err
+    Right s -> pure s
+
   let
-    mkRoleTokensPolicy (MintingSeed txOutRef) tokens = do
-      let
-        mkPolicy = if cmd.develScripts then Devel.mkRoleTokensPolicyBytes else Production.mkRoleTokensPolicyBytes
-        roleTokens = mkRoleTokens $ Map.toList tokens <&> \(TokenName bs, amount) -> do
-          (PV3.TokenName . PV3.toBuiltin $ bs, amount)
-      pure . fromPlutusSerialisedScript C.PlutusScriptV3 . mkPolicy roleTokens $ toPlutusTxOutRef txOutRef
+    mkRoleTokensPolicy _ _ = error "marlowe-binaries dependency was removed and replacement not implemented yet."
+    --   let
+    --     mkPolicy = if cmd.develScripts then Devel.mkRoleTokensPolicyBytes else Production.mkRoleTokensPolicyBytes
+    --     roleTokens = mkRoleTokens $ Map.toList tokens <&> \(TokenName bs, amount) -> do
+    --       (PV3.TokenName . PV3.toBuiltin $ bs, amount)
+    --   pure . fromPlutusSerialisedScript C.PlutusScriptV3 . mkPolicy roleTokens $ toPlutusTxOutRef txOutRef
+
     connectInfo =
       C.LocalNodeConnectInfo
         (C.CardanoModeParams $ C.EpochSlots 21600)
@@ -246,7 +249,7 @@ runInitCommand cmd = do
         mkRoleTokensPolicy
         C.ConwayEra
         (\_ -> pure Nothing)
-        ScriptRegistry.getCurrentScripts
+        scripts
         solveConstraints
         protocolParams
         walletContext

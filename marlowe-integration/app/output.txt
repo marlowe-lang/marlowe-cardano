@@ -1,0 +1,43 @@
+paluh@apoptosis  paluh/script-registry *  marlowe-plutus/marlowe-integration/app $ vitest --disableConsoleIntercept  --run --tagsFilter lifecycle
+
+ RUN  v4.1.8 /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/app
+
+Running command: cardano-cli conway address key-gen --verification-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/party1/wallet.vkey --signing-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/party1/wallet.skey
+Running command: cardano-cli conway address build --payment-verification-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/party1/wallet.vkey --testnet-magic 42 --out-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/party1/wallet.addr
+Running command: cardano-cli conway address key-gen --verification-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/party2/wallet.vkey --signing-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/party2/wallet.skey
+Running command: cardano-cli conway address build --payment-verification-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/party2/wallet.vkey --testnet-magic 42 --out-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/party2/wallet.addr
+Running command: cardano-cli conway address key-gen --verification-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/oracle/wallet.vkey --signing-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/oracle/wallet.skey
+Running command: cardano-cli conway address build --payment-verification-key-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/oracle/wallet.vkey --testnet-magic 42 --out-file /home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/test-temp/oracle/wallet.addr
+Transaction successfully submitted. Transaction hash is:
+ ❯ tests/e2e/runtimeCli.test.ts (8 tests | 8 skipped) 10007ms
+   ↓ Init lifecycle using marloweRuntimeCli
+   ↓ Deposit lifecycle using marloweRuntimeCli
+   ↓ Bet lifecycle using marloweRuntimeCli
+   ↓ Store: upload + query a Close source
+   ↓ Store: upload + query a bet source
+   ↓ Store: selective merkleization preserves the oracle Choice
+   ↓ Store: upload + init the bet from the store by id
+   ↓ Store: stored bet e2e flow (upload, init by id, apply inputs)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/runtimeCli.test.ts [ tests/e2e/runtimeCli.test.ts ]
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ tests/e2e/runtimeCli.test.ts:79:1
+     77| const PARTY_FUNDING_AMOUNT_LOVELACE = 10_000_000; // 10 ADA per wallet
+     78|
+     79| beforeAll(async () => {
+       | ^
+     80|   const testEnv = parseEnv();
+     81|   const tempDir = path.join(testEnv.repoRoot, 'marlowe-integration', 'test-temp')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 skipped (8)
+   Start at  08:47:05
+   Duration  10.76s (transform 424ms, setup 0ms, import 617ms, tests 10.01s, environment 0ms)
+
+p

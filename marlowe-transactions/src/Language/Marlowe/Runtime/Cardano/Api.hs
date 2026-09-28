@@ -34,6 +34,7 @@ import Data.Aeson (ToJSON, (.=))
 import qualified Data.Aeson as A
 import qualified Data.Set as Set
 import qualified PlutusLedgerApi.Common as P
+import Data.These (These (This, That, These))
 
 babbageEraOnwardsToMaryEraOnwards :: C.BabbageEraOnwards era -> C.MaryEraOnwards era
 babbageEraOnwardsToMaryEraOnwards = \case
@@ -279,21 +280,24 @@ toCardanoTxOutDatum' = C.inEonForEra (const $ Just C.TxOutDatumNone) \scriptData
   Nothing -> Just C.TxOutDatumNone
   Just hash -> C.TxOutDatumHash scriptDataSupported <$> toCardanoDatumHash hash
 
-fromCardanoTxOutDatum :: C.TxOutDatum C.CtxTx era -> Maybe (Either DatumHash Datum)
+fromCardanoTxOutDatum :: C.TxOutDatum C.CtxTx era -> Maybe (These DatumHash Datum)
 fromCardanoTxOutDatum = \case
   C.TxOutDatumNone -> Nothing
-  C.TxOutDatumHash _ hash -> Just . Left . fromCardanoDatumHash $ hash
-  C.TxOutDatumInline _ datum -> Just . Right . fromCardanoScriptData $ getScriptData datum
-  C.TxOutSupplementalDatum _ datum -> Just . Right . fromCardanoScriptData $ getScriptData datum
+  C.TxOutDatumHash _ hash -> Just . This . fromCardanoDatumHash $ hash
+  C.TxOutDatumInline _ datum -> Just . That . fromCardanoScriptData $ getScriptData datum
+  C.TxOutSupplementalDatum _ datum -> Just do
+    let
+      datumHash = fromCardanoDatumHash . C.hashScriptDataBytes $ datum
+    These datumHash . fromCardanoScriptData $ getScriptData datum
 
 -- When we have only a hash of the datum and no access to the value
 -- we distinguish this case from the case where there is no datum at all.
 data DatumNotAccessible = DatumNotAccessible
 
-fromCardanoTxOutCtxUTxODatum :: C.TxOutDatum C.CtxUTxO era -> Maybe (Either DatumNotAccessible Datum)
+fromCardanoTxOutCtxUTxODatum :: C.TxOutDatum C.CtxUTxO era -> Maybe (Either DatumHash Datum)
 fromCardanoTxOutCtxUTxODatum = \case
   C.TxOutDatumNone -> Nothing
-  C.TxOutDatumHash _ _ -> Just $ Left DatumNotAccessible
+  C.TxOutDatumHash _ hash -> Just . Left . fromCardanoDatumHash $ hash
   C.TxOutDatumInline _ datum -> Just $ Right $ fromCardanoScriptData $ getScriptData datum
 
 toCardanoTxOut :: C.MaryEraOnwards era -> TransactionOutput -> Maybe (C.TxOut C.CtxTx era)
@@ -336,8 +340,9 @@ fromCardanoTxOut era (C.TxOut address value txOutDatum _) = do
   txOutAssets <- mkTxOutAssets (fromCardanoTxOutValue value)
   let
     (hash, datum) = fromMaybe (Nothing, Nothing) $ fromCardanoTxOutDatum txOutDatum >>= \case
-      Left h -> pure (Just h, Nothing)
-      Right d -> pure (Nothing, Just d)
+      This h -> pure (Just h, Nothing)
+      That d -> pure (Nothing, Just d)
+      These h d -> pure (Just h, Just d)
   pure $
     TransactionOutput
       (fromCardanoAddressInEra era address)
@@ -353,7 +358,7 @@ fromCardanoTxOutCtxUTxO era (C.TxOut address value txOutDatum _) = do
   txOutAssets <- mkTxOutAssets (fromCardanoTxOutValue value)
   (hash, datum) <- case fromCardanoTxOutCtxUTxODatum txOutDatum of
     Nothing -> Just (Nothing, Nothing)
-    Just (Left DatumNotAccessible) -> Nothing
+    Just (Left h) -> Just (Just h, Nothing)
     Just (Right d) -> Just (Nothing, Just d)
   pure $
     TransactionOutput

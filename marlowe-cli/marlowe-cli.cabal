@@ -82,7 +82,6 @@ library
     Contrib.Cardano.TxBody
     Contrib.Cardano.UTxO
     Contrib.Control.Concurrent
-    Contrib.Data.Foldable
     Contrib.Data.Time.Units
     Contrib.Data.Time.Units.Aeson
     Language.Marlowe.Cardano
@@ -135,11 +134,14 @@ library
     -- from .external-dependencies/marlowe-cardano/marlowe (called internally marlowe-cardano lib)
     , marlowe-plutus
     , marlowe-plutus-extended
+    , marlowe-binaries:marlowe-binaries-api
+    , marlowe-contrib:foldable-traversable
     , marlowe-transactions
     , megaparsec
     , memory
     , microlens
     , mtl
+    , nonempty-containers
     , ouroboros-consensus
     , ouroboros-network:{protocols}
     , parser-combinators
@@ -181,9 +183,7 @@ library command
     Language.Marlowe.CLI.Command.Util
 
   build-depends:
-    , aeson
     , base >=4.9 && <5
-    , base16-aeson
     , base16-bytestring
     , bytestring
     , cardano-api
@@ -192,11 +192,13 @@ library command
     -- , marlowe-actus
     -- , marlowe-cardano
     , marlowe-cli
+    , marlowe-contrib:optparse
     , marlowe-plutus
     -- , marlowe-plutus-extended
     -- , marlowe-cli:cli-test
     -- , marlowe-contracts
     -- , marlowe-runtime:config
+    , marlowe-binaries:marlowe-binaries-api
     , marlowe-transactions
     , mtl
     , optparse-applicative

@@ -14,7 +14,7 @@ license-files:
   NOTICE
 
 data-files:
-  script-registry.json
+  script-registry/singleton.json
 
 source-repository head
   type:     git
@@ -77,21 +77,17 @@ library
   import:          lang
   hs-source-dirs:  src
   build-depends:
-    , async
     , aeson
+    , async
     , attoparsec
     , base
-    , base16-aeson
     , base16 ^>=1.0
-    , directory
-    , filepath
+    , base16-aeson
     , binary ^>=0.8.8
     , bytestring
     , cardano-api
     , cardano-binary
     , cardano-crypto-class
-    , marlowe-object
-    , cardano-api
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-api
@@ -99,21 +95,25 @@ library
     , cardano-ledger-binary
     , cardano-ledger-byron
     , cardano-ledger-conway
-    , cardano-ledger-dijkstra
     , cardano-ledger-core
+    , cardano-ledger-dijkstra
     , cardano-ledger-mary
     , cardano-ledger-shelley
     , containers
     , deepseq
+    , directory
     , errors
+    , filepath
     , groups
     , hashable
-     , http-media
-     , keys
-     , lens
-     , log-base
-     , marlowe-plutus ^>=0.2
-     , microlens
+    , http-media
+    , keys
+    , lens
+    , log-base
+    , marlowe-contrib:foldable-traversable
+    , marlowe-object
+    , marlowe-plutus ^>=0.2
+    , microlens
     , network-uri
     , nonempty-containers
     , ouroboros-consensus
@@ -125,8 +125,8 @@ library
     , reflection
     , scientific
     , semialign
-    , semigroups
     , semigroupoids
+    , semigroups
     , sop-core
     , sop-extras
     , strict-sop-core
@@ -142,6 +142,7 @@ library
   exposed-modules:
     Language.Marlowe.Runtime.Cardano.Api
     Language.Marlowe.Runtime.Cardano.Api.Kupo
+    Language.Marlowe.Runtime.Cardano.AUTxO
     Language.Marlowe.Runtime.Cardano.Feature
     Language.Marlowe.Runtime.ChainSync.Api
     Language.Marlowe.Runtime.Core.Api
@@ -174,8 +175,8 @@ library gen
     , cardano-protocol-tpraos
     , containers
     , errors
-     , hedgehog-quickcheck ^>=0.1
-     , http-media ^>=0.8
+    , hedgehog-quickcheck ^>=0.1
+    , http-media ^>=0.8
     , marlowe-object
     , marlowe-object:gen
     , marlowe-plutus
@@ -207,8 +208,10 @@ test-suite test
   main-is:        Spec.hs
   hs-source-dirs:  test
   other-modules:
+    Language.Marlowe.Runtime.Core.ScriptRegistry.JSONSpec
     Language.Marlowe.Runtime.Transaction.BuildConstraintsSpec
     Language.Marlowe.Runtime.Transaction.BuildConstraintsSpec.PropertyBased
+    Paths_marlowe_transactions
   build-depends:
     , aeson
     , aeson-pretty
@@ -223,18 +226,17 @@ test-suite test
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-slotting
-    -- , convex-mockchain
-     , containers
-     , deepseq
-     , hspec
-     , hspec-core
-     , lens
-     , marlowe-plutus
-     , marlowe-plutus:marlowe-testing
-     , marlowe-transactions
-     , marlowe-transactions:gen
-     , nonempty-containers
-     , ouroboros-consensus
+    , containers
+    , deepseq
+    , hspec
+    , hspec-core
+    , lens
+    , marlowe-plutus
+    , marlowe-plutus:marlowe-testing
+    , marlowe-transactions
+    , marlowe-transactions:gen
+    , nonempty-containers
+    , ouroboros-consensus
     , ouroboros-consensus:{cardano}
     , ouroboros-network:{api}
     , plutus-ledger-api
@@ -249,7 +251,7 @@ test-suite test
     , transformers
     , vary
 
-executable marlowe-transactions-cli
+executable cli
   import:          lang
   hs-source-dirs:  app
   main-is:         App.hs
@@ -293,10 +295,11 @@ executable marlowe-transactions-cli
     , http-types
     , insert-ordered-containers
     , lens
-     , lifted-base
-     , log-base
-     , log-base-inlined
-     , marlowe-object
+    , lifted-base
+    , log-base
+    , log-base-inlined
+    , marlowe-contrib:optparse
+    , marlowe-object
     , marlowe-plutus ^>=0.2
     , marlowe-transactions
     , monad-control ^>=1

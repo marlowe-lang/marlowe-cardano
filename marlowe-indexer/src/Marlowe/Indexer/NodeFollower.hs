@@ -119,7 +119,7 @@ data Changes = Changes
   { changesRollback :: !(Maybe RollbackToBlock)
   -- ^ Point to rollback to before writing any blocks.
   , changesBlocks :: ![BlockInMode]
-  -- ^ New blocks to write.
+  -- ^ New blocks to write. Ordered from the most recent to the oldest.
   , changesTip :: !NodeTip
   -- ^ Most recently observed tip of the local node.
   , changesIndexerTip :: !IndexerTip

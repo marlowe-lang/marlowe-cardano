@@ -1,0 +1,2 @@
+#!/nix/store/l85fis49agvp5q1ild1rfh4rrgmn92sr-nodejs-22.21.1/bin/node
+require('/home/paluh/projects/marlowe/marlowe-plutus/marlowe-integration/node_modules/typescript/lib/tsc.js');

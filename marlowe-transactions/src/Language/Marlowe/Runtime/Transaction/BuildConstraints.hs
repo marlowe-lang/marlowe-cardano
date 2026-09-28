@@ -470,7 +470,7 @@ type ApplyResults v = (UTCTime, UTCTime, Maybe (TxOutAssets, Datum v), Inputs v)
 -- applies an input to a contract.
 buildApplyInputsConstraints
   :: (Monad m)
-  => (TransactionInputs v -> m (Maybe (TransactionInputs v)))
+  => (Contract v -> State v -> TransactionInputs v -> m (Maybe (TransactionInputs v)))
   -> SystemStart
   -> EraHistory
   -- ^ The era history for converting times to slots.
@@ -510,7 +510,7 @@ buildApplyInputsConstraints merkleizeInputs systemStart eraHistory version marlo
 buildApplyInputsConstraintsV1
   :: forall era m
    . (Monad m)
-  => (TransactionInput -> m (Maybe TransactionInput))
+  => (V1.Contract -> V1.State -> TransactionInput -> m (Maybe TransactionInput))
   -> SystemStart
   -> EraHistory
   -- ^ The era history for converting times to slots.
@@ -584,7 +584,7 @@ buildApplyInputsConstraintsV1 merkleizeInputs systemStart eraHistory marloweOutp
   let transactionInput = V1.TransactionInput{txInterval, txInputs = inputs}
 
   -- Try and auto-merkleize the inputs if possible.
-  transactionInput' <- lift $ lift $ fromMaybe transactionInput <$> merkleizeInputs transactionInput
+  transactionInput' <- lift $ lift $ fromMaybe transactionInput <$> merkleizeInputs contract state transactionInput
 
   -- Construct inputs constraints.
   -- Consume UTXOs containing Marlowe script.

@@ -168,7 +168,6 @@ instance Arbitrary LoadMarloweContextError where
       , MarloweAddressNotScriptAddress <$> arbitrary
       , CardanoConversionFailure <$> arbitrary
       , PayoutScriptNotPublished <$> arbitrary
-      , ExtractCreationError <$> arbitrary
       , ExtractMarloweTransactionError <$> arbitrary
       ]
   shrink = genericShrink

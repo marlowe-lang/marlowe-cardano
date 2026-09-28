@@ -171,6 +171,7 @@ library marlowe-binaries-api
     , directory
     , filepath
     , marlowe-plutus:{marlowe-plutus, marlowe-testing}
+    , marlowe-contrib:optparse
     , QuickCheck
     , plutus-core
     , plutus-ledger-api
@@ -228,6 +229,7 @@ executable marlowe-binaries
     , filepath
     , marlowe-binaries
     , marlowe-binaries:marlowe-binaries-api
+    , marlowe-contrib:optparse
     , marlowe-plutus:{marlowe-plutus, marlowe-testing}
     , optparse-applicative
     , plutus-ledger-api
