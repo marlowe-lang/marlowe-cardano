@@ -60,7 +60,7 @@ import Language.Marlowe.Runtime.Query
     ( SomeContractState(SomeContractState),
       ContractState(ContractState, initialOutput, latestOutput),
       SomeTransactions(SomeTransactions) )
-import Language.Marlowe.Runtime.Query.Database ( hoistDatabaseQueries, logDatabaseQueries, DatabaseQueries(getContractState, getTransactions, getEraHistory), getNodeTip, GetEraHistoryError )
+import Language.Marlowe.Runtime.Query.Database ( hoistDatabaseQueries, logDatabaseQueries, DatabaseQueries(getContractState, getTransaction, getTransactions, getEraHistory), getNodeTip, GetEraHistoryError )
 import Language.Marlowe.Runtime.Query.Database.PostgreSQL (databaseQueries)
 import Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetContractState (GetContractState)
 import Language.Marlowe.Runtime.Transaction.Api (LoadHelpersContextError, RoleTokensConfig, InitError(InitEraHistoryNotInitialized), ApplyInputsError(ApplyInputsEraHistoryNotInitialized))
@@ -463,6 +463,8 @@ mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts = do
             , totalCount
             }
 
+    loadTransaction = const dbQueries.getTransaction
+
     deps :: ServerDependencies ServerM
     deps =
         ServerDependencies
@@ -473,7 +475,7 @@ mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts = do
           , loadContract = fmap (fmap Right) . dbQueries.getContractState
           , loadPayout = undefined
           , loadPayouts = undefined
-          , loadTransaction = undefined
+          , loadTransaction
           , loadTransactions
           , loadWithdrawal = undefined
           , loadWithdrawals = undefined

@@ -14,6 +14,7 @@ module Language.Marlowe.Runtime.Web.Client (
   -- healthcheck,
   getContract,
   getContractNext,
+  getContractTransaction,
   getContractTransactions,
   postContract,
   postTransaction,
@@ -50,7 +51,7 @@ import Language.Marlowe.Runtime.Web.Adapter.CommaList ( CommaList (CommaList),)
 import Language.Marlowe.Runtime.Web.Adapter.Links (retractLink)
 import Language.Marlowe.Runtime.Web.Adapter.Servant (ListObject (..))
 import Language.Marlowe.Runtime.Web.Contract.API ( ContractHeader, ContractSourceId, ContractState, GetContractsResponse, PostContractSourceResponse, PostContractsRequest, PostContractsResponse, GetContractResponse, ContractId, PreserveActions (PreserveActions))
-import Language.Marlowe.Runtime.Web.Contract.Transaction.API (GetTransactionsResponse, PostTransactionsRequest(PostTransactionsRequest), PostTransactionsResponse)
+import Language.Marlowe.Runtime.Web.Contract.Transaction.API (GetTransactionResponse, GetTransactionsResponse, PostTransactionsRequest(PostTransactionsRequest), PostTransactionsResponse)
 import Language.Marlowe.Runtime.Web.Adapter.Pagination (PaginatedResponse)
 import Language.Marlowe.Runtime.Web.Core.Address ( Address, StakeAddress,)
 import Language.Marlowe.Runtime.Web.Core.Asset ( AssetId, PolicyId,)
@@ -61,7 +62,7 @@ import Language.Marlowe.Runtime.Web.Core.Tip (ChainTip)
 import Language.Marlowe.Runtime.Web.Core.Tx ( TextEnvelope, TxId, TxOutRef,)
 import Language.Marlowe.Runtime.Web.Core.Tx qualified as Web
 import Language.Marlowe.Runtime.Web.Payout.API ( GetPayoutsResponse, PayoutHeader, PayoutState, PayoutStatus,)
-import Language.Marlowe.Runtime.Web.Tx.API ( CardanoTx, CreateTxEnvelope, TxHeader, WithdrawTxEnvelope, ApplyInputsTxEnvelope)
+import Language.Marlowe.Runtime.Web.Tx.API ( CardanoTx, CreateTxEnvelope, Tx (..), TxHeader, WithdrawTxEnvelope, ApplyInputsTxEnvelope)
 import Language.Marlowe.Runtime.Web.Withdrawal.API (GetWithdrawalsResponse, PostWithdrawalsRequest, Withdrawal, WithdrawalHeader,)
 import Marlowe.Plutus.Semantics.Types (Contract)
 import Pipes (Producer)
@@ -176,6 +177,18 @@ getContractTransactions contractId = do
       let ListObject items = getResponse paginatedResponse
       pure $ retractLink @"transaction" <$> items
     Nothing -> liftIO $ fail "Unexpected response from getContractTransactions"
+
+getContractTransaction :: ContractId -> TxId -> ClientM Tx
+getContractTransaction contractId txId = do
+  let
+    (mkContractsClient :<|> _) :<|> _ = runtimeClient
+    _ :<|> (_ :<|> transactionsClient) = mkContractsClient contractId
+    _ :<|> (_ :<|> transactionClient) = transactionsClient
+  response <- transactionClient txId
+  case matchUnion response of
+    Just (transactionResponse :: GetTransactionResponse) ->
+      pure $ retractLink @"next" $ retractLink @"previous" transactionResponse
+    Nothing -> liftIO $ fail "Unexpected response from getContractTransaction"
 
 getContractNext :: ContractId -> UTCTime -> UTCTime -> [Party] -> ClientM Value
 getContractNext contractId validityStart validityEnd parties = do

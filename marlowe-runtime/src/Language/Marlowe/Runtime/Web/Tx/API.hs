@@ -122,6 +122,8 @@ data Tx = Tx
   }
   deriving (Show, Eq, Generic, ToJSON, FromJSON, ToSchema)
 
+instance NFData Tx
+
 data TxJSON a
 data CardanoTx
 data ContractTx

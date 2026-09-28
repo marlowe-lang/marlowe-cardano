@@ -43,89 +43,100 @@
     #   url = "github:Platonic-systems/process-compose-flake";
   };
 
-  outputs = inputs: inputs.flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
+  outputs = inputs:
     let
-      inherit (pkgs) lib;
-
-      pkgs = import inputs.nixpkgs {
-        inherit system;
-        config = inputs.haskell-nix.config;
-        overlays =
-          builtins.attrValues inputs.iohk-nix.overlays
-          ++ [
-            inputs.haskell-nix.overlay
-          ];
-        # overlays = [
-        #   inputs.iohk-nix.overlays.crypto
-        #   inputs.iohk-nix.overlays.haskell-nix-crypto
-        #   inputs.iohk-nix.overlays.haskell-nix-extra
-        #   inputs.iohk-nix.overlays.cardano-lib
-        #   inputs.haskell-nix.overlay
-        # ];
+      nixos = import ./nix/nixos/outputs.nix {
+        self = inputs.self;
+        nixpkgs = inputs.nixpkgs;
       };
+    in inputs.flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
+      let
+        inherit (pkgs) lib;
 
-      project = pkgs.haskell-nix.cabalProject' ({ config, pkgs, ... }: {
-        name = "marlowe-plutus";
-        compiler-nix-name = lib.mkDefault "ghc967";
-        src = lib.cleanSource ./.;
-        inputMap = { "https://chap.intersectmbo.org/" = inputs.CHaP; };
+        extra = nixos.forPkgs pkgs;
 
-        # flake.variants = {
-        #   ghc967 = {}; # Alias for the default variant
-        #   # ghc967.compiler-nix-name = "ghc967";
-        #   # ghc9102.compiler-nix-name = "ghc9102";
-        #   # ghc9122.compiler-nix-name = "ghc9122";
-        # };
-        modules = [{
-          packages = {
-            postgresql-libpq.flags."use-pkg-config" = pkgs.stdenv.hostPlatform.isMusl;
-          };
-        }];
-      });
+        pkgs = import inputs.nixpkgs {
+          inherit system;
+          config = inputs.haskell-nix.config;
+          overlays =
+            builtins.attrValues inputs.iohk-nix.overlays
+            ++ [
+              inputs.haskell-nix.overlay
+            ];
+          # overlays = [
+          #   inputs.iohk-nix.overlays.crypto
+          #   inputs.iohk-nix.overlays.haskell-nix-crypto
+          #   inputs.iohk-nix.overlays.haskell-nix-extra
+          #   inputs.iohk-nix.overlays.cardano-lib
+          #   inputs.haskell-nix.overlay
+          # ];
+        };
 
-      utils = import ./nix/utils.nix { inherit pkgs lib; };
+        project = pkgs.haskell-nix.cabalProject' ({ config, pkgs, ... }: {
+          name = "marlowe-plutus";
+          compiler-nix-name = lib.mkDefault "ghc967";
+          src = lib.cleanSource ./.;
+          inputMap = { "https://chap.intersectmbo.org/" = inputs.CHaP; };
 
-      mkShell = ghc: import ./nix/shell.nix {
-        inherit inputs pkgs lib project ghc;
-      };
+          # flake.variants = {
+          #   ghc967 = {}; # Alias for the default variant
+          #   # ghc967.compiler-nix-name = "ghc967";
+          #   # ghc9102.compiler-nix-name = "ghc9102";
+          #   # ghc9122.compiler-nix-name = "ghc9122";
+          # };
+          modules = [{
+            packages = {
+              postgresql-libpq.flags."use-pkg-config" = pkgs.stdenv.hostPlatform.isMusl;
+            };
+          }];
+        });
 
-      devShells = rec {
-        default = ghc967;
-        ghc967 = mkShell "ghc967";
-        # ghc966 = mkShell "ghc966";
-        # ghc9102 = mkShell "ghc9102";
-        # ghc9122 = mkShell "ghc9122";
-      };
+        utils = import ./nix/utils.nix { inherit pkgs lib; };
 
-      defaultHydraJobs = {
-        ghc967 = projectFlake.hydraJobs.ghc967;
-        # ghc966 = projectFlake.hydraJobs.ghc966;
-        # ghc9102 = projectFlake.hydraJobs.ghc9102;
-        # ghc9122 = projectFlake.hydraJobs.ghc9122;
-        inherit packages;
+        mkShell = ghc: import ./nix/shell.nix {
+          inherit inputs pkgs lib project ghc;
+        };
+
+        devShells = rec {
+          default = ghc967;
+          ghc967 = mkShell "ghc967";
+          # ghc966 = mkShell "ghc966";
+          # ghc9102 = mkShell "ghc9102";
+          # ghc9122 = mkShell "ghc9122";
+        };
+
+        defaultHydraJobs = {
+          ghc967 = projectFlake.hydraJobs.ghc967;
+          # ghc966 = projectFlake.hydraJobs.ghc966;
+          # ghc9102 = projectFlake.hydraJobs.ghc9102;
+          # ghc9122 = projectFlake.hydraJobs.ghc9122;
+          inherit packages;
+          inherit devShells;
+          required = utils.makeHydraRequiredJob hydraJobs;
+        };
+
+        hydraJobsPerSystem = {
+          "x86_64-linux" = defaultHydraJobs;
+          # "x86_64-darwin" = defaultHydraJobs;
+          # "aarch64-linux" = defaultHydraJobs;
+          # "aarch64-darwin" = defaultHydraJobs;
+        };
+        hydraJobs = utils.flattenDerivationTree "-" hydraJobsPerSystem.${system};
+        packages = {
+          # NOTE this is important or the static builds will fail with:
+          # Error: pg_config not found
+          process-compose-postgres-yaml = pkgs.callPackage ./process-compose/postgres.nix {};
+        };
+        projectFlake = project.flake {};
+      in {
+        packages = packages // extra.packages;
         inherit devShells;
-        required = utils.makeHydraRequiredJob hydraJobs;
-      };
-
-      hydraJobsPerSystem = {
-        "x86_64-linux" = defaultHydraJobs;
-        # "x86_64-darwin" = defaultHydraJobs;
-        # "aarch64-linux" = defaultHydraJobs;
-        # "aarch64-darwin" = defaultHydraJobs;
-      };
-      hydraJobs = utils.flattenDerivationTree "-" hydraJobsPerSystem.${system};
-      packages = {
-        # NOTE this is important or the static builds will fail with:
-        # Error: pg_config not found
-        process-compose-postgres-yaml = pkgs.callPackage ./process-compose/postgres.nix {};
-      };
-      projectFlake = project.flake {};
-    in {
-      inherit packages;
-      inherit devShells;
-      inherit hydraJobs;
-    }
-  );
+        inherit hydraJobs;
+        checks = extra.checks;
+      }
+    ) // {
+        inherit (nixos) nixosModules nixosConfigurations;
+    };
 
 
   nixConfig = {

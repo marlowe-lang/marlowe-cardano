@@ -1,6 +1,8 @@
 .pre-commit-config.yaml
 .direnv
 dist-newstyle
+dist-O0
+dist-O0-repl
 result
 .pc-postgres-init.log
 .pc-postgres.log
@@ -12,4 +14,4 @@ marlowe-integration/.pnp.*
 marlowe-integration/**/node_modules
 .run
 out
-
+node_modules

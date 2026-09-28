@@ -2,13 +2,9 @@
 
 ## Task
 
-* Currently `cabal run marlowe-runtime:cli -- contract --help` does not expose transactions endpoint.
+* In the recent iteration we added `cabal run marlowe-runtime:cli -- contract transactions --help` (please check the previous commit diff for the `marlowe-runtime/client` and relevant changes across `marlowe-runtime`).
 
-* It seems from our codebase (`Language.Marlowe.Runtime.Web.Contract.API`) that there is also a `transactions` endpoint.
-
-* We want to expose it through the CLI as well (extend the client itself if needed).
-
-* Please read the whole CLI package to understand the structure. Please **follow** the existing patterns and conventions.
+* We want to now extend the command so with a `--full` flag which will internally iterate over the transactions and fetch the full transaction details and use them to produce a more detailed output.
 
 ## The devel cycle
 
@@ -26,7 +22,8 @@
 * The local runtime is running so you can for example invoke:
 
   ```bash
-  $ cabal run -v0 --project-file /home/paluh/projects/marlowe/marlowe-plutus/cabal.project marlowe-runtime:cli -- contract get --contract-id 'fcaa7b696aad98f05963f51348b4b8852d20518d8c8597e5a534738cc4f4c7d6#1' --message-format 'json'
+  $ cabal run marlowe-runtime:cli -- contract transactions --contract-id '11073b55075924157aa34f365ef085ec8570440662d343165cc8880900af2f7a#1' --message-format 'json'
   ```
 
-* Please use the above contract to test your new `transactions` subcommand.
+* Please use that exact contract id to test your new `transactions` with details output.
+
