@@ -4,18 +4,18 @@ BEGIN;
 -- recreate the type. Any rows that used the 'eraHistory' value cannot be
 -- preserved across the revert.
 
-DELETE FROM marlowe.node_status WHERE attr::text = 'eraHistory';
+DELETE FROM node_status WHERE attr::text = 'eraHistory';
 
-ALTER TABLE marlowe.node_status
+ALTER TABLE node_status
     ALTER COLUMN attr TYPE text,
     ALTER COLUMN attr DROP DEFAULT;
 
-DROP TYPE marlowe.node_status_attr;
+DROP TYPE node_status_attr;
 
-CREATE TYPE marlowe.node_status_attr AS ENUM ('tip');
+CREATE TYPE node_status_attr AS ENUM ('tip');
 
-ALTER TABLE marlowe.node_status
-    ALTER COLUMN attr TYPE marlowe.node_status_attr
-        USING attr::marlowe.node_status_attr;
+ALTER TABLE node_status
+    ALTER COLUMN attr TYPE node_status_attr
+        USING attr::node_status_attr;
 
 COMMIT;

@@ -8,9 +8,6 @@ author:        Jamie Bertram, Tomasz Rybarczyk
 maintainer:    tomasz.rybarczyk@marlowe-lang.org
 stability:     experimental
 category:      Language
-license-files:
-  LICENSE
-  NOTICE
 
 source-repository head
   type:     git

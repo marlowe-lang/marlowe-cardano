@@ -13,8 +13,8 @@ license-files:
   NOTICE
 
 data-files:
-  benchmarks/rolepayout/*.benchmark
-  benchmarks/semantics/*.benchmark
+  -- benchmarks/rolepayout/*.benchmark
+  -- benchmarks/semantics/*.benchmark
 
   marlowe-testing/reference/data/*.contract
   marlowe-testing/reference/data/*.paths

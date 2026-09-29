@@ -19,7 +19,7 @@ import Data.Either (partitionEithers)
 import Data.Foldable (for_, find)
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Map qualified as Map
-import Data.Maybe (mapMaybe, listToMaybe, isJust)
+import Data.Maybe (mapMaybe, listToMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)

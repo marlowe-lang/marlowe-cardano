@@ -47,11 +47,15 @@ let
   };
 
   cardano-cli = inputs.cardano-node.packages.${pkgs.system}.cardano-cli;
+
   cardano-node = inputs.cardano-node.packages.${pkgs.system}.cardano-node;
+
+  mithril-client = inputs.mithril.packages.${pkgs.system}.mithril-client-cli;
 
   commonPackages = [
     cardano-cli
     cardonnay
+    mithril-client
 
     tools.cabal
     tools.cabal-fmt

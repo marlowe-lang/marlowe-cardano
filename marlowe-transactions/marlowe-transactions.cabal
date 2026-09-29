@@ -8,13 +8,8 @@ stability:     experimental
 author:        paluh (aka Tomasz Rybarczyk)
 synopsis:      Marlowe pure transaction builders
 category:      Language
-
-license-files:
-  LICENSE
-  NOTICE
-
 data-files:
-  script-registry/singleton.json
+  script-registry/pre-1.1.0.json
 
 source-repository head
   type:     git

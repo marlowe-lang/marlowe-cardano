@@ -326,7 +326,7 @@ loadScriptRegistry jsonFile = runExceptT do
 -- Fails if the directory is missing, the registry is empty, or the
 -- registry is malformed.
 loadDefaultScriptRegistry :: IO (Either ScriptRegistryError ScriptRegistry)
-loadDefaultScriptRegistry = Paths.getDataFileName "script-registry/singleton.json" >>= loadScriptRegistry
+loadDefaultScriptRegistry = Paths.getDataFileName "script-registry/pre-1.1.0.json" >>= loadScriptRegistry
 
 loadDefaultMarloweScripts :: IO (Either ScriptRegistryError MarloweScripts)
 loadDefaultMarloweScripts = runExceptT do

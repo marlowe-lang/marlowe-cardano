@@ -35,6 +35,8 @@
 
     jailed-agents.url = "github:andersonjoseph/jailed-agents";
 
+    mithril.url = "github:IntersectMBO/mithril/2630.0";
+
     nixpkgs.follows = "haskell-nix/nixpkgs";
 
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
@@ -52,8 +54,6 @@
     in inputs.flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         inherit (pkgs) lib;
-
-        extra = nixos.forPkgs pkgs;
 
         pkgs = import inputs.nixpkgs {
           inherit system;
@@ -84,10 +84,13 @@
           #   # ghc9102.compiler-nix-name = "ghc9102";
           #   # ghc9122.compiler-nix-name = "ghc9122";
           # };
-          modules = [{
-            packages = {
-              postgresql-libpq.flags."use-pkg-config" = pkgs.stdenv.hostPlatform.isMusl;
-            };
+          # modules = [{
+          #   packages = {
+          #     postgresql-libpq.flags."use-pkg-config" = pkgs.stdenv.hostPlatform.isMusl;
+          #   };
+          # }];
+          modules = lib.optionals pkgs.stdenv.hostPlatform.isMusl [{
+            packages.postgresql-libpq.flags."use-pkg-config" = false;
           }];
         });
 
@@ -126,18 +129,26 @@
           # NOTE this is important or the static builds will fail with:
           # Error: pg_config not found
           process-compose-postgres-yaml = pkgs.callPackage ./process-compose/postgres.nix {};
+          marlowe-indexer = pkgs.runCommand "marlowe-indexer" { } ''
+            mkdir -p $out/bin
+            ln -s ${projectFlake.packages."marlowe-indexer:exe:server"}/bin/server $out/bin/marlowe-indexer
+          '';
         };
         projectFlake = project.flake {};
       in {
-        packages = packages // extra.packages;
+        inherit packages;
         inherit devShells;
         inherit hydraJobs;
-        checks = extra.checks;
       }
     ) // {
-        inherit (nixos) nixosModules nixosConfigurations;
+        inherit (nixos) nixosModules;
+        nixosConfigurations.indexer-test = nixos.mkIndexerTest {
+          cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
+          cardanoNodeModule = inputs.cardano-node.nixosModules.cardano-node;
+          hostSnapshot = "/home/paluh/projects/marlowe/marlowe-plutus/preprod-db/db";
+          indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
+        };
     };
-
 
   nixConfig = {
     extra-substituters = [
