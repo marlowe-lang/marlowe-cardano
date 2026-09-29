@@ -31,8 +31,12 @@ in
         (import ./test-machine.nix { inherit hostSnapshot; })
         {
           environment.systemPackages = [ cardanoCli ];
-          services.marlowe-indexer.package = indexerPackage;
-          services.marlowe-indexer.database.sqitchDir = sqitchDir;
+          services.marlowe-indexer = {
+            enable = true;
+            cardanoCli = cardanoCli;
+            package = indexerPackage;
+            database.sqitchDir = sqitchDir;
+          };
         }
       ];
     };

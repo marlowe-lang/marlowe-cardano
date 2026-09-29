@@ -68,6 +68,7 @@ data Query a where
   QueryParams :: Query (LedgerProtocolParameters ConwayEra)
   QueryTxIns :: [TxIn] -> Query (UTxO ConwayEra)
   QueryAddress :: Address ShelleyAddr -> Query (UTxO ConwayEra)
+  QueryChainTip :: Query ChainPoint
 
 deriving instance Show (Query a)
 
@@ -240,6 +241,7 @@ handleRequest = \case
   QueryParams -> queryParams
   QueryTxIns inputs -> queryTxIns inputs
   QueryAddress addr -> queryAddress addr
+  QueryChainTip -> queryChainTip
 
 queryStartup
   :: forall m
@@ -332,6 +334,16 @@ queryAddress addr k = do
   pure $ Q.SendMsgQuery utxoQ $ Q.ClientStQuerying \case
     Left err -> logThrow $ "Failed to query utxo" <> T.pack (show err)
     Right utxo -> k utxo
+
+queryChainTip
+  :: forall m
+   . MonadIO m
+  => ( ChainPoint
+       -> m (Q.ClientStAcquired BlockInMode ChainPoint QueryInMode m ())
+     )
+  -> m (Q.ClientStAcquired BlockInMode ChainPoint QueryInMode m ())
+queryChainTip k =
+  pure $ Q.SendMsgQuery QueryChainPoint $ Q.ClientStQuerying \tip -> k tip
 
 logThrow :: (MonadLog m, MonadIO m) => Text -> m a
 logThrow msg = do

@@ -32,33 +32,37 @@ let
 in
 {
   options.services.marlowe-indexer = {
-    enable = mkEnableOption "Marlowe indexer";
-    package = mkOption {
+    cardanoCli = mkOption {
       type = types.package;
-      description = "Package providing bin/marlowe-indexer.";
-    };
-    socketPath = mkOption {
-      type = types.str;
-      description = "Cardano node socket. Set to the node service socket.";
-    };
-    socketGroup = mkOption {
-      type = types.str;
-      default = "cardano-node";
-      description = "Group that may connect to the node socket. Indexer user is added to it.";
-    };
-    networkMagic = mkOption {
-      type = types.nullOr types.ints.unsigned;
-      default = null;
-    };
-    scriptRegistry = mkOption {
-      type = types.nullOr types.path;
-      default = null;
+      description = "cardano-cli used to poll query tip before the indexer starts.";
     };
     database = {
       name = mkOption { type = types.str; default = "marlowe"; };
       user = mkOption { type = types.str; default = "marlowe-indexer"; };
       migrate = mkOption { type = types.bool; default = true; };
       sqitchDir = mkOption { type = types.nullOr types.path; default = null; };
+    };
+    enable = mkEnableOption "Marlowe indexer";
+    networkMagic = mkOption {
+      type = types.nullOr types.ints.unsigned;
+      default = null;
+    };
+    package = mkOption {
+      type = types.package;
+      description = "Package providing bin/marlowe-indexer.";
+    };
+    scriptRegistry = mkOption {
+      type = types.nullOr types.path;
+      default = null;
+    };
+    socketGroup = mkOption {
+      type = types.str;
+      default = "cardano-node";
+      description = "Group that may connect to the node socket. Indexer user is added to it.";
+    };
+    socketPath = mkOption {
+      type = types.str;
+      description = "Cardano node socket. Set to the node service socket.";
     };
   };
 
@@ -80,7 +84,33 @@ in
     systemd.services.cardano-node.serviceConfig = {
       UMask = lib.mkDefault "0007";
       RuntimeDirectoryMode = lib.mkDefault "0770";
-      # ExecStartPost = "+${pkgs.coreutils}/bin/chmod 0660 ${cfg.socketPath}";
+    };
+
+    systemd.services.cardano-node-ready = {
+      description = "Wait until cardano-cli query tip succeeds";
+      after = [ "cardano-node.service" ];
+      bindsTo = [ "cardano-node.service" ];
+      path = [ cfg.cardanoCli ];
+      environment.CARDANO_NODE_SOCKET_PATH = cfg.socketPath;
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = pkgs.writeShellScript "cardano-node-ready" ''
+          set -euo pipefail
+          for _ in $(seq 1 600); do
+            if cardano-cli query tip ${
+              if cfg.networkMagic == null
+              then "--mainnet"
+              else "--testnet-magic ${toString cfg.networkMagic}"
+            }; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "cardano-cli query tip did not succeed" >&2
+          exit 1
+        '';
+      };
     };
 
     systemd.services.marlowe-indexer-migrate = mkIf cfg.database.migrate {
@@ -98,9 +128,9 @@ in
     systemd.services.marlowe-indexer = {
       description = "Marlowe indexer";
       wantedBy = [ "multi-user.target" ];
-      after = [ "network.target" "postgresql.service" "cardano-node.service" ]
+      after = [ "network.target" "postgresql.service" "cardano-node-ready.service" ]
         ++ optionals cfg.database.migrate [ "marlowe-indexer-migrate.service" ];
-      requires = [ "postgresql.service" "cardano-node.service" ]
+      requires = [ "postgresql.service" "cardano-node-ready.service" ]
         ++ optionals cfg.database.migrate [ "marlowe-indexer-migrate.service" ];
       unitConfig.StartLimitIntervalSec = 0;
       serviceConfig = {

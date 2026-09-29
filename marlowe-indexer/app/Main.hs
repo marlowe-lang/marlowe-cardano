@@ -8,7 +8,7 @@ import Control.Monad (join, when)
 import Data.Version (showVersion)
 import qualified Hasql.Pool as Pool
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL as PostgreSQL
-import Marlowe.Indexer (IndexerDependencies (..), mkIndexer)
+import Marlowe.Indexer (IndexerDependencies (..), StartPoint (..), mkIndexer)
 import Marlowe.Indexer.NodeFollower (MemoryCostConfig (..), ChangesMemoryCostModel (..))
 import Options.Applicative (
   Parser,
@@ -38,6 +38,7 @@ import qualified Hasql.Connection.Settings as Hasql
 import qualified Hasql.Pool.Config as Hasql
 import qualified Data.Text as T
 import qualified Text.Read as T
+import Data.ByteString.Char8 qualified as BSC
 import Data.Foldable (Foldable(..))
 import Log.Class (logInfo_, logInfo)
 import System.Exit (die)
@@ -48,6 +49,7 @@ data Options = Options
   , nodeSocketPath :: FilePath
   , networkId :: C.NetworkId
   , scriptRegistryFile :: Maybe FilePath
+  , startPoint :: StartPoint
   }
 longOption :: ReadM a -> String -> String -> String -> Parser a
 longOption reader longText helpText metavarText =
@@ -83,6 +85,43 @@ logLevelParser =
           ]
     , pure LogInfo
     ]
+
+startPointParser :: Parser StartPoint
+startPointParser =
+  asum
+    [ flag' StartFromGenesis $
+        fold
+          [ long "start-from-genesis"
+          , help "Start indexing from the genesis block."
+          ]
+    , StartFromBlock <$> startFromSlotParser <*> startFromBlockParser
+    , pure StartFromDbOrTip
+    ]
+
+startFromSlotParser :: Parser C.SlotNo
+startFromSlotParser =
+  option (C.SlotNo <$> auto) $
+    fold
+      [ long "start-from-slot"
+      , metavar "SLOT"
+      , help "Slot number of the block the indexer should start from. Must be used together with --start-from-block."
+      ]
+
+startFromBlockParser :: Parser (C.Hash C.BlockHeader)
+startFromBlockParser =
+  option readBlockHeaderHash $
+    fold
+      [ long "start-from-block"
+      , metavar "HEX_HASH"
+      , help "Hex-encoded block header hash of the block the indexer should start from. Must be used together with --start-from-slot."
+      ]
+
+readBlockHeaderHash :: ReadM (C.Hash C.BlockHeader)
+readBlockHeaderHash =
+  eitherReader \raw -> do
+    case C.deserialiseFromRawBytesHex @(C.Hash C.BlockHeader) (BSC.pack raw) of
+      Left err -> Left $ show err
+      Right hash -> Right hash
 
 getEnvNetworkId :: IO (Maybe C.NetworkId)
 getEnvNetworkId =
@@ -153,6 +192,7 @@ runIndexer Options{..} = do
 
     logInfo_ "Starting Marlowe Indexer:"
     logInfo "Script hashes:" marloweScriptHashes
+    logInfo_ $ "Start point: " <> T.pack (show startPoint)
 
     runComponent_ $ mkIndexer IndexerDependencies
       { localNodeConnectInfo
@@ -160,6 +200,7 @@ runIndexer Options{..} = do
       , memoryCostConfig = memoryCostConfig
       , marloweScriptHashes = marloweScriptHashes
       , scriptRegistry = registry
+      , startPoint
       }
 
 mkParser :: IO (Parser (IO ()))
@@ -173,6 +214,7 @@ mkParser = do
       <*> nodeSocketPathParser
       <*> networkIdParser
       <*> optional (strOption (long "script-registry" <> metavar "FILE" <> help "Script registry JSON file."))
+      <*> startPointParser
 
     versionOption =
       infoOption ("marlowe-indexer " <> showVersion version) $
@@ -193,4 +235,3 @@ main = do
             <> header "marlowe-indexer"
       info parser description
   join $ execParser parserInfo
-

@@ -1,26 +1,24 @@
-# Cardano Era History in DB
+# Add optional starting point for the indexer
 
-The goal of this task is to extend the cardano node related state so we include era history information in the database. There is an existing structure for that status property and we can follow the same pattern.
+The goal of this task is to extend our marlowe-indexer:server so it accepts two new parameters:
 
-## The details
+  * `--start-from BLOCK_HASH` which accepts a block hash and starts the indexer from that point. I'm not sure if the hash is enough to identify the block - please check `.external-references/mgdoc/mgdoc/l1-state-synchronizer` for some inspiration if needed.
 
-* We use PostgreSQL as DB engine and sqitch for the database migrations.
+  * `--start-from-genesis` which starts the indexer from the genesis block.
 
-* Please check the previous migrations which can be found in `sql/deploy`, `sql/revert` and `sql/verify` folders. Please focus on the migration which added the `status` table and `tip` info to that table. Please add a new property `eraHistory` and use a binary blob for the data type.
-
-* Please check the `marlowe-indexer/db` package which contains insertion API for the previous `tip` status. Please follow the same pattern and add a new insertion API for the `eraHistory` property.
-
-* Please check the insertion flow in the `marlowe-indexer/src` node follower code (the persistence layer). Can we easily extend that flow to include the new `eraHistory` property? If not, please propose a solution and ask for feedback.
+If none of the above parameters are provided, the indexer if run for the first time should start from the `tip` of the node. If the db contains some blocks already, then the indexer should start from the last block in the db as it does now.
 
 
-## Final decisions
+## The devel cycle
 
-* Actually we can include the `eraHistory` query in the marlowe follower component - it is poked on every block anyway and contains the query ability. Let's not modify node follower etc.
+* For quick type-checking specific package please use: `bash cabal-fast.sh typecheck [PACKAGE]` . In general this should be our main devel cycle's step - it uses `dist-O0-repl` build dir.
 
-* Please use CBOR encoding for the `eraHistory` from Cardano.API if available. In the case of our previous node tip encoding we used custom binary format because we used our own domain level type to represent the tip itself. We don't have and don't need a domain level type for the era history, so we can use the CBOR encoding from Cardano.API directly.
+* For quick builds please use: `bash cabal-fast.sh build [PACKAGE]` . It uses `dist-O0` build dir.
+
+* You can also run with `bash cabal-fast.sh run [PACKAGE]` to run the package. This is again using `dist-O0` build dir and disabled optimizations.
+
+* WARNING: There is one package which will break completely with any of the above commands if you try to build it directly - `marlowe-binaries`. This one should be build directly only with regular `cabal build marlowe-binaries` or `cabal build lib:marlowe-binaries` etc. But you won't be doing any changes like that hopefully.
 
 ## Testing
 
-* There is a database running in my test environment on port 15432. Please test the migration.
-
-* Please leave the final testing of the indexer for me.
+Please only make sure that the project builds at the end. We will do the testing in the next iteration.
