@@ -129,6 +129,10 @@
           # NOTE this is important or the static builds will fail with:
           # Error: pg_config not found
           process-compose-postgres-yaml = pkgs.callPackage ./process-compose/postgres.nix {};
+          marlowe-runtime = pkgs.runCommand "marlowe-runtime" { } ''
+            mkdir -p $out/bin
+            ln -s ${projectFlake.packages."marlowe-runtime:exe:server"}/bin/server $out/bin/marlowe-runtime
+          '';
           marlowe-indexer = pkgs.runCommand "marlowe-indexer" { } ''
             mkdir -p $out/bin
             ln -s ${projectFlake.packages."marlowe-indexer:exe:server"}/bin/server $out/bin/marlowe-indexer
@@ -142,12 +146,29 @@
       }
     ) // {
         inherit (nixos) nixosModules;
-        nixosConfigurations.indexer-test = nixos.mkIndexerTest {
-          cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
+        nixosConfigurations.deployment-test = nixos.mkDeploymentTest {
           cardanoNodeModule = inputs.cardano-node.nixosModules.cardano-node;
-          hostSnapshot = "/home/paluh/projects/marlowe/marlowe-plutus/preprod-db/db";
+          cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
+          hostSnapshot =
+            let path = builtins.getEnv "MARLOWE_PREPROD_DB";
+            in if path == ""
+               then throw "MARLOWE_PREPROD_DB is not set"
+               else path;
           indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
+          runtimePackage = inputs.self.packages.x86_64-linux.marlowe-runtime;
         };
+        # nixos.mkDeploymentTest {
+        #   cardanoNodeModule = inputs.cardano-node.nixosModules.cardano-node;
+        #   cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
+        #   indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
+        #   hostSnapshot = "/abs/path/to/preprod/db";
+        # };
+        # nixosConfigurations.indexer-test = nixos.mkIndexerTest {
+        #   cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
+        #   cardanoNodeModule = inputs.cardano-node.nixosModules.cardano-node;
+        #   hostSnapshot = "/home/paluh/projects/marlowe/marlowe-plutus/preprod-db/db";
+        #   indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
+        # };
     };
 
   nixConfig = {

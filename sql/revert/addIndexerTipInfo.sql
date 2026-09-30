@@ -1,7 +1,7 @@
 BEGIN;
 
-DROP TABLE IF EXISTS indexer_status;
+DROP TABLE IF EXISTS marlowe.indexer_status;
 
-DROP TYPE IF EXISTS indexer_status_attr;
+DROP TYPE IF EXISTS marlowe.indexer_status_attr;
 
 COMMIT;

@@ -2,7 +2,7 @@
 
 BEGIN;
 
-DROP TABLE marlowe.createTxOutPartyAddress;
-DROP TABLE marlowe.createTxOutPartyRole;
+DROP TABLE marlowe.contractTxOutPartyAddress;
+DROP TABLE marlowe.contractTxOutPartyRole;
 
 COMMIT;

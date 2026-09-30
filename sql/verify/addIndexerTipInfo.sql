@@ -2,17 +2,23 @@ BEGIN;
 
 DO $$
 BEGIN
-  -- Check if type exists
   IF NOT EXISTS (
-    SELECT 1 FROM pg_type WHERE typname = 'indexer_status_attr'
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'marlowe'
+      AND t.typname = 'indexer_status_attr'
   ) THEN
-    RAISE EXCEPTION 'Type "indexer_status_attr" does not exist';
+    RAISE EXCEPTION 'Type "marlowe.indexer_status_attr" does not exist';
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.tables WHERE table_name = 'indexer_status'
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'marlowe'
+      AND table_name = 'indexer_status'
   ) THEN
-    RAISE EXCEPTION 'Table "indexer_status" does not exist';
+    RAISE EXCEPTION 'Table "marlowe.indexer_status" does not exist';
   END IF;
 END;
 $$;

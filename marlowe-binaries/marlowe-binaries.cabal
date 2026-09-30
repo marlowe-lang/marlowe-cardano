@@ -8,14 +8,6 @@ stability:     experimental
 author:        Alexander Nemish, Brian Bush, Tomasz Rybarczyk, Pablo Lamela
 synopsis:      Marlowe plutus validators
 category:      Language
-license-files:
-  LICENSE
-  NOTICE
-
-data-files:
-  benchmarks/rolepayout/*.benchmark
-  benchmarks/semantics/*.benchmark
-  data/mainnet-protocol-params.json
 
 source-repository head
   type:     git

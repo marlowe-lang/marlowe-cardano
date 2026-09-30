@@ -1,9 +1,9 @@
 BEGIN;
 
-CREATE TYPE indexer_status_attr AS ENUM ('tip');
+CREATE TYPE marlowe.indexer_status_attr AS ENUM ('tip');
 
-CREATE TABLE IF NOT EXISTS indexer_status (
-    attr indexer_status_attr PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS marlowe.indexer_status (
+    attr marlowe.indexer_status_attr PRIMARY KEY,
     value bytea
 );
 

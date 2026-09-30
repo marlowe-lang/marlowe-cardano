@@ -1,0 +1,107 @@
+# The deployment guest. Not a service module: it returns a nixosSystem.
+# Service modules stay in indexer.nix, runtime.nix and helpers like cardano-node-bootstrap.nix etc.
+#
+#   nixos.mkDeploymentTest {
+#     cardanoNodeModule = inputs.cardano-node.nixosModules.cardano-node;
+#     cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
+#     indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
+#     hostSnapshot = "/abs/path/to/preprod/db";
+#   };
+{ self, nixpkgs, system ? "x86_64-linux" }:
+{ cardanoNodeModule, cardanoCli, indexerPackage, runtimePackage, hostSnapshot }:
+let
+  inherit (nixpkgs) lib;
+  dbName = "marlowe-indexer";
+  # Currently we require and hard code preprod network for testing.
+  networkMagic = 1;
+  # This group is created by the cardano-node service.
+  # The string literal is hard coded and not accessible from here.
+  socketGroup = "cardano-node";
+  socketPath = "/run/cardano-node/node.socket";
+  sqitchDir = builtins.path {
+    name = "marlowe-sqitch";
+    path = "${self}/sql";
+    filter = path: type:
+      let p = toString path;
+      in
+        type == "directory"
+        || lib.hasSuffix "/sqitch.plan" p
+        || lib.hasSuffix "/sqitch.conf" p
+        || lib.hasInfix "/deploy/" p
+        || lib.hasInfix "/revert/" p
+        || lib.hasInfix "/verify/" p;
+  };
+in
+nixpkgs.lib.nixosSystem {
+  inherit system;
+  modules = [
+    cardanoNodeModule
+    (import ./indexer.nix)
+    (import ./runtime.nix)
+    ({ config, lib, pkgs, ... }: {
+      system.stateVersion = "25.11";
+      environment.systemPackages = [ pkgs.postgresql pkgs.sqitchPg cardanoCli ];
+
+      services.getty.autologinUser = "root";
+      users.mutableUsers = false;
+      users.users.root.password = "root";
+
+      virtualisation.vmVariant.virtualisation = {
+        memorySize = 4096;
+        sharedDirectories.preprod-db = {
+          source = hostSnapshot;
+          target = "/mnt/preprod-db";
+        };
+      };
+
+      services.cardano-node = {
+        enable = true;
+        environment = "preprod";
+        databasePath = "/mnt/preprod-db";
+        socketPath = _: socketPath;
+      };
+
+      services.postgresql = {
+        enable = true;
+        ensureDatabases = [ dbName ];
+        ensureUsers = [
+          { name = "marlowe-indexer"; ensureDBOwnership = true; }
+          { name = "marlowe-runtime"; }
+        ];
+        identMap = ''
+          indexer-map marlowe-indexer marlowe-indexer
+          indexer-map marlowe-runtime marlowe-runtime
+        '';
+        authentication = lib.mkOverride 10 ''
+          local all postgres                    peer
+          local marlowe-indexer marlowe-indexer peer map=indexer-map
+          local marlowe-indexer marlowe-runtime peer map=indexer-map
+          host  all all 127.0.0.1/32            md5
+          host  all all ::1/128                 md5
+        '';
+      };
+
+      services.marlowe-runtime = {
+        enable = true;
+        package = runtimePackage;
+        socketPath = socketPath;
+        socketGroup = socketGroup;
+        networkMagic = networkMagic;
+        port = 8090;
+        database.uri = ''postgresql://marlowe-runtime@db.example/${dbName}'';
+      };
+
+      services.marlowe-indexer = {
+        enable = true;
+        package = indexerPackage;
+        cardanoCli = cardanoCli;
+        networkMagic = networkMagic;
+        socketPath = socketPath;
+        socketGroup = socketGroup;
+        database.name = dbName;
+        database.sqitchDir = sqitchDir;
+        database.readers = [ "marlowe-runtime" ];
+      };
+    })
+  ];
+}

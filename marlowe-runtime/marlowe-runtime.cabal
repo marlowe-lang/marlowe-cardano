@@ -8,9 +8,6 @@ stability:     experimental
 author:        Jamie Bertram, Tomasz Rybarczyk
 synopsis:      Self-contained Marlowe Runtime Web API
 category:      Language
-license-files:
-  LICENSE
-  NOTICE
 
 source-repository head
   type:     git

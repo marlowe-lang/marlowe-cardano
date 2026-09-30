@@ -9,9 +9,10 @@ BEGIN
     JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE
       t.typname = 'node_status_attr'
+      AND n.nspname = 'marlowe'
       AND e.enumlabel = 'eraHistory'
   ) THEN
-    RAISE EXCEPTION 'Enum value "eraHistory" not present in type "node_status_attr"';
+    RAISE EXCEPTION 'Enum value "eraHistory" not present in type "marlowe.node_status_attr"';
   END IF;
 END;
 $$;

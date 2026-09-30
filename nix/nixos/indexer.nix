@@ -27,42 +27,54 @@ let
       export PGDATABASE=${cfg.database.name}
       cd ${cfg.database.sqitchDir}
       sqitch deploy --target ${sqitchTarget}
+      ${lib.concatMapStrings (role: ''
+        psql -v ON_ERROR_STOP=1 -c ${lib.escapeShellArg ''
+          GRANT USAGE ON SCHEMA marlowe TO "${role}";
+          GRANT SELECT ON ALL TABLES IN SCHEMA marlowe TO "${role}";
+          ALTER DEFAULT PRIVILEGES IN SCHEMA marlowe GRANT SELECT ON TABLES TO "${role}";
+        ''}
+      '') cfg.database.readers}
     '';
   };
 in
 {
   options.services.marlowe-indexer = {
-    cardanoCli = mkOption {
-      type = types.package;
-      description = "cardano-cli used to poll query tip before the indexer starts.";
-    };
-    database = {
-      name = mkOption { type = types.str; default = "marlowe"; };
-      user = mkOption { type = types.str; default = "marlowe-indexer"; };
-      migrate = mkOption { type = types.bool; default = true; };
-      sqitchDir = mkOption { type = types.nullOr types.path; default = null; };
-    };
     enable = mkEnableOption "Marlowe indexer";
-    networkMagic = mkOption {
-      type = types.nullOr types.ints.unsigned;
-      default = null;
-    };
     package = mkOption {
       type = types.package;
       description = "Package providing bin/marlowe-indexer.";
     };
-    scriptRegistry = mkOption {
-      type = types.nullOr types.path;
-      default = null;
+    socketPath = mkOption {
+      type = types.str;
+      description = "Cardano node socket. Set to the node service socket.";
     };
     socketGroup = mkOption {
       type = types.str;
       default = "cardano-node";
       description = "Group that may connect to the node socket. Indexer user is added to it.";
     };
-    socketPath = mkOption {
-      type = types.str;
-      description = "Cardano node socket. Set to the node service socket.";
+    cardanoCli = mkOption {
+      type = types.package;
+      description = "cardano-cli used to poll query tip before the indexer starts.";
+    };
+    networkMagic = mkOption {
+      type = types.nullOr types.ints.unsigned;
+      default = null;
+    };
+    scriptRegistry = mkOption {
+      type = types.nullOr types.path;
+      default = null;
+    };
+    database = {
+      name = mkOption { type = types.str; default = "marlowe"; };
+      user = mkOption { type = types.str; default = "marlowe-indexer"; };
+      migrate = mkOption { type = types.bool; default = true; };
+      sqitchDir = mkOption { type = types.nullOr types.path; default = null; };
+      readers = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        description = "Roles granted SELECT on marlowe after Sqitch. Empty if the runtime is elsewhere.";
+      };
     };
   };
 
@@ -79,19 +91,17 @@ in
     };
     users.groups.${cfg.database.user} = { };
 
-    # Node creates the socket 0600. UMask makes new files 0660; the chmod
-    # covers the socket the node has already created. Group, not world.
-    systemd.services.cardano-node.serviceConfig = {
-      UMask = lib.mkDefault "0007";
-      RuntimeDirectoryMode = lib.mkDefault "0770";
-    };
-
+    # cardano-node is Type=simple and does not sd_notify. This oneshot is the gate.
     systemd.services.cardano-node-ready = {
       description = "Wait until cardano-cli query tip succeeds";
       after = [ "cardano-node.service" ];
       bindsTo = [ "cardano-node.service" ];
       path = [ cfg.cardanoCli ];
-      environment.CARDANO_NODE_SOCKET_PATH = cfg.socketPath;
+      environment = {
+        CARDANO_NODE_SOCKET_PATH = cfg.socketPath;
+      } // lib.optionalAttrs (cfg.networkMagic != null) {
+        CARDANO_NODE_NETWORK_ID = toString cfg.networkMagic;
+      };
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;

@@ -19,25 +19,30 @@ let
   };
 in
 {
-  nixosModules.indexer = import ./indexer.nix;
-  nixosModules.cardanoNodeBootstrap = import ./cardano-node-bootstrap.nix;
+  nixosModules.marlowe-indexer = import ./indexer.nix;
+  nixosModules.marlowe-runtime = import ./runtime.nix;
+  nixosModules.cardano-node-bootstrap = import ./cardano-node-bootstrap.nix;
 
-  mkIndexerTest = { cardanoCli, cardanoNodeModule, hostSnapshot, indexerPackage }:
-    nixpkgs.lib.nixosSystem {
-      inherit system;
-      modules = [
-        cardanoNodeModule
-        self.nixosModules.indexer
-        (import ./test-machine.nix { inherit hostSnapshot; })
-        {
-          environment.systemPackages = [ cardanoCli ];
-          services.marlowe-indexer = {
-            enable = true;
-            cardanoCli = cardanoCli;
-            package = indexerPackage;
-            database.sqitchDir = sqitchDir;
-          };
-        }
-      ];
-    };
+  mkDeploymentTest = import ./test-deployment.nix { inherit self nixpkgs; };
 }
+
+#   mkIndexerTest = { cardanoCli, cardanoNodeModule, hostSnapshot, indexerPackage }:
+#     nixpkgs.lib.nixosSystem {
+#       inherit system;
+#       modules = [
+#         cardanoNodeModule
+#         self.nixosModules.indexer
+# 
+#         (import ./test-machine.nix { inherit hostSnapshot; })
+#         {
+#           environment.systemPackages = [ cardanoCli ];
+#           services.marlowe-indexer = {
+#             enable = true;
+#             cardanoCli = cardanoCli;
+#             package = indexerPackage;
+#             database.sqitchDir = sqitchDir;
+#           };
+#         }
+#       ];
+#     };
+# }
