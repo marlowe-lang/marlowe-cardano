@@ -70,8 +70,8 @@ data InitCommand = InitCommand
   , networkId :: C.NetworkId
   , nodeSocketPath :: FilePath
   , outputDir :: FilePath
-  , scriptsRegistryFile :: Maybe FilePath
-  , scriptsSuiteName :: Maybe ScriptRegistry.ScriptsSuiteName
+  , scriptRegistry :: Maybe FilePath
+  , scriptSuiteName :: Maybe ScriptRegistry.ScriptSuiteName
   }
 
 mkNodeSocketParser :: IO (Parser FilePath)
@@ -128,14 +128,14 @@ mkInitCommandParser = do
   socketPathParser <- mkNodeSocketParser
   let
     desc = progDesc "Build initial marlowe transaction"
-    scriptsSuiteNameParser :: Parser (Maybe ScriptRegistry.ScriptsSuiteName)
-    scriptsSuiteNameParser = optional $ ScriptRegistry.ScriptsSuiteName . T.pack <$> strOption do
-      long "scripts-suite-name"
+    scriptSuiteNameParser :: Parser (Maybe ScriptRegistry.ScriptSuiteName)
+    scriptSuiteNameParser = optional $ ScriptRegistry.ScriptSuiteName . T.pack <$> strOption do
+      long "script-suite-name"
         <> metavar "SUITE_NAME"
         <> help "Name of the script suite to use from the registry. Defaults to the registry's current release."
-    scriptsRegistryFileParser :: Parser (Maybe FilePath)
-    scriptsRegistryFileParser = optional $ strOption do
-      long "scripts-registry-file"
+    scriptRegistryParser :: Parser (Maybe FilePath)
+    scriptRegistryParser = optional $ strOption do
+      long "script-registry"
         <> metavar "FILE"
         <> help "Path to a JSON script registry file. Defaults to the registry shipped with the package."
 
@@ -157,8 +157,8 @@ mkInitCommandParser = do
           <> value "out"
           <> showDefault
           <> help "Directory where transaction file will be written."
-      <*> scriptsRegistryFileParser
-      <*> scriptsSuiteNameParser
+      <*> scriptRegistryParser
+      <*> scriptSuiteNameParser
   pure $ info cmd desc
 
 -- | Resolve a `MarloweScripts` value using the same precedence rules as the
@@ -167,10 +167,10 @@ mkInitCommandParser = do
 -- own `currentRelease` when missing.
 loadMarloweScriptsFromEnv
   :: Maybe FilePath
-  -> Maybe ScriptRegistry.ScriptsSuiteName
+  -> Maybe ScriptRegistry.ScriptSuiteName
   -> IO (Either ScriptRegistry.ScriptRegistryError ScriptRegistry.MarloweScripts)
-loadMarloweScriptsFromEnv registryFileOverride suiteNameOverride = do
-  registryResult <- case registryFileOverride of
+loadMarloweScriptsFromEnv registryOverride suiteNameOverride = do
+  registryResult <- case registryOverride of
     Just path | not (null path) -> ScriptRegistry.loadScriptRegistry path
     _ -> ScriptRegistry.loadDefaultScriptRegistry
   case registryResult of
@@ -186,7 +186,7 @@ runInitCommand cmd = do
     MessageFormatText -> putStrLn $ "Creating initial Marlowe transaction to: " <> show cmd.outputDir <> "."
     _ -> pure ()
 
-  scriptsResult <- loadMarloweScriptsFromEnv cmd.scriptsRegistryFile cmd.scriptsSuiteName
+  scriptsResult <- loadMarloweScriptsFromEnv cmd.scriptRegistry cmd.scriptSuiteName
   scripts <- case scriptsResult of
     Left err -> emitError cmd.messageFormat $ "Failed to load script registry: " <> show err
     Right s -> pure s

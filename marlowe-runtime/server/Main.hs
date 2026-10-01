@@ -60,7 +60,15 @@ import Language.Marlowe.Runtime.Query
     ( SomeContractState(SomeContractState),
       ContractState(ContractState, initialOutput, latestOutput),
       SomeTransactions(SomeTransactions) )
-import Language.Marlowe.Runtime.Query.Database ( hoistDatabaseQueries, logDatabaseQueries, DatabaseQueries(getContractState, getTransaction, getTransactions, getEraHistory), getNodeTip, GetEraHistoryError )
+import Language.Marlowe.Runtime.Query.Database
+  ( hoistDatabaseQueries
+  , logDatabaseQueries
+  , DatabaseQueries(getContractState, getTransaction, getTransactions, getEraHistory, getNetworkId, getNodeTip, getProtocolParameters, getSystemStart)
+  , GetEraHistoryError
+  , GetNetworkIdError(..)
+  , GetProtocolParametersError(..)
+  , GetSystemStartError(..)
+  )
 import Language.Marlowe.Runtime.Query.Database.PostgreSQL (databaseQueries)
 import Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetContractState (GetContractState)
 import Language.Marlowe.Runtime.Transaction.Api (LoadHelpersContextError, RoleTokensConfig, InitError(InitEraHistoryNotInitialized), ApplyInputsError(ApplyInputsEraHistoryNotInitialized))
@@ -92,7 +100,7 @@ import Network.Wai qualified as Wai
 import Network.Wai.Handler.Warp qualified as Wai
 import Network.Wai.Logger qualified as Wai
 import Network.Wai.Middleware.Cors ( CorsResourcePolicy (corsRequestHeaders), cors, simpleCorsResourcePolicy,)
-import Options.Applicative ( Parser, ParserInfo, execParser, fullDesc, header, help, helper, info, infoOption, long, metavar, option, progDesc, short, ReadM, asum, flag', eitherReader, strOption, auto, showDefault, value, optional)
+import Options.Applicative ( Parser, ParserInfo, execParser, fullDesc, header, help, helper, info, infoOption, long, metavar, option, progDesc, short, ReadM, asum, flag', eitherReader, strOption, auto, value, optional)
 import Paths_marlowe_runtime (version)
 import Servant ( Application, ServerError (..), hoistServer, serveWithContext, Handler (Handler), ErrorFormatter, ErrorFormatters, bodyParserErrorFormatter, urlParseErrorFormatter, headerParseErrorFormatter, defaultErrorFormatters, err400, Context(EmptyContext, (:.)))
 import Servant.Pipes ()
@@ -115,10 +123,9 @@ newtype GetCurrentScripts = GetCurrentScripts (forall v. MarloweVersion v -> Mar
 data Options = Options
   { databaseUri :: Hasql.Settings
   , logLevel :: LogLevel
-  , nodeSocketPath :: FilePath
   , networkId :: C.NetworkId
   , port :: Port
-  , scriptRegistryFile :: Maybe FilePath
+  , scriptRegistry :: Maybe FilePath
   }
 
 decodeFileStrict
@@ -160,19 +167,6 @@ mkNetworkIdParser = do
               <> help "Network magic. Defaults to the CARDANO_NODE_NETWORK_ID environment variable's value."
           )
     mainnetParser <|> testnetParser
-
-mkNodeSocketParser :: IO (Parser FilePath)
-mkNodeSocketParser = do
-  possibleNodeSocketPath <- getEnv "CARDANO_NODE_SOCKET_PATH"
-  pure $ strOption do
-    let
-      opt = long "socket-path"
-        <> short 's'
-        <> showDefault
-        <> help "Location of the cardano-node socket file. Defaults to the CARDANO_NODE_SOCKET_PATH environment variable's value."
-    case possibleNodeSocketPath of
-      Just path -> opt <> value path
-      Nothing -> opt
 
 portParser :: Parser Port
 portParser = option
@@ -352,16 +346,32 @@ mkWithBundleImporter store handler = do
         importBundle = TransferServer.mkImportBundle stagingArea
       handler importBundle
 
-queryLedgerInfo :: C.NetworkId -> C.LocalNodeConnectInfo -> IO LedgerInfo
-queryLedgerInfo networkId connectInfo = do
-  rawQueryResult <- C.executeLocalStateQueryExpr connectInfo C.VolatileTip $
-    (,)
-      <$> C.querySystemStart
-      <*> C.queryProtocolParameters C.ShelleyBasedEraConway
-  case rawQueryResult of
-    Right (Right systemStart, Right (Right protocolParams)) -> do
-      pure (networkId, systemStart, protocolParams)
-    _ -> liftIO . die $ "Failed to query the cardano-node for necessary information."
+queryLedgerInfo
+  :: DatabaseQueries IO
+  -> C.NetworkId
+  -> IO LedgerInfo
+queryLedgerInfo dbQueries networkId = do
+  -- Verify the network id recorded by the indexer matches the one we were
+  -- asked to operate on. A mismatch usually means we are talking to a
+  -- different cardano-node than the indexer and we should refuse to start
+  -- rather than produce wrong transactions.
+  storedNetworkId <- dbQueries.getNetworkId networkId >>= \case
+    Right nid -> pure nid
+    Left MissingNetworkId -> die "marlowe-runtime: network id has not been seeded by the indexer yet. Run the marlowe-indexer to warm up the database before starting the runtime server."
+    Left (InvalidNetworkId bs) -> die $ "marlowe-runtime: stored network id is invalid: " <> show bs
+    Left (NetworkIdMismatch stored provided) -> die $
+      "marlowe-runtime: stored network id (" <> show stored
+        <> ") does not match the configured one (" <> show provided
+        <> "). Check --network-id against the indexer's configuration."
+  systemStart <- dbQueries.getSystemStart >>= \case
+    Right ss -> pure ss
+    Left MissingSystemStart -> die "marlowe-runtime: system start has not been seeded by the indexer yet."
+    Left (InvalidSystemStart bs) -> die $ "marlowe-runtime: stored system start is invalid: " <> show bs
+  protocolParams <- dbQueries.getProtocolParameters >>= \case
+    Right pp -> pure pp
+    Left MissingProtocolParameters -> die "marlowe-runtime: protocol parameters have not been seeded by the indexer yet."
+    Left (InvalidProtocolParameters bs) -> die $ "marlowe-runtime: stored protocol parameters are invalid: " <> show bs
+  pure (storedNetworkId, systemStart, protocolParams)
 
 mkGetAllScripts
   :: Maybe ScriptRegistry
@@ -491,7 +501,7 @@ runApp opts = do
       cfg = Hasql.settings [ Hasql.staticConnectionSettings opts.databaseUri ]
     Pool.acquire cfg
 
-  customScriptRegistry <- case opts.scriptRegistryFile of
+  customScriptRegistry <- case opts.scriptRegistry of
     Nothing -> pure Nothing
     Just filePath -> do
       putStrLn $ "Loading script registry from " ++ filePath
@@ -504,12 +514,12 @@ runApp opts = do
   Wai.withStdoutLogger \waiLogger -> do
     let
       Port port = opts.port
-      localNodeConnectInfo = C.LocalNodeConnectInfo
-        { C.localConsensusModeParams = C.CardanoModeParams $ C.EpochSlots 21_600
-        , C.localNodeNetworkId = opts.networkId
-        , C.localNodeSocketPath = C.File opts.nodeSocketPath
-        }
-    ledgerInfo <- liftIO $ queryLedgerInfo opts.networkId localNodeConnectInfo
+      dbQueries :: DatabaseQueries IO
+      dbQueries =
+        hoistDatabaseQueries
+          (either (throwIO) pure <=< Pool.use pool)
+          databaseQueries
+    ledgerInfo <- liftIO $ queryLedgerInfo dbQueries opts.networkId
 
     getAllScripts  <- mkGetAllScripts customScriptRegistry >>= \case
       Left err -> die err
@@ -557,7 +567,6 @@ runApp opts = do
       runLogT "marlowe-runtime-server" appLogger opts.logLevel do
         logInfo "Starting Marlowe Runtime Server" $ A.object
           [ "port" .= port
-          , "nodeSocketPath" .= opts.nodeSocketPath
           , "networkId" .= show opts.networkId
           , "scriptHashes" .= scriptHashes
           ]
@@ -590,26 +599,24 @@ customFormatters = defaultErrorFormatters
   , headerParseErrorFormatter = customErrorFormatter
   }
 
-scriptsRegistryFileParser :: Parser FilePath
-scriptsRegistryFileParser =
+scriptRegistryParser :: Parser FilePath
+scriptRegistryParser =
   strOption
-    ( long "scripts-registry-file"
+    ( long "script-registry"
         <> help "Path to a JSON file containing the script registry. If not provided, the server will use the default script registry."
-        <> metavar "SCRIPTS_REGISTRY_FILE"
+        <> metavar "SCRIPT_REGISTRY"
     )
 
 mkParser :: IO (Parser (IO ()))
 mkParser = do
-  nodeSocketParser <- mkNodeSocketParser
   networkIdParser <- mkNetworkIdParser
   let
     parserOptions = Options
       <$> databaseUriParser
       <*> logLevelParser
-      <*> nodeSocketParser
       <*> networkIdParser
       <*> portParser
-      <*> optional scriptsRegistryFileParser
+      <*> optional scriptRegistryParser
 
     versionOption =
       infoOption ("marlowe-runtime-server " <> showVersion version) $

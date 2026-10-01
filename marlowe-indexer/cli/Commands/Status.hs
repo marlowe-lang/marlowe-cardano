@@ -1,5 +1,6 @@
 module Commands.Status where
 
+import qualified Cardano.Api as C
 import qualified Data.Aeson as A
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -12,6 +13,7 @@ import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetStatus
   ( EraHistoryStatus (..)
   , IndexerStatus (..)
   , NodeStatus (..)
+  , ProtocolParametersStatus (..)
   , Status (..)
   )
 import Language.Marlowe.Runtime.ChainSync.Api
@@ -63,9 +65,12 @@ renderStatusText Status{statusNode, statusIndexer} = BS8.unlines $
   ] ++ renderIndexerStatus statusIndexer
 
 renderNodeStatus :: NodeStatus -> [BS.ByteString]
-renderNodeStatus NodeStatus{nodeTip, nodeEraHistory} =
-  [ "  tip:         " <> renderNodeTipText nodeTip
-  , "  eraHistory:  " <> renderEraHistoryText nodeEraHistory
+renderNodeStatus NodeStatus{nodeTip, nodeEraHistory, nodeNetworkId, nodeSystemStart, nodeProtocolParameters} =
+  [ "  tip:                  " <> renderNodeTipText nodeTip
+  , "  eraHistory:           " <> renderEraHistoryText nodeEraHistory
+  , "  networkId:            " <> renderNetworkIdText nodeNetworkId
+  , "  systemStart:          " <> renderSystemStartText nodeSystemStart
+  , "  protocolParameters:   " <> renderProtocolParametersText nodeProtocolParameters
   ]
 
 renderIndexerStatus :: IndexerStatus -> [BS.ByteString]
@@ -82,6 +87,18 @@ renderIndexerTipText = maybe "(not set)" renderChainTip . fmap (\(IndexerTip t) 
 renderEraHistoryText :: Maybe EraHistoryStatus -> BS.ByteString
 renderEraHistoryText = maybe "(not set)" \EraHistoryStatus{eraHistoryBytes} ->
   BS8.pack $ show eraHistoryBytes <> " bytes"
+
+renderNetworkIdText :: Maybe C.NetworkId -> BS.ByteString
+renderNetworkIdText = maybe "(not set)" \case
+  C.Mainnet -> "mainnet"
+  C.Testnet (C.NetworkMagic m) -> BS8.pack $ "testnet " <> show m
+
+renderSystemStartText :: Maybe C.SystemStart -> BS.ByteString
+renderSystemStartText = maybe "(not set)" \ss -> BS8.pack $ show ss
+
+renderProtocolParametersText :: Maybe ProtocolParametersStatus -> BS.ByteString
+renderProtocolParametersText = maybe "(not set)" \ProtocolParametersStatus{protocolParametersBytes} ->
+  BS8.pack $ show protocolParametersBytes <> " bytes"
 
 renderChainTip :: ChainTip -> BS.ByteString
 renderChainTip ChainTip{blockHeader = Nothing} = "(genesis)"

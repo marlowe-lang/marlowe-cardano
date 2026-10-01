@@ -110,7 +110,7 @@ import Language.Marlowe.CLI.Scripts (
   MarloweScripts,
   MarloweScriptsPaths (..),
   loadMarloweScriptsPaths,
-  readMarloweScriptsSuite,
+  readMarloweScriptSuite,
   resolveMarloweScriptsPaths,
  )
 import Language.Marlowe.CLI.Types (CliError)
@@ -554,25 +554,25 @@ parseMarloweValuePair = O.eitherReader $ \s ->
 
 -- | Options for locating the Marlowe script bundle. Each individual
 -- @--*-script-file@ option, when present, overrides the corresponding
--- entry of the @--scripts-suite-file@ suite.
+-- entry of the @--script-suite-file@ suite.
 data ScriptFilesOptions = ScriptFilesOptions
-  { scriptsSuiteFile :: Maybe FilePath
-  -- ^ Path to a 'ScriptsSuite' JSON/YAML document (from
+  { scriptSuiteFile :: Maybe FilePath
+  -- ^ Path to a 'ScriptSuite' JSON/YAML document (from
   -- 'marlowe-binaries compile suite'). When set, the suite is loaded and
   -- provides default paths to the underlying script files.
   , marloweScriptFile :: Maybe FilePath
   -- ^ Path to the marlowe semantics script. May point to a plutus binary
   -- text envelope or to a JSON document describing one. Overrides the
-  -- @scripts-suite-file@ entry for the marlowe script.
+  -- @script-suite-file@ entry for the marlowe script.
   , payoutScriptFile :: Maybe FilePath
   -- ^ Path to the marlowe role payout validator.
-  -- Overrides the @scripts-suite-file@ entry for the payout script.
+  -- Overrides the @script-suite-file@ entry for the payout script.
   , openRolesScriptFile :: Maybe FilePath
   -- ^ Path to the open roles validator. Overrides the
-  -- @scripts-suite-file@ entry for the open roles script.
+  -- @script-suite-file@ entry for the open roles script.
   }
 
--- | Parser that captures the @--scripts-suite-file@ /
+-- | Parser that captures the @--script-suite-file@ /
 -- @--*-script-file@ option family. All fields are optional; commands
 -- that require a specific script should validate the resolved
 -- 'ScriptFilesOptions' before proceeding.
@@ -581,10 +581,10 @@ scriptsFilesOptions =
   ScriptFilesOptions
     <$> O.optional
       ( O.strOption
-          ( O.long "scripts-suite-file"
+          ( O.long "script-suite-file"
               <> O.metavar "FILE"
               <> O.help
-                "Path to a ScriptsSuite JSON/YAML document describing the bundle \
+                "Path to a ScriptSuite JSON/YAML document describing the bundle \
                 \(marlowe semantics, role payout, open roles) produced by \
                 \'marlowe-binaries compile suite\'."
           )
@@ -595,7 +595,7 @@ scriptsFilesOptions =
               <> O.metavar "FILE"
               <> O.help
                 "Path to the marlowe semantics script (plutus text envelope or JSON). \
-                \Overrides --scripts-suite-file."
+                \Overrides --script-suite-file."
           )
       )
     <*> O.optional
@@ -604,7 +604,7 @@ scriptsFilesOptions =
               <> O.metavar "FILE"
               <> O.help
                 "Path to the marlowe role payout script (plutus text envelope or JSON). \
-                \Overrides --scripts-suite-file."
+                \Overrides --script-suite-file."
           )
       )
     <*> O.optional
@@ -613,16 +613,16 @@ scriptsFilesOptions =
               <> O.metavar "FILE"
               <> O.help
                 "Path to the open roles validator (plutus text envelope or JSON). \
-                \Overrides --scripts-suite-file."
+                \Overrides --script-suite-file."
           )
       )
 
 -- | Load the bundle of Marlowe Plutus scripts using the overrides in
 -- 'ScriptFilesOptions'. The @--*-script-file@ overrides win over the
--- entries in the @--scripts-suite-file@ bundle.
+-- entries in the @--script-suite-file@ bundle.
 loadMarloweScripts :: ScriptFilesOptions -> IO (Either CliError MarloweScripts)
 loadMarloweScripts ScriptFilesOptions{..} = do
-  suiteResult <- traverse readMarloweScriptsSuite scriptsSuiteFile
+  suiteResult <- traverse readMarloweScriptSuite scriptSuiteFile
   case suiteResult of
     Just (Left err) -> pure (Left err)
     Just (Right suite) ->

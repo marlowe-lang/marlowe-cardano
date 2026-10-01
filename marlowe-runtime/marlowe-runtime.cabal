@@ -170,7 +170,10 @@ library
     Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetIntersection
     Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetIntersectionForContract
     Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetMarloweTip
+    Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetNetworkId
     Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetNodeTip
+    Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetProtocolParameters
+    Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetSystemStart
     Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetPayout
     Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetPayouts
     Language.Marlowe.Runtime.Query.Database.PostgreSQL.GetRoleCurrencies

@@ -45,7 +45,7 @@ import System.Directory (createDirectoryIfMissing, makeAbsolute)
 import System.Exit (die)
 import System.FilePath ((</>))
 import Marlowe.Plutus.RoleTokens (RoleTokens, mkRoleTokens)
-import Marlowe.Plutus.Binaries.Api.Compile (ScriptOutput(ScriptOutput, scriptName, scriptHash, scriptFile, hashFile), ScriptsSuite(ScriptsSuite, suiteVariant, responseOutputDir, marloweSemantics, marloweRolePayout, openRoles, roleTokens), ScriptVariant(DevelScripts, ProductionScripts), scriptNameToText, ScriptName(MarloweSemantics, MarloweRolePayout, OpenRoles, MarloweRoleTokens))
+import Marlowe.Plutus.Binaries.Api.Compile (ScriptOutput(ScriptOutput, scriptName, scriptHash, scriptFile, hashFile), ScriptSuite(ScriptSuite, suiteVariant, responseOutputDir, marloweSemantics, marloweRolePayout, openRoles, roleTokens), ScriptVariant(DevelScripts, ProductionScripts), scriptNameToText, ScriptName(MarloweSemantics, MarloweRolePayout, OpenRoles, MarloweRoleTokens))
 
 data CompileCommand
   = MarloweCompile MarloweCompileCommand
@@ -114,7 +114,7 @@ data SuiteCompileCommand = SuiteCompileCommand
   , roleTokensSpec :: RoleTokensSpec
   -- ^ Inputs needed to compile the role-token minting policy. When all
   -- three components are supplied (see 'roleTokensSpecProvided') the
-  -- role-token policy is bundled into the emitted 'ScriptsSuite';
+  -- role-token policy is bundled into the emitted 'ScriptSuite';
   -- otherwise it is emitted as @null@.
   }
 
@@ -231,7 +231,7 @@ outputDirParser = strOption
 outputAbsolutePathsParser :: Parser Bool
 outputAbsolutePathsParser = switch
   ( long "output-absolute-paths"
-      <> help "Emit absolute (resolved against the current working directory) paths in the produced ScriptsSuite / ScriptOutput documents instead of relative ones."
+      <> help "Emit absolute (resolved against the current working directory) paths in the produced ScriptSuite / ScriptOutput documents instead of relative ones."
   )
 
 marloweCompileParser :: ParserInfo MarloweCompileCommand
@@ -293,7 +293,7 @@ suiteCompileParser =
     )
     (progDesc
       ( "Compile the full Marlowe script suite (marlowe, payout, open roles) \
-        \and emit a ScriptsSuite JSON/YAML description. When --role, --role-hex \
+        \and emit a ScriptSuite JSON/YAML description. When --role, --role-hex \
         \and --tx-out-ref are all supplied, the role-token minting policy is \
         \included in the suite as well."
       )
@@ -492,7 +492,7 @@ compileRoleTokenMintingScript variant outputDir roles txOutRef outputAbsolutePat
       pure $ Right ScriptOutput{scriptName, scriptHash, scriptFile = fst resolved, hashFile = snd resolved}
 
 -- | Compile the full Marlowe script suite (marlowe semantics + payout +
--- open roles) into @outputDir@ and return a 'ScriptsSuite' describing the
+-- open roles) into @outputDir@ and return a 'ScriptSuite' describing the
 -- generated files. When @mRoleTokens@ is supplied the role-token minting
 -- policy is bundled into the suite as well.
 compileSuite
@@ -500,7 +500,7 @@ compileSuite
   -> FilePath
   -> Bool
   -> Maybe (RoleTokens, TxOutRef)
-  -> IO (Either String ScriptsSuite)
+  -> IO (Either String ScriptSuite)
 compileSuite variant outputDir outputAbsolutePaths mRoleTokens = liftIO $ runExceptT $ do
   semantics <- ExceptT $ compileMarloweScript variant outputDir outputAbsolutePaths
   payout <- ExceptT $ compilePayoutScript variant outputDir outputAbsolutePaths
@@ -510,7 +510,7 @@ compileSuite variant outputDir outputAbsolutePaths mRoleTokens = liftIO $ runExc
       ExceptT $ compileRoleTokenMintingScript variant outputDir tokens txOutRef outputAbsolutePaths
   resolvedOutputDir <- liftIO $ if outputAbsolutePaths then absPath outputDir else pure outputDir
   pure
-    ScriptsSuite
+    ScriptSuite
       { suiteVariant = variant
       , responseOutputDir = resolvedOutputDir
       , marloweSemantics = semantics
@@ -540,7 +540,7 @@ emitSummary messageFormat output = case messageFormat of
   MessageFormatJson -> LBS8.putStrLn $ A.encodePretty output
   MessageFormatYaml -> BS8.putStrLn $ Y.encode output
 
-emitSummarySuite :: MessageFormat -> ScriptsSuite -> IO ()
+emitSummarySuite :: MessageFormat -> ScriptSuite -> IO ()
 emitSummarySuite messageFormat suite = case messageFormat of
   MessageFormatText -> do
     let renderScript label ScriptOutput{scriptFile, scriptHash} = do

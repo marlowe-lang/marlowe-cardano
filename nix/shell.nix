@@ -134,7 +134,7 @@ let
         (jail.combinators.try-fwd-env "CARDANO_NODE_SOCKET_PATH")
         (jail.combinators.try-fwd-env "FAUCET_ADDR_FILE")
         (jail.combinators.try-fwd-env "FAUCET_SKEY_FILE")
-        (jail.combinators.try-fwd-env "MARLOWE_SCRIPTS_REGISTRY_FILE")
+        (jail.combinators.try-fwd-env "MARLOWE_SCRIPT_REGISTRY")
         (jail.combinators.try-fwd-env "MARLOWE_RUNTIME_PORT")
         (jail.combinators.try-fwd-env "MARLOWE_RUNTIME_HOST")
         # we pass only the information about the running dev env
@@ -291,9 +291,9 @@ let
       # This **will be** initialized by the testnet process compose when executed
       export FAUCET_ADDR_FILE="$TESTNET_DIR/faucet.addr"
       export FAUCET_SKEY_FILE="$TESTNET_DIR/faucet.skey"
-      export MARLOWE_SCRIPTS_REGISTRY_FILE="$TESTNET_DIR/marlowe-scripts-registry.json"
-      export MARLOWE_SCRIPTS_SUITE_DIR="$TESTNET_DIR/marlowe-scripts-suite"
-      export MARLOWE_SCRIPTS_SUITE_FILE="$TESTNET_DIR/marlowe-scripts-suite.json"
+      export MARLOWE_SCRIPT_REGISTRY="$TESTNET_DIR/marlowe-script-registry.json"
+      export MARLOWE_SCRIPT_SUITE_DIR="$TESTNET_DIR/marlowe-script-suite"
+      export MARLOWE_SCRIPT_SUITE_FILE="$TESTNET_DIR/marlowe-script-suite.json"
       export MARLOWE_RUNTIME_PORT="8090"
       export MARLOWE_RUNTIME_HOST="127.0.0.1"
 

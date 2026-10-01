@@ -2,7 +2,7 @@ module Marlowe.Plutus.Binaries.Api.Compile
   ( ScriptName(..)
   , ScriptVariant(..)
   , ScriptOutput(..)
-  , ScriptsSuite(..)
+  , ScriptSuite(..)
   , MessageFormat(..)
   , messageFormatFromText
   , scriptNameToText
@@ -93,7 +93,7 @@ instance FromJSON ScriptOutput where
       <*> obj .: "scriptFile"
       <*> obj .: "hashFile"
 
-data ScriptsSuite = ScriptsSuite
+data ScriptSuite = ScriptSuite
   { suiteVariant :: ScriptVariant
   , responseOutputDir :: FilePath
   , marloweSemantics :: ScriptOutput
@@ -101,14 +101,14 @@ data ScriptsSuite = ScriptsSuite
   , openRoles :: ScriptOutput
   , roleTokens :: Maybe ScriptOutput
   -- ^ Optional role-token minting policy. Encoded as @null@ when missing
-  -- so the public ScriptsSuite JSON stays stable regardless of whether
+  -- so the public ScriptSuite JSON stays stable regardless of whether
   -- the caller supplied the role-token flags.
   }
   deriving stock (Eq, Show, Generic)
 
 
-instance ToJSON ScriptsSuite where
-  toJSON ScriptsSuite{suiteVariant, responseOutputDir, marloweSemantics, marloweRolePayout, openRoles, roleTokens} =
+instance ToJSON ScriptSuite where
+  toJSON ScriptSuite{suiteVariant, responseOutputDir, marloweSemantics, marloweRolePayout, openRoles, roleTokens} =
     object
       [ "suiteVariant" .= suiteVariant
       , "responseOutputDir" .= responseOutputDir
@@ -118,9 +118,9 @@ instance ToJSON ScriptsSuite where
       , "roleTokens" .= roleTokens
       ]
 
-instance FromJSON ScriptsSuite where
-  parseJSON = withObject "ScriptsSuite" $ \obj ->
-    ScriptsSuite
+instance FromJSON ScriptSuite where
+  parseJSON = withObject "ScriptSuite" $ \obj ->
+    ScriptSuite
       <$> obj .: "suiteVariant"
       <*> obj .: "responseOutputDir"
       <*> obj .: "marloweSemantics"

@@ -292,7 +292,7 @@ import Language.Marlowe.Runtime.Core.ScriptRegistry (
   ReferenceScriptUtxo (..),
   ScriptDetails (..),
   ScriptRegistry,
-  ScriptsSuiteName (..),
+  ScriptSuiteName (..),
   fromCardanoPlutusScriptV3,
   mkScriptDetails,
   mkScriptRegistry,
@@ -1108,7 +1108,7 @@ buildPublishing
   => MarloweValidator
   -> PayoutValidator
   -> OpenRolesValidator
-  -> ScriptsSuiteName
+  -> ScriptSuiteName
   -- ^ The release name under which the registry should record the bundle.
   -> Maybe T.Text
   -- ^ Optional human-readable description of the release.
@@ -1155,7 +1155,7 @@ publishImpl
   => MarloweValidator
   -> PayoutValidator
   -> OpenRolesValidator
-  -> ScriptsSuiteName
+  -> ScriptSuiteName
   -- ^ The release name under which the registry should record the bundle.
   -> Maybe T.Text
   -- ^ Optional human-readable description of the release.
@@ -1268,7 +1268,7 @@ txOutToChainTransactionOutput (C.TxOut addr value _ _) =
 mkSingletonScriptRegistry
   :: forall era
    . C.IsCardanoEra era
-  => ScriptsSuiteName
+  => ScriptSuiteName
   -> Maybe T.Text
   -> MarloweScriptsRefs C.PlutusScriptV3 era
   -> ScriptRegistry

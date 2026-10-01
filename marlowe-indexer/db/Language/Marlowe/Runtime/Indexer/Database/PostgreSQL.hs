@@ -9,8 +9,11 @@ import Language.Marlowe.Runtime.Indexer.Database qualified as DB
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitBlocks qualified as CommitBlocks
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitEraHistory qualified as CommitEraHistory
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitIndexerTip qualified as CommitIndexerTip
+import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitNetworkId qualified as CommitNetworkId
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitNodeTip qualified as CommitNodeTip
+import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitProtocolParameters qualified as CommitProtocolParameters
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitRollback qualified as CommitRollback
+import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitSystemStart qualified as CommitSystemStart
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetIntersectionPoints qualified as GetIntersectionPoints
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetMarloweUTxO qualified as GetMarloweUTxO
 import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetStatus qualified as GetStatus
@@ -23,7 +26,10 @@ databaseQueries pool =
     , commitBlocks = \blocks -> runTransaction pool $ CommitBlocks.commitBlocks blocks
     , commitEraHistory = \eraHistory -> runTransaction pool $ CommitEraHistory.commitEraHistory eraHistory
     , commitIndexerTip = \tip -> runTransaction pool $ CommitIndexerTip.commitIndexerTip tip
+    , commitNetworkId = \networkId -> runTransaction pool $ CommitNetworkId.commitNetworkId networkId
     , commitNodeTip = \tip -> runTransaction pool $ CommitNodeTip.commitNodeTip tip
+    , commitProtocolParameters = \pparams -> runTransaction pool $ CommitProtocolParameters.commitProtocolParameters pparams
+    , commitSystemStart = \systemStart -> runTransaction pool $ CommitSystemStart.commitSystemStart systemStart
     , getIntersectionPoints = \securityParameter -> runTransaction pool $ GetIntersectionPoints.getIntersectionPoints securityParameter
     , getLatestMarloweUTxO = runTransaction pool GetMarloweUTxO.getLatestMarloweUTxO
     , getMarloweUTxO = \slotNo -> runTransaction pool $ GetMarloweUTxO.getMarloweUTxO slotNo

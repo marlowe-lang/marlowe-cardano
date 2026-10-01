@@ -11,10 +11,10 @@ import Language.Marlowe.Runtime.Core.ScriptRegistry
   ( MarloweScripts
   , ScriptRegistry
   , ScriptRegistryError (..)
-  , ScriptsSuiteName (..)
+  , ScriptSuiteName (..)
   , getCurrentScripts
   , loadScriptRegistry
-  , pattern ScriptRegistry
+  , pattern ScriptRegistry, defaultRegistry
   )
 import Language.Marlowe.Runtime.Core.ScriptRegistry.JSONSpec
 import Language.Marlowe.Runtime.Transaction.BuildConstraintsSpec
@@ -22,16 +22,16 @@ import Language.Marlowe.Runtime.Transaction.BuildConstraintsSpec
 -- The test suite honours the following environment variables so it can be
 -- pointed at a custom registry/release from outside (e.g. from the dev-env):
 --
---   * @MARLOWE_SCRIPTS_REGISTRY_FILE@ – path to a JSON registry file. When
+--   * @MARLOWE_SCRIPT_REGISTRY@ – path to a JSON registry file. When
 --     unset/empty, the registry shipped with the package is used.
 --
---   * @MARLOWE_SCRIPTS_SUITE_NAME@ – name of the suite to treat as the
+--   * @MARLOWE_SCRIPT_SUITE_NAME@ – name of the suite to treat as the
 --     "current" one. When unset/empty, the registry's own @currentRelease@
 --     is used.
 registryPathFromEnv :: IO FilePath
-registryPathFromEnv = lookupEnv "MARLOWE_SCRIPTS_REGISTRY_FILE" >>= \case
+registryPathFromEnv = lookupEnv "MARLOWE_SCRIPT_REGISTRY" >>= \case
   Just (trim -> path) | not (null path) -> pure path
-  _ -> Paths.getDataFileName "script-registry/singleton.json"
+  _ -> Paths.getDataFileName defaultRegistry
 
 loadRegistryAndScriptsFromEnv :: FilePath -> IO (Either ScriptRegistryError MarloweScripts)
 loadRegistryAndScriptsFromEnv path = do
@@ -41,11 +41,11 @@ loadRegistryAndScriptsFromEnv path = do
     Right registry -> fmap Right (pickReleaseFromEnv registry)
 
 pickReleaseFromEnv :: ScriptRegistry -> IO MarloweScripts
-pickReleaseFromEnv registry = lookupEnv "MARLOWE_SCRIPTS_SUITE_NAME" >>= \case
+pickReleaseFromEnv registry = lookupEnv "MARLOWE_SCRIPT_SUITE_NAME" >>= \case
   Just (trim -> name) -> do
     let
       ScriptRegistry _ scripts = registry
-    case NEMap.lookup (ScriptsSuiteName (T.pack name)) scripts of
+    case NEMap.lookup (ScriptSuiteName (T.pack name)) scripts of
       Just release -> pure release
       Nothing -> fail $ "Failed to find Marlowe scripts for suite name: " <> name
   _ -> pure $ getCurrentScripts registry

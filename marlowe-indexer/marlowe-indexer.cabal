@@ -69,6 +69,8 @@ library db
     , binary
     , bytestring
     , cardano-api
+    , cardano-binary
+    , cardano-ledger-core
     , containers
     , errors
     , hasql
@@ -96,11 +98,15 @@ library db
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitBlocks
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitEraHistory
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitIndexerTip
+    Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitNetworkId
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitNodeTip
+    Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitProtocolParameters
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitRollback
+    Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.CommitSystemStart
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetIntersectionPoints
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetMarloweUTxO
     Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.GetStatus
+    Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.NetworkParams
     Language.Marlowe.Runtime.Indexer.MarloweBlock
     Language.Marlowe.Runtime.Indexer.Party
 

@@ -15,6 +15,13 @@ import qualified Data.Vector as V
 import Hasql.TH (vectorStatement)
 import qualified Hasql.Transaction as H
 import Language.Marlowe.Runtime.ChainSync.Api (IndexerTip (..), NodeTip (..))
+import Language.Marlowe.Runtime.Indexer.Database.PostgreSQL.NetworkParams
+  ( decodeProtocolParameters
+  , decodeSystemStart
+  , getNetworkId
+  )
+import Data.Binary.Get (runGetOrFail)
+import Data.ByteString (fromStrict)
 
 data StatusRecord = StatusRecord
   { statusRecordNode :: !(Map.Map T.Text BS.ByteString)
@@ -30,6 +37,9 @@ data Status = Status
 data NodeStatus = NodeStatus
   { nodeTip :: Maybe NodeTip
   , nodeEraHistory :: Maybe EraHistoryStatus
+  , nodeNetworkId :: Maybe C.NetworkId
+  , nodeSystemStart :: Maybe C.SystemStart
+  , nodeProtocolParameters :: Maybe ProtocolParametersStatus
   }
   deriving stock (Show)
 
@@ -43,6 +53,11 @@ data EraHistoryStatus = EraHistoryStatus
   }
   deriving stock (Show)
 
+data ProtocolParametersStatus = ProtocolParametersStatus
+  { protocolParametersBytes :: Int
+  }
+  deriving stock (Show)
+
 newtype DecodeError = DecodeError String
   deriving stock (Show)
 
@@ -53,9 +68,12 @@ instance A.ToJSON Status where
     ]
 
 instance A.ToJSON NodeStatus where
-  toJSON NodeStatus{nodeTip, nodeEraHistory} = A.object
+  toJSON NodeStatus{nodeTip, nodeEraHistory, nodeNetworkId, nodeSystemStart, nodeProtocolParameters} = A.object
     [ "tip" A..= nodeTip
     , "eraHistory" A..= nodeEraHistory
+    , "networkId" A..= nodeNetworkId
+    , "systemStart" A..= nodeSystemStart
+    , "protocolParameters" A..= nodeProtocolParameters
     ]
 
 instance A.ToJSON IndexerStatus where
@@ -66,6 +84,11 @@ instance A.ToJSON IndexerStatus where
 instance A.ToJSON EraHistoryStatus where
   toJSON EraHistoryStatus{eraHistoryBytes} = A.object
     [ "bytes" A..= eraHistoryBytes
+    ]
+
+instance A.ToJSON ProtocolParametersStatus where
+  toJSON ProtocolParametersStatus{protocolParametersBytes} = A.object
+    [ "bytes" A..= protocolParametersBytes
     ]
 
 instance A.ToJSON DecodeError where
@@ -101,6 +124,9 @@ buildStatus StatusRecord{statusRecordNode, statusRecordIndexer} = do
   nodeStatus <- NodeStatus
     <$> decodeNodeTip (Map.lookup "tip" statusRecordNode)
     <*> decodeEraHistory (Map.lookup "eraHistory" statusRecordNode)
+    <*> decodeNetworkId (Map.lookup "networkId" statusRecordNode)
+    <*> decodeStoredSystemStart (Map.lookup "systemStart" statusRecordNode)
+    <*> decodeStoredProtocolParameters (Map.lookup "protocolParameters" statusRecordNode)
   indexerStatus <- IndexerStatus
     <$> decodeIndexerTip (Map.lookup "tip" statusRecordIndexer)
   pure Status
@@ -131,3 +157,21 @@ decodeEraHistory = traverse \bs ->
   case C.deserialiseFromCBOR (C.proxyToAsType (Proxy :: Proxy C.EraHistory)) bs of
     Left err -> Left $ DecodeError $ "Failed to decode era history: " <> show err
     Right _ -> Right $ EraHistoryStatus (BS.length bs)
+
+decodeNetworkId :: Maybe BS.ByteString -> Either DecodeError (Maybe C.NetworkId)
+decodeNetworkId = traverse \bs ->
+  case runGetOrFail getNetworkId (fromStrict bs) of
+    Left (_, _, err) -> Left $ DecodeError $ "Failed to decode network id: " <> err
+    Right (_, _, networkId) -> Right networkId
+
+decodeStoredSystemStart :: Maybe BS.ByteString -> Either DecodeError (Maybe C.SystemStart)
+decodeStoredSystemStart = traverse \bs ->
+  case decodeSystemStart bs of
+    Left err -> Left $ DecodeError $ "Failed to decode system start: " <> show err
+    Right ss -> Right ss
+
+decodeStoredProtocolParameters :: Maybe BS.ByteString -> Either DecodeError (Maybe ProtocolParametersStatus)
+decodeStoredProtocolParameters = traverse \bs ->
+  case decodeProtocolParameters bs of
+    Left err -> Left $ DecodeError $ "Failed to decode protocol parameters: " <> show err
+    Right _ -> Right $ ProtocolParametersStatus (BS.length bs)

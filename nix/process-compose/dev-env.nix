@@ -31,9 +31,9 @@
       : "''${CARDANO_NODE_SOCKET_PATH:?}"
       : "''${FAUCET_SKEY_FILE:?}"
       : "''${FAUCET_ADDR_FILE:?}"
-      : "''${MARLOWE_SCRIPTS_REGISTRY_FILE:?}"
-      : "''${MARLOWE_SCRIPTS_SUITE_DIR:?}"
-      : "''${MARLOWE_SCRIPTS_SUITE_FILE:?}"
+      : "''${MARLOWE_SCRIPT_REGISTRY:?}"
+      : "''${MARLOWE_SCRIPT_SUITE_DIR:?}"
+      : "''${MARLOWE_SCRIPT_SUITE_FILE:?}"
       : "''${MARLOWE_RUNTIME_PORT:?}"
       : "''${MARLOWE_RUNTIME_HOST:?}"
     '';
@@ -55,17 +55,17 @@
     '';
   };
 
-  compile-marlowe-scripts-suite = writeShellApplication {
-    name = "compile-marlowe-scripts-suite";
+  compile-marlowe-script-suite = writeShellApplication {
+    name = "compile-marlowe-script-suite";
     text = ''
       set -euo pipefail
       set -x
       cabal build marlowe-binaries
       cabal run marlowe-binaries -- compile suite \
-        --output-dir "$MARLOWE_SCRIPTS_SUITE_DIR" \
+        --output-dir "$MARLOWE_SCRIPT_SUITE_DIR" \
         --output-absolute-paths \
         --message-format json \
-        | tee "$MARLOWE_SCRIPTS_SUITE_FILE"
+        | tee "$MARLOWE_SCRIPT_SUITE_FILE"
 
     '';
   };
@@ -88,9 +88,9 @@
         --out-tx-file publish-tx.json \
         --message-format json \
         --release-name devel \
-        --scripts-suite-file "$MARLOWE_SCRIPTS_SUITE_FILE" \
+        --script-suite-file "$MARLOWE_SCRIPT_SUITE_FILE" \
         --submit 120 \
-        | tee "$MARLOWE_SCRIPTS_REGISTRY_FILE"
+        | tee "$MARLOWE_SCRIPT_REGISTRY"
     '';
   };
 
@@ -99,7 +99,7 @@
     text = ''
       args=(
         --database-uri "postgresql://localhost:''${PGPORT:-15432}/marlowe"
-        --script-registry "''${MARLOWE_SCRIPTS_REGISTRY_FILE}"
+        --script-registry "''${MARLOWE_SCRIPT_REGISTRY}"
         --verbose
       )
       exec cabal run marlowe-indexer:server -- "''${args[@]}"
@@ -112,9 +112,8 @@
       # --host "''${MARLOWE_RUNTIME_HOST}"
       args=(
         --database-uri "postgresql://localhost:''${PGPORT:-15432}/marlowe"
-        --socket-path "''${CARDANO_NODE_SOCKET_PATH}"
         --testnet-magic "''${CARDANO_NODE_NETWORK_ID}"
-        --scripts-registry-file "''${MARLOWE_SCRIPTS_REGISTRY_FILE}"
+        --script-registry "''${MARLOWE_SCRIPT_REGISTRY}"
         --port "''${MARLOWE_RUNTIME_PORT}"
         --verbose
       )
@@ -133,10 +132,10 @@ in (formats.yaml {}).generate "process-compose.yaml" {
       command = "${validate-dev-env}/bin/validate-testnet-env";
     };
 
-    compile-marlowe-scripts-suite = {
+    compile-marlowe-script-suite = {
       namespace = "marlowe";
-      log_location = "./.run/compile-marlowe-scripts-suite.log";
-      command = "${compile-marlowe-scripts-suite}/bin/compile-marlowe-scripts-suite";
+      log_location = "./.run/compile-marlowe-script-suite.log";
+      command = "${compile-marlowe-script-suite}/bin/compile-marlowe-script-suite";
       depends_on = {
         "validate-dev-env".condition = "process_completed_successfully";
         "set-faucet-info".condition = "process_completed_successfully";
@@ -151,7 +150,7 @@ in (formats.yaml {}).generate "process-compose.yaml" {
         "validate-dev-env".condition = "process_completed_successfully";
         "initialize-testnet".condition = "process_healthy";
         "set-faucet-info".condition = "process_completed_successfully";
-        "compile-marlowe-scripts-suite".condition = "process_completed_successfully";
+        "compile-marlowe-script-suite".condition = "process_completed_successfully";
       };
     };
 

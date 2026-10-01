@@ -48,7 +48,7 @@ data Options = Options
   , logLevel :: LogLevel
   , nodeSocketPath :: FilePath
   , networkId :: C.NetworkId
-  , scriptRegistryFile :: Maybe FilePath
+  , scriptRegistry :: Maybe FilePath
   , startPoint :: StartPoint
   }
 longOption :: ReadM a -> String -> String -> String -> Parser a
@@ -169,7 +169,7 @@ runIndexer Options{..} = do
     let
       cfg = Hasql.settings [ Hasql.staticConnectionSettings databaseUri ]
     Pool.acquire cfg
-  registry <- loadRegistry scriptRegistryFile
+  registry <- loadRegistry scriptRegistry
   let
     localNodeConnectInfo = C.LocalNodeConnectInfo
       { C.localConsensusModeParams = C.CardanoModeParams $ C.EpochSlots 21_600

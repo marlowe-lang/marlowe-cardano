@@ -1,16 +1,42 @@
+import { altJsonCodecs, objectOf, type JsonCodec } from "@konduit/codec/json/codecs";
 import type { Party } from "./participants.js";
+import { Party as PartyNamespace } from "./participants.js";
 
 export type AccountId = Party;
+
+export namespace AccountId {
+  export const jsonCodec: JsonCodec<AccountId> = PartyNamespace.jsonCodec;
+}
 
 export interface PayeeAccount {
   account: AccountId;
 }
 
+export namespace PayeeAccount {
+  export const jsonCodec: JsonCodec<PayeeAccount> = objectOf({
+    account: AccountId.jsonCodec,
+  });
+}
+
 export interface PayeeParty {
-  party: Party;
+  party: AccountId;
+}
+
+export namespace PayeeParty {
+  export const jsonCodec: JsonCodec<PayeeParty> = objectOf({
+    party: AccountId.jsonCodec,
+  });
 }
 
 export type Payee = PayeeAccount | PayeeParty;
+
+export namespace Payee {
+  export const jsonCodec: JsonCodec<Payee> = altJsonCodecs(
+    [PayeeAccount.jsonCodec, PayeeParty.jsonCodec],
+    (serAccount, serParty) => (payee: Payee) =>
+      "account" in payee ? serAccount(payee) : serParty(payee)
+  );
+}
 
 export type PayeeMatcher<T> = {
   party: (party: Party) => T;

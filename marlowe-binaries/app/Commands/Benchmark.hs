@@ -24,7 +24,7 @@ import Marlowe.Plutus.Binaries.Api.Benchmark
       benchmarkScripts,
       generateBenchmarks,
       EvaluationError(..), scenarioId2Hex )
-import Marlowe.Plutus.Binaries.Api.Compile ( ScriptOutput(..), ScriptsSuite(ScriptsSuite, marloweSemantics, marloweRolePayout) )
+import Marlowe.Plutus.Binaries.Api.Compile ( ScriptOutput(..), ScriptSuite(ScriptSuite, marloweSemantics, marloweRolePayout) )
 import Marlowe.Contrib.OptParse.MessageFormat (MessageFormat (..), messageFormatParser)
 import Options.Applicative
   ( Parser
@@ -139,7 +139,7 @@ runRunCommand cmd = do
       input <- LBS8.getContents
       case A.eitherDecode input of
         Left err -> die $ "Failed to parse CompileResponse from stdin: " <> err
-        Right (ScriptsSuite { marloweSemantics, marloweRolePayout }) -> do
+        Right (ScriptSuite { marloweSemantics, marloweRolePayout }) -> do
           pure (marloweSemantics.scriptFile, marloweRolePayout.scriptFile)
     (Just s, Just p) -> pure (s, p)
     (_, _) -> die "Both semantics and payout script files must be provided, or neither to read them from stdin."

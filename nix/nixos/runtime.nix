@@ -12,32 +12,6 @@ let
 in
 {
   options.services.marlowe-runtime = {
-    enable = mkEnableOption "Marlowe runtime web server";
-    package = mkOption {
-      type = types.package;
-      description = "Package providing bin/marlowe-runtime.";
-    };
-    socketPath = mkOption { type = types.str; };
-    socketGroup = mkOption {
-      type = types.str;
-      default = "cardano-node";
-    };
-    networkMagic = mkOption {
-      type = types.nullOr types.ints.unsigned;
-      default = null;
-    };
-    port = mkOption {
-      type = types.port;
-      default = 8090;
-    };
-    openFirewall = mkOption {
-      type = types.bool;
-      default = false;
-    };
-    scriptRegistry = mkOption {
-      type = types.nullOr types.path;
-      default = null;
-    };
     database = {
       uri = mkOption {
         type = types.str;
@@ -45,13 +19,33 @@ in
         description = "Indexer database. Not required to be local.";
       };
     };
+    enable = mkEnableOption "Marlowe runtime web server";
+    networkMagic = mkOption {
+      type = types.nullOr types.ints.unsigned;
+      default = null;
+    };
+    openFirewall = mkOption {
+      type = types.bool;
+      default = false;
+    };
+    package = mkOption {
+      type = types.package;
+      description = "Package providing bin/marlowe-runtime.";
+    };
+    port = mkOption {
+      type = types.port;
+      default = 8090;
+    };
+    scriptRegistry = mkOption {
+      type = types.nullOr types.path;
+      default = null;
+    };
   };
 
   config = mkIf cfg.enable {
     users.users.marlowe-runtime = {
       isSystemUser = true;
       group = "marlowe-runtime";
-      extraGroups = [ cfg.socketGroup ];
     };
     users.groups.marlowe-runtime = { };
 
@@ -65,7 +59,6 @@ in
       serviceConfig = {
         User = "marlowe-runtime";
         Group = "marlowe-runtime";
-        SupplementaryGroups = [ cfg.socketGroup ];
         Restart = "always";
         RestartMaxDelaySec = "1h";
         RestartSteps = 10;
@@ -73,12 +66,11 @@ in
           [
             "${cfg.package}/bin/marlowe-runtime"
             "--database-uri" cfg.database.uri
-            "--socket-path" cfg.socketPath
             "--port" (toString cfg.port)
           ]
           ++ networkArgs
           ++ optionals (cfg.scriptRegistry != null) [
-            "--scripts-registry-file" (toString cfg.scriptRegistry)
+            "--script-registry" (toString cfg.scriptRegistry)
           ]
         );
       };

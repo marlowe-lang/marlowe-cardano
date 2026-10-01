@@ -150,10 +150,17 @@
           cardanoNodeModule = inputs.cardano-node.nixosModules.cardano-node;
           cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
           hostSnapshot =
-            let path = builtins.getEnv "MARLOWE_PREPROD_DB";
+            let
+              path = builtins.getEnv "MARLOWE_PREPROD_DB";
             in if path == ""
                then throw "MARLOWE_PREPROD_DB is not set"
                else path;
+          hostUid =
+            let
+              uidStr = builtins.getEnv "MARLOWE_PREPROD_DB_OWNER_UID";
+            in if uidStr == ""
+               then throw "MARLOWE_PREPROD_DB_OWNER_UID is not set"
+               else inputs.nixpkgs.lib.toInt uidStr;
           indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
           runtimePackage = inputs.self.packages.x86_64-linux.marlowe-runtime;
         };

@@ -39,31 +39,9 @@ let
 in
 {
   options.services.marlowe-indexer = {
-    enable = mkEnableOption "Marlowe indexer";
-    package = mkOption {
-      type = types.package;
-      description = "Package providing bin/marlowe-indexer.";
-    };
-    socketPath = mkOption {
-      type = types.str;
-      description = "Cardano node socket. Set to the node service socket.";
-    };
-    socketGroup = mkOption {
-      type = types.str;
-      default = "cardano-node";
-      description = "Group that may connect to the node socket. Indexer user is added to it.";
-    };
     cardanoCli = mkOption {
       type = types.package;
       description = "cardano-cli used to poll query tip before the indexer starts.";
-    };
-    networkMagic = mkOption {
-      type = types.nullOr types.ints.unsigned;
-      default = null;
-    };
-    scriptRegistry = mkOption {
-      type = types.nullOr types.path;
-      default = null;
     };
     database = {
       name = mkOption { type = types.str; default = "marlowe"; };
@@ -75,6 +53,28 @@ in
         default = [ ];
         description = "Roles granted SELECT on marlowe after Sqitch. Empty if the runtime is elsewhere.";
       };
+    };
+    enable = mkEnableOption "Marlowe indexer";
+    networkMagic = mkOption {
+      type = types.nullOr types.ints.unsigned;
+      default = null;
+    };
+    package = mkOption {
+      type = types.package;
+      description = "Package providing bin/marlowe-indexer.";
+    };
+    scriptRegistry = mkOption {
+      type = types.nullOr types.path;
+      default = null;
+    };
+    socketGroup = mkOption {
+      type = types.str;
+      default = "cardano-node";
+      description = "Group that may connect to the node socket. Indexer user is added to it.";
+    };
+    socketPath = mkOption {
+      type = types.str;
+      description = "Cardano node socket. Set to the node service socket.";
     };
   };
 

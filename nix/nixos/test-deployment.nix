@@ -8,7 +8,7 @@
 #     hostSnapshot = "/abs/path/to/preprod/db";
 #   };
 { self, nixpkgs, system ? "x86_64-linux" }:
-{ cardanoNodeModule, cardanoCli, indexerPackage, runtimePackage, hostSnapshot }:
+{ cardanoNodeModule, cardanoCli, indexerPackage, runtimePackage, hostSnapshot, hostUid }:
 let
   inherit (nixpkgs) lib;
   dbName = "marlowe-indexer";
@@ -39,25 +39,31 @@ nixpkgs.lib.nixosSystem {
     (import ./indexer.nix)
     (import ./runtime.nix)
     ({ config, lib, pkgs, ... }: {
-      system.stateVersion = "25.11";
       environment.systemPackages = [ pkgs.postgresql pkgs.sqitchPg cardanoCli ];
-
+      networking.enableIPv6 = false;
       services.getty.autologinUser = "root";
+      system.stateVersion = "25.11";
       users.mutableUsers = false;
       users.users.root.password = "root";
+      users.users.cardano-node = {
+        uid = lib.mkForce hostUid;
+        extraGroups = [ "users" ];
+      };
 
       virtualisation.vmVariant.virtualisation = {
-        memorySize = 4096;
+        memorySize = 16 * 1024; # 16 GB
         sharedDirectories.preprod-db = {
           source = hostSnapshot;
           target = "/mnt/preprod-db";
         };
       };
 
+      systemd.services.cardano-node.serviceConfig.UMask = "0007";
       services.cardano-node = {
         enable = true;
         environment = "preprod";
         databasePath = "/mnt/preprod-db";
+        hostAddr = "0.0.0.0";
         socketPath = _: socketPath;
       };
 
@@ -84,11 +90,9 @@ nixpkgs.lib.nixosSystem {
       services.marlowe-runtime = {
         enable = true;
         package = runtimePackage;
-        socketPath = socketPath;
-        socketGroup = socketGroup;
         networkMagic = networkMagic;
         port = 8090;
-        database.uri = ''postgresql://marlowe-runtime@db.example/${dbName}'';
+        database.uri = ''postgresql://marlowe-runtime@/${dbName}'';
       };
 
       services.marlowe-indexer = {

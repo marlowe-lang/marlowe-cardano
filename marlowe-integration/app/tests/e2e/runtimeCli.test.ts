@@ -6,7 +6,7 @@ import * as storedInit from '../../src/testing/e2e/storedInit.js';
 import * as storedBet from '../../src/testing/e2e/storedBet.js';
 import * as storeClose from '../../src/testing/store/close.js';
 import * as storeBet from '../../src/testing/store/bet.js';
-import * as storeSelectiveBet from '../../src/testing/store/selective-bet.js';
+import * as storeSelectiveBet from '../../src/testing/store/selectiveBet.js';
 import * as fs from 'node:fs'
 import { AddressBech32, NetworkMagicNumber } from '@konduit/konduit-consumer/cardano';
 import { unwrapOrPanicWith } from '@konduit/konduit-consumer/neverthrow';

@@ -74,7 +74,7 @@ import Language.Marlowe.CLI.Types (
   mkNodeTxBuildup, QueryExecutionContext (QueryNode),
  )
 import Marlowe.Contrib.OptParse.MessageFormat (MessageFormat (..), messageFormatFromText)
-import Language.Marlowe.Runtime.Core.ScriptRegistry (ScriptsSuiteName (..))
+import Language.Marlowe.Runtime.Core.ScriptRegistry (ScriptSuiteName (..))
 
 import Cardano.Api qualified as Api (Value)
 import Control.Monad.Reader.Class (MonadReader)
@@ -255,7 +255,7 @@ data TransactionCommand era
       -- ^ The format for messages printed by this command to the stdout.
       , scriptFiles :: ScriptFilesOptions
       -- ^ Paths to Marlowe Plutus scripts.
-      , releaseName :: ScriptsSuiteName
+      , releaseName :: ScriptSuiteName
       -- ^ The release name under which the registry should record the bundle.
       , description :: Maybe T.Text
       -- ^ Optional human-readable description of the release.
@@ -417,10 +417,10 @@ messageFormatParser =
     )
 
 -- | Parser for the @--release-name@ flag used by the @publish@ command.
-releaseNameOpt :: O.Parser ScriptsSuiteName
+releaseNameOpt :: O.Parser ScriptSuiteName
 releaseNameOpt =
   O.option
-    (O.eitherReader (Right . ScriptsSuiteName . T.pack))
+    (O.eitherReader (Right . ScriptSuiteName . T.pack))
     ( O.long "release-name"
         <> O.metavar "NAME"
         <> O.help

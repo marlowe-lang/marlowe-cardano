@@ -15,3 +15,6 @@ resetParties [parties] 2023-11-20T17:09:21Z Jamie Bertram <jamie.bertram@iohk.io
 addNodeTipInfo 2026-06-17T12:24:22Z paluh <paluh@apoptosis> # Add node tip info to the db
 addIndexerTipInfo 2026-06-19T18:56:53Z paluh <paluh@apoptosis> # Add indexer metadata with tip information.
 addEraHistory [addNodeTipInfo] 2026-08-28T09:30:00Z paluh <paluh@apoptosis> # Add era history to node_status.
+addProtocolParameters [addEraHistory] 2026-09-30T11:30:00Z paluh <paluh@apoptosis> # Add protocol parameters to node_status.
+addSystemStart [addProtocolParameters] 2026-09-30T11:31:00Z paluh <paluh@apoptosis> # Add system start to node_status.
+addNetworkId [addSystemStart] 2026-09-30T11:32:00Z paluh <paluh@apoptosis> # Add network id to node_status.

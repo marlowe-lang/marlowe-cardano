@@ -7,13 +7,13 @@ module Marlowe.Indexer (
   mkIndexer,
 ) where
 
-import Control.Concurrent.Component (Component (..), mkComponent, runComponent)
+import Control.Concurrent.Component (Component (..), mkComponent, mkComponent_, runComponent)
 import Language.Marlowe.Runtime.Core.ScriptRegistry (ScriptRegistry)
 import Language.Marlowe.Runtime.Indexer.Database (DatabaseQueries(..))
-import Log (MonadLog, logInfo_)
+import Log (MonadLog, logInfo, logInfo_)
 import Marlowe.Indexer.MarloweChainFollower (MarloweChainFollower (..), MarloweChainFollowerDependencies (..), mkMarloweChainFollower)
 import Marlowe.Indexer.NodeFollower (MemoryCostConfig, NodeFollower (..), NodeFollowerDependencies (..), mkNodeFollower)
-import Marlowe.Indexer.NodeQuerier (NodeQuerier (..), NodeQuerierDependencies (..), Query (QueryChainTip), mkNodeQuerier)
+import Marlowe.Indexer.NodeQuerier (NodeQuerier (..), NodeQuerierDependencies (..), Query (QueryChainTip, QueryParams, QueryStartup), mkNodeQuerier)
 import Marlowe.Indexer.Store (StoreDependencies (..), mkStore)
 import UnliftIO (MonadUnliftIO)
 import qualified Cardano.Api as C
@@ -48,6 +48,28 @@ data IndexerDependencies m = IndexerDependencies
   , scriptRegistry :: !ScriptRegistry
   , startPoint :: !StartPoint
   }
+
+-- | Fetch the static network parameters from the local node once and persist
+-- them to the database. These values are stable across the lifetime of the
+-- node (system start and network id are fixed by the configuration,
+-- protocol parameters change only on epoch boundaries) so a single warm-up
+-- fetch is sufficient. The runtime server later reads them from the database
+-- instead of having to talk to the cardano-node itself.
+seedNetworkParameters
+  :: forall m
+   . MonadLog m
+  => NodeQuerier m
+  -> DatabaseQueries m
+  -> C.NetworkId
+  -> m ()
+seedNetworkParameters nodeQuerier dbQueries networkId = do
+  logInfo_ "Seeding network parameters from the local cardano-node..."
+  (systemStart, _genesis, _eraHistory) <- runQuery nodeQuerier QueryStartup
+  (C.LedgerProtocolParameters pparams) <- runQuery nodeQuerier QueryParams
+  logInfo "Fetched system start" systemStart
+  dbQueries.commitSystemStart systemStart
+  dbQueries.commitProtocolParameters pparams
+  dbQueries.commitNetworkId networkId
 
 mkIndexer
   :: forall m
@@ -95,10 +117,16 @@ mkIndexer IndexerDependencies{..} =
           , pullEvent
           }
 
+        warmupComponent :: NodeQuerier m -> Component m ()
+        warmupComponent nodeQuerier =
+          mkComponent_ "marlowe-indexer-network-params-warmup" $
+            seedNetworkParameters nodeQuerier databaseQueries localNodeConnectInfo.localNodeNetworkId
+
         indexedComponent :: Component m ()
         indexedComponent = do
           nodeQuerier <- nodeQuerierComponent
           nodeFollower <- nodeFollowerComponent nodeQuerier
+          warmupComponent nodeQuerier
           nodeQuerier' <- nodeQuerierComponent
           marloweChainFollower <- marloweChainFollowerComponent nodeQuerier' nodeFollower
           storeComponent marloweChainFollower

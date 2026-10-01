@@ -3,7 +3,7 @@
 -- | Marlowe Plutus script binaries (loaded from external plutus text
 -- envelopes) and helpers for resolving the bundle of validator scripts
 -- from a combination of @--*-script-file@ overrides and a
--- @--scripts-suite-file@ bundle.
+-- @--script-suite-file@ bundle.
 module Language.Marlowe.CLI.Scripts (
   -- * Script newtypes
   MarloweValidator (..),
@@ -18,7 +18,7 @@ module Language.Marlowe.CLI.Scripts (
   -- * Loading
   loadMarloweScriptsPaths,
   mkMarloweScriptsInfo,
-  readMarloweScriptsSuite,
+  readMarloweScriptSuite,
   readPlutusScriptV3,
   resolveMarloweScriptsPaths,
 ) where
@@ -39,7 +39,7 @@ import Language.Marlowe.CLI.Types (
   MarloweScriptsInfo (..),
   ValidatorInfo (..),
  )
-import Marlowe.Plutus.Binaries.Api.Compile (ScriptOutput (scriptFile), ScriptsSuite (..))
+import Marlowe.Plutus.Binaries.Api.Compile (ScriptOutput (scriptFile), ScriptSuite (..))
 
 -- | A Marlowe validator script bundle (loaded from a Plutus text envelope).
 newtype MarloweValidator = MarloweValidator (C.PlutusScript C.PlutusScriptV3)
@@ -92,16 +92,16 @@ readPlutusScriptV3 filePath = do
     Right (Right (C.PlutusScript _ script)) ->
       Right script
 
--- | Read a 'ScriptsSuite' document (JSON or YAML).
-readMarloweScriptsSuite :: FilePath -> IO (Either CliError ScriptsSuite)
-readMarloweScriptsSuite path = do
+-- | Read a 'ScriptSuite' document (JSON or YAML).
+readMarloweScriptSuite :: FilePath -> IO (Either CliError ScriptSuite)
+readMarloweScriptSuite path = do
   contentsResult <- try (LBS.readFile path)
   case contentsResult of
     Left (e :: IOException) ->
       pure
         $ Left
         $ CliError
-        $ "Could not read ScriptsSuite file "
+        $ "Could not read ScriptSuite file "
         <> path
         <> ": "
         <> show e
@@ -114,16 +114,16 @@ readMarloweScriptsSuite path = do
             Left yamlErr ->
               Left
                 $ CliError
-                $ "Could not parse ScriptsSuite at "
+                $ "Could not parse ScriptSuite at "
                 <> path
                 <> ". JSON error: "
                 <> jsonErr
                 <> ". YAML error: "
                 <> show yamlErr
 
--- | Resolve script file paths either from a 'ScriptsSuite' or from
+-- | Resolve script file paths either from a 'ScriptSuite' or from
 -- individual @--*-script-file@ overrides (the overrides win).
-resolveMarloweScriptsPaths :: Maybe ScriptsSuite -> MarloweScriptsPaths -> MarloweScriptsPaths
+resolveMarloweScriptsPaths :: Maybe ScriptSuite -> MarloweScriptsPaths -> MarloweScriptsPaths
 resolveMarloweScriptsPaths mSuite MarloweScriptsPaths{..} =
   MarloweScriptsPaths
     { marloweScriptPath = pick marloweScriptPath (scriptFile . marloweSemantics <$> mSuite)
@@ -135,7 +135,7 @@ resolveMarloweScriptsPaths mSuite MarloweScriptsPaths{..} =
     pick (Just p) _ = Just p
     pick Nothing (Just p) = Just p
     pick Nothing Nothing = Nothing
-    joinRoleTokens :: Maybe ScriptsSuite -> Maybe ScriptOutput
+    joinRoleTokens :: Maybe ScriptSuite -> Maybe ScriptOutput
     joinRoleTokens Nothing = Nothing
     joinRoleTokens (Just s) = roleTokens s
 
@@ -169,7 +169,7 @@ loadMarloweScriptsPaths MarloweScriptsPaths{..} = do
         $ CliError
         $ "Missing required script: "
           <> field
-          <> ". Provide --scripts-suite-file or --"
+          <> ". Provide --script-suite-file or --"
           <> field
           <> "-script-file."
     loadOne _ (Just path) wrap = fmap (fmap wrap) (readPlutusScriptV3 path)

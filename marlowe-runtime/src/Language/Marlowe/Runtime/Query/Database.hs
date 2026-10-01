@@ -1,6 +1,7 @@
 module Language.Marlowe.Runtime.Query.Database where
 
 import qualified Cardano.Api as C
+import qualified Cardano.Ledger.Core as L
 import Data.Aeson (ToJSON)
 import Data.Set (Set)
 import GHC.Generics (Generic)
@@ -168,6 +169,27 @@ logDatabaseQueries DatabaseQueries{..} =
           , "error" A..= either Just (const Nothing) result
           ]
         pure result
+    , getSystemStart = do
+        result <- getSystemStart
+        logTrace "GetSystemStart" $ A.object
+          [ "found" A..= either (const False) (const True) result
+          , "error" A..= either Just (const Nothing) result
+          ]
+        pure result
+    , getProtocolParameters = do
+        result <- getProtocolParameters
+        logTrace "GetProtocolParameters" $ A.object
+          [ "found" A..= either (const False) (const True) result
+          , "error" A..= either Just (const Nothing) result
+          ]
+        pure result
+    , getNetworkId = \expected -> do
+        result <- getNetworkId expected
+        logTrace "GetNetworkId" $ A.object
+          [ "found" A..= either (const False) (const True) result
+          , "error" A..= either Just (const Nothing) result
+          ]
+        pure result
     }
 
 hoistDatabaseQueries :: (forall x. m x -> n x) -> DatabaseQueries m -> DatabaseQueries n
@@ -181,7 +203,10 @@ hoistDatabaseQueries f DatabaseQueries{..} =
     , getHeaders = fmap f . getHeaders
     , getContractState = f . getContractState
     , getMarloweTip = f getMarloweTip
+    , getNetworkId = f . getNetworkId
     , getNodeTip = f getNodeTip
+    , getProtocolParameters = f getProtocolParameters
+    , getSystemStart = f getSystemStart
     , getTransaction = f . getTransaction
     , getTransactions = f . getTransactions
     , getWithdrawal = f . getWithdrawal
@@ -231,6 +256,51 @@ instance A.ToJSON GetEraHistoryError where
       , "bytes" A..= EncodeBase16 bytes
       ]
 
+data GetSystemStartError
+  = MissingSystemStart
+  | InvalidSystemStart ByteString
+  deriving (Show)
+
+instance A.ToJSON GetSystemStartError where
+  toJSON = \case
+    MissingSystemStart -> A.object [ "type" A..= ("MissingSystemStart" :: String) ]
+    InvalidSystemStart bytes -> A.object
+      [ "type" A..= ("InvalidSystemStart" :: String)
+      , "bytes" A..= EncodeBase16 bytes
+      ]
+
+data GetProtocolParametersError
+  = MissingProtocolParameters
+  | InvalidProtocolParameters ByteString
+  deriving (Show)
+
+instance A.ToJSON GetProtocolParametersError where
+  toJSON = \case
+    MissingProtocolParameters -> A.object [ "type" A..= ("MissingProtocolParameters" :: String) ]
+    InvalidProtocolParameters bytes -> A.object
+      [ "type" A..= ("InvalidProtocolParameters" :: String)
+      , "bytes" A..= EncodeBase16 bytes
+      ]
+
+data GetNetworkIdError
+  = MissingNetworkId
+  | InvalidNetworkId ByteString
+  | NetworkIdMismatch C.NetworkId C.NetworkId
+  deriving (Show)
+
+instance A.ToJSON GetNetworkIdError where
+  toJSON = \case
+    MissingNetworkId -> A.object [ "type" A..= ("MissingNetworkId" :: String) ]
+    InvalidNetworkId bytes -> A.object
+      [ "type" A..= ("InvalidNetworkId" :: String)
+      , "bytes" A..= EncodeBase16 bytes
+      ]
+    NetworkIdMismatch expected actual -> A.object
+      [ "type" A..= ("NetworkIdMismatch" :: String)
+      , "expected" A..= show expected
+      , "actual" A..= show actual
+      ]
+
 
 data DatabaseQueries m = DatabaseQueries
   { getTipForContract :: ContractId -> m ChainPoint
@@ -241,7 +311,10 @@ data DatabaseQueries m = DatabaseQueries
   , getHeaders :: ContractFilter -> Range ContractId -> m (Maybe (Page ContractId ContractHeader))
   , getContractState :: ContractId -> m (Maybe SomeContractState)
   , getMarloweTip :: m (Maybe MarloweTip)
+  , getNetworkId :: C.NetworkId -> m (Either GetNetworkIdError C.NetworkId)
   , getNodeTip :: m (Either GetNodeTipError NodeTip)
+  , getProtocolParameters :: m (Either GetProtocolParametersError (L.PParams (C.ShelleyLedgerEra C.ConwayEra)))
+  , getSystemStart :: m (Either GetSystemStartError C.SystemStart)
   , getTransaction :: TxId -> m (Maybe SomeTransaction)
   , getTransactions :: ContractId -> m (Maybe SomeTransactions)
   , getWithdrawal :: TxId -> m (Maybe Withdrawal)

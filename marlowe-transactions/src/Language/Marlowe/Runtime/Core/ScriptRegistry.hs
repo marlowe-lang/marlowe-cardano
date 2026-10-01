@@ -9,7 +9,8 @@ module Language.Marlowe.Runtime.Core.ScriptRegistry
   , ScriptInPlutus (..)
   , ScriptRegistry
   , ScriptRegistryError (..)
-  , ScriptsSuiteName (..)
+  , ScriptSuiteName (..)
+  , defaultRegistry
   , fromCardanoPlutusScriptV2
   , fromCardanoPlutusScriptV3
   , fromCardanoScriptThrowing
@@ -166,12 +167,12 @@ instance FromJSON ReferenceScriptUtxo where
 -- | A name identifying a single MarloweScripts bundle inside a 'ScriptRegistry'.
 -- The full JSON representation (txOutRef + txOut + script + description) is
 -- provided by 'Language.Marlowe.Runtime.Core.ScriptRegistry.JSON'.
-newtype ScriptsSuiteName = ScriptsSuiteName { unScriptsSuiteName :: T.Text }
+newtype ScriptSuiteName = ScriptSuiteName { unScriptSuiteName :: T.Text }
   deriving (Show, Eq, Ord)
   deriving newtype (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 
-instance IsString ScriptsSuiteName where
-  fromString = ScriptsSuiteName . T.pack
+instance IsString ScriptSuiteName where
+  fromString = ScriptSuiteName . T.pack
 
 -- | The full information about a single Marlowe script: the serialised
 -- Plutus bytes, its script hash, and the per-network reference script UTxOs
@@ -244,14 +245,14 @@ data MarloweScripts = MarloweScripts
 
 -- | A registry of all known Marlowe script bundles.
 data ScriptRegistry = UnsafeScriptRegistry
-  { currentRelease :: ScriptsSuiteName
-  , scripts :: NEMap ScriptsSuiteName MarloweScripts
+  { currentRelease :: ScriptSuiteName
+  , scripts :: NEMap ScriptSuiteName MarloweScripts
   }
   deriving (Show, Eq)
 
 mkScriptRegistry
-  :: ScriptsSuiteName
-  -> Map ScriptsSuiteName MarloweScripts
+  :: ScriptSuiteName
+  -> Map ScriptSuiteName MarloweScripts
   -> Maybe ScriptRegistry
 mkScriptRegistry currentRelease scriptsMap = do
   guard (Map.member currentRelease scriptsMap)
@@ -259,14 +260,14 @@ mkScriptRegistry currentRelease scriptsMap = do
   pure UnsafeScriptRegistry {..}
 
 {-# COMPLETE ScriptRegistry #-}
-pattern ScriptRegistry :: ScriptsSuiteName -> NEMap ScriptsSuiteName MarloweScripts -> ScriptRegistry
+pattern ScriptRegistry :: ScriptSuiteName -> NEMap ScriptSuiteName MarloweScripts -> ScriptRegistry
 pattern ScriptRegistry currentRelease scripts <- UnsafeScriptRegistry { currentRelease, scripts }
 
 instance ToJSON ScriptRegistry where
   toJSON (UnsafeScriptRegistry currentRelease scripts) = Aeson.object
     [ "currentRelease" .= currentRelease
     , ("scripts", Aeson.object
-        . map (\(k, v :: MarloweScripts) -> (Key.fromText (unScriptsSuiteName k), toJSON v))
+        . map (\(k, v :: MarloweScripts) -> (Key.fromText (unScriptSuiteName k), toJSON v))
         . NEList.toList
         $ NEMap.toList scripts
       )
@@ -275,12 +276,12 @@ instance ToJSON ScriptRegistry where
 instance FromJSON ScriptRegistry where
   parseJSON = Aeson.withObject "ScriptRegistry" $ \o -> do
     let
-      parseScripts :: Aeson.Object -> Parser (Map ScriptsSuiteName MarloweScripts)
+      parseScripts :: Aeson.Object -> Parser (Map ScriptSuiteName MarloweScripts)
       parseScripts so = do
         let
           parseEntry (k, v) = do
             let
-              suiteName = ScriptsSuiteName (Key.toText k)
+              suiteName = ScriptSuiteName (Key.toText k)
             marloweScripts <- Aeson.parseJSON v
             pure (suiteName, marloweScripts)
         Map.fromList <$> mapM parseEntry (KeyMap.toList so)
@@ -290,16 +291,16 @@ instance FromJSON ScriptRegistry where
     scripts <- parseScripts scriptsRaw
     case mkScriptRegistry currentRelease scripts of
       Just registry -> pure registry
-      Nothing -> fail $ "Current release " <> T.unpack (unScriptsSuiteName currentRelease) <> " not found in scripts."
+      Nothing -> fail $ "Current release " <> T.unpack (unScriptSuiteName currentRelease) <> " not found in scripts."
 
 -- | The 'MarloweScripts' selected as the registry's current release.
 -- Errors if the registry is missing that suite.
 getCurrentScripts :: ScriptRegistry -> MarloweScripts
 getCurrentScripts (ScriptRegistry currentRelease scripts) =
-  fromMaybe (error $ "Current release " <> T.unpack (unScriptsSuiteName currentRelease) <> " not found in scripts.") $
+  fromMaybe (error $ "Current release " <> T.unpack (unScriptSuiteName currentRelease) <> " not found in scripts.") $
     NEMap.lookup currentRelease scripts
 
-getScriptsForRelease :: ScriptsSuiteName -> ScriptRegistry -> Maybe MarloweScripts
+getScriptsForRelease :: ScriptSuiteName -> ScriptRegistry -> Maybe MarloweScripts
 getScriptsForRelease suiteName (ScriptRegistry _currentRelease scripts) =
   NEMap.lookup suiteName scripts
 
@@ -309,24 +310,27 @@ data HelperScript = OpenRoleScript
 
 -- | Errors that can occur while loading a 'ScriptRegistry' from disk.
 data ScriptRegistryError
-  = ScriptRegistryFileNotFound FilePath
+  = ScriptRegistryNotFound FilePath
   | ScriptRegistryParseError FilePath T.Text
   deriving (Show)
 
 loadScriptRegistry :: FilePath -> IO (Either ScriptRegistryError ScriptRegistry)
 loadScriptRegistry jsonFile = runExceptT do
   content <- ExceptT $ (Right <$> BSL.readFile jsonFile) `catch` \(_e :: SomeException) ->
-    pure $ Left (ScriptRegistryFileNotFound jsonFile)
+    pure $ Left (ScriptRegistryNotFound jsonFile)
   case Aeson.eitherDecode content of
     Left err -> throwError (ScriptRegistryParseError jsonFile (T.pack err))
     Right registry -> pure registry
+
+defaultRegistry :: FilePath
+defaultRegistry = "script-registry/pre-1.1.0.json"
 
 -- | IO that loads the registry shipped with the 'marlowe-transactions'
 -- package (see 'data-files: script-registry/*.json' in the cabal file).
 -- Fails if the directory is missing, the registry is empty, or the
 -- registry is malformed.
 loadDefaultScriptRegistry :: IO (Either ScriptRegistryError ScriptRegistry)
-loadDefaultScriptRegistry = Paths.getDataFileName "script-registry/pre-1.1.0.json" >>= loadScriptRegistry
+loadDefaultScriptRegistry = Paths.getDataFileName defaultRegistry >>= loadScriptRegistry
 
 loadDefaultMarloweScripts :: IO (Either ScriptRegistryError MarloweScripts)
 loadDefaultMarloweScripts = runExceptT do

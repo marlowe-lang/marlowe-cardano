@@ -1,8 +1,12 @@
 {
   "dependencies": {
+    "@konduit/codec": "workspace:^",
     "decimal.js": "^10.6.0",
     "neverthrow": "^8.2.0",
     "type-fest": "^5.7.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.17"
   },
   "exports": {
     "./v1": {

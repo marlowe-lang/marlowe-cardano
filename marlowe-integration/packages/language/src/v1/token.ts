@@ -1,7 +1,13 @@
 import type { Sort } from "../assoc-map.js";
+import { json2StringCodec, objectOf, type JsonCodec } from "@konduit/codec/json/codecs";
 import type { PolicyId } from "./policyId.js";
+import { PolicyId as PolicyIdNamespace } from "./policyId.js";
 
 export type TokenName = string;
+
+export namespace TokenName {
+  export const jsonCodec: JsonCodec<TokenName> = json2StringCodec;
+}
 
 export interface Token {
   currency_symbol: PolicyId;
@@ -18,6 +24,13 @@ export const tokenToString: (token: Token) => string = (token) => `${token.curre
 export const lovelace: Token = token("", "");
 
 export const adaToken: Token = lovelace;
+
+export namespace Token {
+  export const jsonCodec: JsonCodec<Token> = objectOf({
+    currency_symbol: PolicyIdNamespace.jsonCodec,
+    token_name: TokenName.jsonCodec,
+  });
+}
 
 export function tokenCmp(a: Token, b: Token): Sort {
   const currencyCmp = strCmp(a.currency_symbol, b.currency_symbol);

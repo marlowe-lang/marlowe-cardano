@@ -116,7 +116,7 @@ runRoleCommand command =
               Nothing ->
                 throwError
                   $ CliError
-                  $ "Role address requires a role-token minting policy; pass --role-tokens-script-file or include roleTokens in --scripts-suite-file."
+                  $ "Role address requires a role-token minting policy; pass --role-tokens-script-file or include roleTokens in --script-suite-file."
               Just roleValidator ->
                 exportRoleAddress @_ roleValidator network' stake'
       ExportValidator{..} -> do

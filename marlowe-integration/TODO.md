@@ -1,9 +1,8 @@
-# Refactor cardanoCli.ts
+# Test selective merkleization
 
-* I just introduced execCardanoCli and execCardanoCliJsonTyped to the cardanoCli.ts
+## The context
 
-* We want to migrate all the existing functions **from this module** so they use that new implementation.
+* Our marlowe-runtime server provides an ability to store, merkleize and retrieve chunks of the contract as it is executed. Additionally the contract upload API exposes a "action preservation" capability which allows to preserve selectively the chunk of the contract so a larger piece is visible on the chain. We want to test that feature.
 
-* All the functions should start accepting `debug` argument as well.
+* The test suite which lives here in `marlowe-integration/app/testing/store/` already 
 
-* Please do the refactoring without testing but only checking if the code compiles.
