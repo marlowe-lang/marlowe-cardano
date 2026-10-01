@@ -164,18 +164,6 @@
           indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
           runtimePackage = inputs.self.packages.x86_64-linux.marlowe-runtime;
         };
-        # nixos.mkDeploymentTest {
-        #   cardanoNodeModule = inputs.cardano-node.nixosModules.cardano-node;
-        #   cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
-        #   indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
-        #   hostSnapshot = "/abs/path/to/preprod/db";
-        # };
-        # nixosConfigurations.indexer-test = nixos.mkIndexerTest {
-        #   cardanoCli = inputs.cardano-node.packages.x86_64-linux.cardano-cli;
-        #   cardanoNodeModule = inputs.cardano-node.nixosModules.cardano-node;
-        #   hostSnapshot = "/home/paluh/projects/marlowe/marlowe-plutus/preprod-db/db";
-        #   indexerPackage = inputs.self.packages.x86_64-linux.marlowe-indexer;
-        # };
     };
 
   nixConfig = {
