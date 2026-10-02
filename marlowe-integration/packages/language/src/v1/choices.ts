@@ -5,40 +5,43 @@ import {
   objectOf,
   type JsonCodec,
 } from "@konduit/codec/json/codecs";
-import type { Party } from "./participants.js";
-import { Party as PartyNamespace } from "./participants.js";
+import { Party } from "./participants.js";
+
+// Types ---------------------------------------------------------------------
 
 export type ChoiceName = string;
+
+export type ChoiceId = {
+  choice_name: ChoiceName;
+  choice_owner: Party;
+};
+
+export type Bound = {
+  from: bigint;
+  to: bigint;
+};
+
+export type ChosenNum = bigint;
+
+// Codecs + smart constructors ------------------------------------------------
 
 export namespace ChoiceName {
   export const jsonCodec: JsonCodec<ChoiceName> = json2StringCodec;
 }
 
-export interface ChoiceId {
-  choice_name: ChoiceName;
-  choice_owner: Party;
+export function ChoiceId(choiceName: ChoiceName, choiceOwner: Party): ChoiceId {
+  return { choice_name: choiceName, choice_owner: choiceOwner };
 }
-
 export namespace ChoiceId {
   export const jsonCodec: JsonCodec<ChoiceId> = objectOf({
     choice_name: ChoiceName.jsonCodec,
-    choice_owner: PartyNamespace.jsonCodec,
+    choice_owner: Party.jsonCodec,
   });
 }
 
-export function choiceIdCmp(a: ChoiceId, b: ChoiceId): Sort {
-  const nameCmp = strCmp(a.choice_name, b.choice_name);
-  if (nameCmp !== "EqualTo") {
-    return nameCmp;
-  }
-  return partyCmp(a.choice_owner, b.choice_owner);
+export function Bound(from: bigint, to: bigint): Bound {
+  return { from, to };
 }
-
-export interface Bound {
-  from: bigint;
-  to: bigint;
-}
-
 export namespace Bound {
   export const jsonCodec: JsonCodec<Bound> = objectOf({
     from: json2BigIntCodec,
@@ -46,10 +49,18 @@ export namespace Bound {
   });
 }
 
-export type ChosenNum = bigint;
-
 export namespace ChosenNum {
   export const jsonCodec: JsonCodec<ChosenNum> = json2BigIntCodec;
+}
+
+// Helpers --------------------------------------------------------------------
+
+export function choiceIdCmp(a: ChoiceId, b: ChoiceId): Sort {
+  const nameCmp = strCmp(a.choice_name, b.choice_name);
+  if (nameCmp !== "EqualTo") {
+    return nameCmp;
+  }
+  return partyCmp(a.choice_owner, b.choice_owner);
 }
 
 export function inBound(num: bigint, bound: Bound): boolean {

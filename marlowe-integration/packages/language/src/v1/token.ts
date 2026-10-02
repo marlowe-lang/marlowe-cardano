@@ -1,36 +1,40 @@
 import type { Sort } from "../assoc-map.js";
 import { json2StringCodec, objectOf, type JsonCodec } from "@konduit/codec/json/codecs";
-import type { PolicyId } from "./policyId.js";
-import { PolicyId as PolicyIdNamespace } from "./policyId.js";
+import { PolicyId } from "./policyId.js";
+
+// Types ---------------------------------------------------------------------
 
 export type TokenName = string;
+
+export type Token = {
+  currency_symbol: PolicyId;
+  token_name: TokenName;
+};
+
+// Codecs + smart constructors ------------------------------------------------
 
 export namespace TokenName {
   export const jsonCodec: JsonCodec<TokenName> = json2StringCodec;
 }
 
-export interface Token {
-  currency_symbol: PolicyId;
-  token_name: TokenName;
+export function Token(currency_symbol: PolicyId, token_name: TokenName): Token {
+  return { currency_symbol, token_name };
 }
-
-export const token = (currency_symbol: PolicyId, token_name: TokenName) => ({
-  currency_symbol: currency_symbol,
-  token_name: token_name,
-});
-
-export const tokenToString: (token: Token) => string = (token) => `${token.currency_symbol}|${token.token_name}`;
-
-export const lovelace: Token = token("", "");
-
-export const adaToken: Token = lovelace;
-
 export namespace Token {
   export const jsonCodec: JsonCodec<Token> = objectOf({
-    currency_symbol: PolicyIdNamespace.jsonCodec,
+    currency_symbol: PolicyId.jsonCodec,
     token_name: TokenName.jsonCodec,
   });
 }
+
+// Helpers --------------------------------------------------------------------
+
+export const tokenToString: (token: Token) => string = (token) =>
+  `${token.currency_symbol}|${token.token_name}`;
+
+export const lovelace: Token = Token("", "");
+
+export const adaToken: Token = lovelace;
 
 export function tokenCmp(a: Token, b: Token): Sort {
   const currencyCmp = strCmp(a.currency_symbol, b.currency_symbol);

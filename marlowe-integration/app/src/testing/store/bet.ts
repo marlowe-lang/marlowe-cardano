@@ -3,6 +3,25 @@ import { unwrapOrPanicWith } from '@konduit/konduit-consumer/neverthrow';
 import type { Json } from "@konduit/codec/json";
 import { stringify as jsonStringify } from '@konduit/codec/json';
 import type { PostContractSourceResponse } from '@marlowe-lang/runtime/client';
+import {
+  Address,
+  Bound,
+  Case,
+  Choice,
+  ChoiceId,
+  ChoiceValue,
+  Close,
+  Constant,
+  Deposit,
+  If,
+  lovelace,
+  Party,
+  Pay,
+  PayeeParty,
+  ValueEQ,
+  When,
+} from '@marlowe-lang/language/v1';
+import type { Contract } from '@marlowe-lang/language/v1';
 
 type RunOpts = {
   serverPort?: number;
@@ -25,89 +44,135 @@ const TEAM_1_WINS = 1n;
 const TEAM_2_WINS = 2n;
 const AMOUNT = 1_000_000n;
 
-// Lovelace token — `currency_symbol` and `token_name` are both empty strings.
-const LOVELACE = { currency_symbol: '', token_name: '' };
+// This is the expanded plain form of the contract.
+// const betContract = {
+//   when: [
+//     {
+//       case: {
+//         party: { address: PARTY1_ADDR },
+//         deposits: AMOUNT,
+//         of_token: LOVELACE,
+//         into_account: { address: PARTY1_ADDR },
+//       },
+//       then: {
+//         when: [
+//           {
+//             case: {
+//               party: { address: PARTY2_ADDR },
+//               deposits: AMOUNT,
+//               of_token: LOVELACE,
+//               into_account: { address: PARTY2_ADDR },
+//             },
+//             then: {
+//               when: [
+//                 {
+//                   case: {
+//                     choose_between: [{ from: NO_WINNERS, to: TEAM_2_WINS }],
+//                     for_choice: {
+//                       choice_name: CHOICE_NAME,
+//                       choice_owner: { address: ORACLE_ADDR },
+//                     },
+//                   },
+//                   then: {
+//                     if: {
+//                       value: {
+//                         value_of_choice: {
+//                           choice_name: CHOICE_NAME,
+//                           choice_owner: { address: ORACLE_ADDR },
+//                         },
+//                       },
+//                       equal_to: TEAM_1_WINS,
+//                     },
+//                     then: {
+//                       pay: AMOUNT,
+//                       token: LOVELACE,
+//                       from_account: { address: PARTY2_ADDR },
+//                       to: { party: { address: PARTY1_ADDR } },
+//                       then: 'close',
+//                     },
+//                     else: {
+//                       if: {
+//                         value: {
+//                           value_of_choice: {
+//                             choice_name: CHOICE_NAME,
+//                             choice_owner: { address: ORACLE_ADDR },
+//                           },
+//                         },
+//                         equal_to: TEAM_2_WINS,
+//                       },
+//                       then: {
+//                         pay: AMOUNT,
+//                         token: LOVELACE,
+//                         from_account: { address: PARTY1_ADDR },
+//                         to: { party: { address: PARTY2_ADDR } },
+//                         then: 'close',
+//                       },
+//                       else: 'close',
+//                     },
+//                   },
+//                 },
+//               ],
+//               timeout: TIMEOUT,
+//               timeout_continuation: 'close',
+//             },
+//           },
+//         ],
+//         timeout: TIMEOUT,
+//         timeout_continuation: 'close',
+//       },
+//     },
+//   ],
+//   timeout: TIMEOUT,
+//   timeout_continuation: 'close',
+// };
 
-const betContract = {
-  when: [
-    {
-      case: {
-        party: { address: PARTY1_ADDR },
-        deposits: AMOUNT,
-        of_token: LOVELACE,
-        into_account: { address: PARTY1_ADDR },
-      },
-      then: {
-        when: [
-          {
-            case: {
-              party: { address: PARTY2_ADDR },
-              deposits: AMOUNT,
-              of_token: LOVELACE,
-              into_account: { address: PARTY2_ADDR },
-            },
-            then: {
-              when: [
-                {
-                  case: {
-                    choose_between: [{ from: NO_WINNERS, to: TEAM_2_WINS }],
-                    for_choice: {
-                      choice_name: CHOICE_NAME,
-                      choice_owner: { address: ORACLE_ADDR },
-                    },
-                  },
-                  then: {
-                    if: {
-                      value: {
-                        value_of_choice: {
-                          choice_name: CHOICE_NAME,
-                          choice_owner: { address: ORACLE_ADDR },
-                        },
-                      },
-                      equal_to: TEAM_1_WINS,
-                    },
-                    then: {
-                      pay: AMOUNT,
-                      token: LOVELACE,
-                      from_account: { address: PARTY2_ADDR },
-                      to: { party: { address: PARTY1_ADDR } },
-                      then: 'close',
-                    },
-                    else: {
-                      if: {
-                        value: {
-                          value_of_choice: {
-                            choice_name: CHOICE_NAME,
-                            choice_owner: { address: ORACLE_ADDR },
-                          },
-                        },
-                        equal_to: TEAM_2_WINS,
-                      },
-                      then: {
-                        pay: AMOUNT,
-                        token: LOVELACE,
-                        from_account: { address: PARTY1_ADDR },
-                        to: { party: { address: PARTY2_ADDR } },
-                        then: 'close',
-                      },
-                      else: 'close',
-                    },
-                  },
-                },
+// New definition using the language package's smart constructors.
+// `Close()` / `Party(Address(addr))` / `Bound` / `When` / `Case` / `Deposit` /
+// `Choice` / `Pay` / `If` / `ChoiceValue` / `ValueEQ` all share their name
+// with the matching `type` and `namespace` triple.
+
+const party1 = Party(Address(PARTY1_ADDR));
+const party2 = Party(Address(PARTY2_ADDR));
+const oracle = Party(Address(ORACLE_ADDR));
+const choiceId = ChoiceId(CHOICE_NAME, oracle);
+const choiceValue = ChoiceValue(choiceId);
+
+const betContract: Contract = When(
+  [
+    Case(
+      Deposit(party1, party1, lovelace, AMOUNT),
+      When(
+        [
+          Case(
+            Deposit(party2, party2, lovelace, AMOUNT),
+            When(
+              [
+                Case(
+                  Choice([Bound(NO_WINNERS, TEAM_2_WINS)], choiceId),
+                  If(
+                    ValueEQ(choiceValue, Constant(TEAM_1_WINS)),
+                    Pay(AMOUNT, lovelace, party2, PayeeParty(party1), Close()),
+                    If(
+                      ValueEQ(choiceValue, Constant(TEAM_2_WINS)),
+                      Pay(AMOUNT, lovelace, party1, PayeeParty(party2), Close()),
+                      Close(),
+                    ),
+                  ),
+                ),
               ],
-              timeout: TIMEOUT,
-              timeout_continuation: 'close',
-            },
-          },
+              TIMEOUT,
+              Close(),
+            ),
+          ),
         ],
-        timeout: TIMEOUT,
-        timeout_continuation: 'close',
-      },
-    },
+        TIMEOUT,
+        Close(),
+      ),
+    ),
   ],
-  timeout: TIMEOUT,
-  timeout_continuation: 'close',
-};
+  TIMEOUT,
+  Close(),
+);
 
 // FIXME: paluh: round-trip the expanded contract through a real `Contract`
 // JSON codec once one is exposed by `@marlowe-lang/language` so we can drop
@@ -157,7 +222,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
     { label: 'main', type: 'contract', value: betContract },
   ];
 
-  const uploadResult = await marloweRuntimeCli.runUploadContractSource(
+  const uploadResult = marloweRuntimeCli.runUploadContractSource(
     bundle,
     'main',
     {},
@@ -181,7 +246,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // The raw form is stored in merkleized form (nested continuations are
   // replaced by `merkleized_then` references), so we can't round-trip it
   // against the original.
-  const rawResult = await marloweRuntimeCli.runGetContractSource(
+  const rawResult = marloweRuntimeCli.runGetContractSource(
     sourceId,
     { expand: false },
     null,
@@ -195,7 +260,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // GET expanded — the de-merkleized form should equal the original
   // structurally (the runtime alphabetizes object keys, so a string
   // comparison is too strict).
-  const expandedResult = await marloweRuntimeCli.runGetContractSource(
+  const expandedResult = marloweRuntimeCli.runGetContractSource(
     sourceId,
     { expand: true },
     null,
@@ -216,7 +281,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // continuation the runtime created. With a hand-coded single-label
   // bundle we only get `main` back from the upload, but the closure will
   // contain additional entries produced by the merkleization step.
-  const closureResult = await marloweRuntimeCli.runGetContractSourceClosure(
+  const closureResult = marloweRuntimeCli.runGetContractSourceClosure(
     sourceId,
     {},
     null,

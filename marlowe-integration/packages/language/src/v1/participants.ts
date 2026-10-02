@@ -5,41 +5,49 @@
  */
 import type { Sort } from "../assoc-map.js";
 import { altJsonCodecs, json2StringCodec, objectOf, type JsonCodec } from "@konduit/codec/json/codecs";
-import type { AddressBech32 } from "./address.js";
-import { AddressBech32 as AddressBech32Namespace } from "./address.js";
+import { AddressBech32 } from "./address.js";
 
-export interface Address {
+// Types ---------------------------------------------------------------------
+
+export type Address = {
   address: AddressBech32;
-}
-
-export namespace Address {
-  export const jsonCodec: JsonCodec<Address> = objectOf({
-    address: AddressBech32Namespace.jsonCodec,
-  });
-}
+};
 
 export type RoleName = string;
+
+export type Role = {
+  role_token: RoleName;
+};
+
+export type Party = Address | Role;
+
+// Codecs + smart constructors ------------------------------------------------
+
+export function Address(address: AddressBech32): Address {
+  return { address };
+}
+export namespace Address {
+  export const jsonCodec: JsonCodec<Address> = objectOf({
+    address: AddressBech32.jsonCodec,
+  });
+}
 
 export namespace RoleName {
   export const jsonCodec: JsonCodec<RoleName> = json2StringCodec;
 }
 
-export const role = (roleToken: RoleName) => ({ role_token: roleToken });
-
-export interface Role {
-  role_token: RoleName;
+export function Role(roleToken: RoleName): Role {
+  return { role_token: roleToken };
 }
-
 export namespace Role {
   export const jsonCodec: JsonCodec<Role> = objectOf({
     role_token: RoleName.jsonCodec,
   });
 }
 
-export const party = (party: Role | Address) => party;
-
-export type Party = Address | Role;
-
+export function Party(party: Role | Address): Party {
+  return party;
+}
 export namespace Party {
   export const jsonCodec: JsonCodec<Party> = altJsonCodecs(
     [Address.jsonCodec, Role.jsonCodec],
@@ -47,6 +55,8 @@ export namespace Party {
       "address" in party ? serAddress(party) : serRole(party)
   );
 }
+
+// Helpers --------------------------------------------------------------------
 
 export const partiesToStrings: (parties: Party[]) => string[] = (parties) =>
   parties.map(partyToString);

@@ -5,9 +5,9 @@ import type { PositiveInt } from '@konduit/codec/integers/smallish';
 import * as json from '@konduit/codec/json';
 import { err, ok, type Result } from 'neverthrow';
 import { Json } from '@konduit/codec/json';
-import type { Contract } from '@marlowe-lang/language/v1';
-import { ContractId, ContractState, PostCreateContractResponse, ApplyInputsResponse, ContractSourceId, PostContractSourceResponse, Next, CanDeposit, CanChoose, CanNotify } from '@marlowe-lang/runtime/client';
-import type { JsonError } from '@konduit/codec/json/codecs';
+import { Contract } from '@marlowe-lang/language/v1';
+import { ContractId, ContractState, PostCreateContractResponse, ApplyInputsResponse, ContractSourceId, PostContractSourceResponse, Next } from '@marlowe-lang/runtime/client';
+import type { JsonDeserialiser, JsonError } from '@konduit/codec/json/codecs';
 import type { NormalInput } from '@marlowe-lang/language/v1';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
@@ -24,6 +24,14 @@ function getMarloweRuntimeClient(repoRoot: Path | null = null): string {
 export function execMarloweRuntimeClient(args: CliArgs, repoRoot: Path | null = null, debug: boolean = false): Result<string, CommandError> {
   const marloweCli = getMarloweRuntimeClient(repoRoot);
   return execCli(marloweCli, args, debug);
+}
+
+export function execMarloweRuntimeClientJson(args: CliArgs, repoRoot: Path | null = null, debug: boolean = false): Result<Json, CommandError | JsonError> {
+  return execMarloweRuntimeClient(args, repoRoot, debug).andThen(jsonStr => Json.fromString(jsonStr));
+}
+
+export function execMarloweRuntimeClientJsonTyped<T>(args: CliArgs, deserialiser: JsonDeserialiser<T>, repoRoot: Path | null = null, debug: boolean = false): Result<T, CommandError | JsonError> {
+  return execMarloweRuntimeClientJson(args, repoRoot, debug).andThen(deserialiser);
 }
 
 export function writeContractFile(contractFile: Path, contract: Contract): MarloweContractFile {
@@ -206,10 +214,6 @@ export const runGetCLI = (
     return Json.fromString(jsonStr).match(
       (json) => ok(json),
       (e) => {
-        console.error("Failed to parse JSON output from marlowe-runtime-client:");
-        console.error(e);
-        console.error("Original output:");
-        console.error(jsonStr);
         return err(e);
       }
     );
@@ -228,42 +232,6 @@ export function runGet(
   return runGetCLI(contractId, options, repoRoot, debug).andThen(json => ContractState.jsonCodec.deserialise(json));
 }
 
-// Usage: cli contract apply-inputs (-i|--marlowe-inputs-file MARLOWE_INPUTS_FILE)
-//                                  --contract-id CONTRACT_ID
-//                                  [--message-format text|json|yaml]
-//                                  [--mainnet | --testnet-magic INTEGER]
-//                                  [-s|--socket-path ARG] [-o|--output-dir ARG]
-//                                  [-h|--server-host HOST] [-p|--server-port PORT]
-//                                  (-w|--user-wallet-address BECH32)
-// 
-//   Build input application transaction
-// 
-// Available options:
-//   -i,--marlowe-inputs-file MARLOWE_INPUTS_FILE
-//                            JSON file which contains a list of Marlowe contract
-//                            inputs which should be applied.
-//   --contract-id CONTRACT_ID
-//                            The id of the Marlowe contract to query, in the
-//                            format <txId>#<txIx>.
-//   --message-format text|json|yaml
-//                            Format of command output. (default: text)
-//   --mainnet                Execute on mainnet.
-//   --testnet-magic INTEGER  Network magic. Defaults to the
-//                            CARDANO_NODE_NETWORK_ID environment variable's value.
-//   -s,--socket-path ARG     Location of the cardano-node socket file. Defaults to
-//                            the CARDANO_NODE_SOCKET_PATH environment variable's
-//                            value.
-//                            (default: "/home/paluh/projects/marlowe/marlowe-plutus/.run/testnet/state-cluster9/bft1.socket")
-//   -o,--output-dir ARG      Directory where transaction file will be written.
-//                            (default: "out")
-//   -h,--server-host HOST    The host on which the web server is running. Defaults
-//                            to localhost. (default: Host "localhost")
-//   -p,--server-port PORT    The port on which the web server is running. Defaults
-//                            to 8090.
-//   -w,--user-wallet-address BECH32
-//                            The address which both pays for the transaction and
-//                            executes the contract action.
-//   -h,--help                Show this help text
 export function runApplyInputsCLI(
   marloweInputsFile: Path,
   contractId: ContractId,
@@ -335,45 +303,22 @@ export function runApplyInputs(
 //                      --validity-end ISO_TIMESTAMP [--party ROLE_OR_ADDRESS]...
 //                      [--message-format text|json|yaml]
 //                      [-h|--server-host HOST] [-p|--server-port PORT]
-export function runNextCLI(
-  contractId: ContractId,
-  validityStart: string,
-  validityEnd: string,
-  parties: AddressBech32[] | undefined,
-  options: {
-    serverHost?: string;
-    serverPort?: PositiveInt;
-  },
-  repoRoot: Path | null = null,
-  debug: boolean = false,
-): Result<Json, CommandError | string> {
-  const args: CliArgs = [
-    'contract', 'next',
-    ['--contract-id', contractId],
-    ['--validity-start', validityStart],
-    ['--validity-end', validityEnd],
-    ['--message-format', 'json'],
-  ];
-  if (parties && parties.length > 0) {
-    for (const party of parties) {
-      args.push(['--party', party]);
-    }
-  }
+
+// | FIXME: This is default is dangerous and misleading.
+// | It should be derived from the contract itself.
+// | We should look through the cases and timeout branch
+// | to find out possible validity windows.
+const NEXT_VALIDITY_WINDOW_MS = 5 * 60 * 1000;
+
+const setServerOpts = (args: CliArgs, options: { serverHost?: string; serverPort?: PositiveInt }): CliArgs => {
   if (options.serverHost) {
     args.push(['--server-host', options.serverHost]);
   }
   if (options.serverPort) {
     args.push(['--server-port', options.serverPort]);
   }
-  return execMarloweRuntimeClient(args, repoRoot, debug).andThen(jsonStr => Json.fromString(jsonStr));
+  return args;
 }
-
-// | Default validity window for `/next` polls: from now to now+5min.
-// | Tight enough to keep the validity range under the contract timeout, so
-// | we're asserting the runtime finds inputs before the contract expires.
-const NEXT_VALIDITY_WINDOW_MS = 5 * 60 * 1000;
-const NEXT_POLL_INTERVAL_MS = 2_000;
-const NEXT_POLL_TIMEOUT_MS = 120_000;
 
 export function runNext(
   contractId: ContractId,
@@ -391,8 +336,21 @@ export function runNext(
   const end = new Date(now.getTime() + NEXT_VALIDITY_WINDOW_MS);
   const validityStart = options.validityStart ?? now.toISOString();
   const validityEnd = options.validityEnd ?? end.toISOString();
-  return runNextCLI(contractId, validityStart, validityEnd, parties, options, repoRoot, debug)
-    .andThen(json => Next.jsonCodec.deserialise(json));
+  const args: CliArgs = setServerOpts([
+    'contract', 'next',
+    ['--contract-id', contractId],
+    ['--validity-start', validityStart],
+    ['--validity-end', validityEnd],
+    ['--message-format', 'json'],
+  ], options);
+
+  if (parties && parties.length > 0) {
+    for (const party of parties) {
+      args.push(['--party', party]);
+    }
+  }
+
+  return execMarloweRuntimeClientJsonTyped(args, Next.jsonCodec.deserialise, repoRoot, debug);
 }
 
 // Usage: cli store upload --bundle-file BUNDLE_FILE --main LABEL
@@ -416,41 +374,6 @@ export function runNext(
 //   -p,--server-port PORT    The port on which the web server is running. Defaults
 //                            to 8090.
 //   -h,--help                Show this help text
-export function runUploadContractSourceCLI(
-  bundleFile: Path,
-  mainLabel: string,
-  options: {
-    preserveActions?: unknown[];
-    serverHost?: string;
-    serverPort?: PositiveInt;
-  },
-  repoRoot: Path | null = null,
-  debug: boolean = false
-): Result<Json, CommandError | string> {
-  const args: CliArgs = [
-    'store', 'upload',
-    ['--bundle-file', bundleFile],
-    ['--main', mainLabel],
-    ['--message-format', 'json'],
-  ];
-  if (options.preserveActions !== undefined) {
-    // The server expects a JSON array of Action objects (empty array = no
-    // preserved actions). We always emit the header when the caller asks
-    // for it explicitly, even when empty, so the server can distinguish
-    // "no header sent" from "empty set sent".
-    args.push(['--preserve-actions', json.stringify(options.preserveActions as Json)]);
-  }
-  if (options.serverHost) {
-    args.push(['--server-host', options.serverHost]);
-  }
-  if (options.serverPort) {
-    args.push(['--server-port', options.serverPort]);
-  }
-  return execMarloweRuntimeClient(args, repoRoot, debug).andThen(jsonStr =>
-    Json.fromString(jsonStr),
-  );
-}
-
 export function runUploadContractSource(
   bundle: unknown[],
   mainLabel: string,
@@ -465,27 +388,22 @@ export function runUploadContractSource(
   const tmpDir = mkTempDir(false);
   const bundleFile = `${tmpDir}/bundle.json` as Path;
   fs.writeFileSync(bundleFile, json.stringify(bundle as Json, undefined, 2));
-  return runUploadContractSourceCLI(bundleFile, mainLabel, options, repoRoot, debug)
-    .andThen(json => PostContractSourceResponse.jsonCodec.deserialise(json));
+  const args: CliArgs = setServerOpts([
+    'store', 'upload',
+    ['--bundle-file', bundleFile],
+    ['--main', mainLabel],
+    ['--message-format', 'json'],
+  ], options);
+  if (options.preserveActions !== undefined) {
+    // The server expects a JSON array of Action objects (empty array = no
+    // preserved actions). We always emit the header when the caller asks
+    // for it explicitly, even when empty, so the server can distinguish
+    // "no header sent" from "empty set sent".
+    args.push(['--preserve-actions', json.stringify(options.preserveActions as Json)]);
+  }
+  return execMarloweRuntimeClientJsonTyped(args, PostContractSourceResponse.jsonCodec.deserialise, repoRoot, debug);
 }
 
-// Usage: cli store get --contract-source-id CONTRACT_SOURCE_ID [--expand]
-//                       [--message-format text|json|yaml]
-//                       [-h|--server-host HOST] [-p|--server-port PORT]
-//
-//   Get a contract source by ID.
-//
-// Available options:
-//   --contract-source-id CONTRACT_SOURCE_ID
-//                            The hex-encoded identifier of the contract source.
-//   --expand                 Demerkleize the contract before returning it.
-//   --message-format text|json|yaml
-//                            Format of command output. (default: text)
-//   -h,--server-host HOST    The host on which the web server is running. Defaults
-//                            to localhost. (default: Host "localhost")
-//   -p,--server-port PORT    The port on which the web server is running. Defaults
-//                            to 8090.
-//   -h,--help                Show this help text
 export function runGetContractSourceCLI(
   contractSourceId: ContractSourceId,
   options: {

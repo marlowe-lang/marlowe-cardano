@@ -46,9 +46,9 @@
  * @packageDocumentation
  */
 
-export type { Action, Deposit, Notify, Choice } from "./actions.js";
-export type { ChoiceName, ChoiceId, Bound, ChosenNum } from "./choices.js";
-export type {
+export { Action, Deposit, Choice, Notify } from "./actions.js";
+export { ChoiceName, ChoiceId, Bound, ChosenNum } from "./choices.js";
+export {
   Close,
   Pay,
   If,
@@ -56,61 +56,60 @@ export type {
   Assert,
   Contract,
   When,
-  Case,
   NormalCase,
   MerkleizedCase,
+  Case,
   Timeout,
 } from "./contract.js";
-export { close, datetoTimeout, timeoutToDate } from "./contract.js";
-export type { Environment, TimeInterval } from "./environment.js";
-export { mkEnvironment } from "./environment.js";
+export { datetoTimeout, timeoutToDate } from "./contract.js";
+export { Environment, TimeInterval, mkEnvironment } from "./environment.js";
 
-export type {
+export type { NormalInput } from "./inputs.js";
+export {
   Input,
   IDeposit,
   IChoice,
   INotify,
   BuiltinByteString,
   InputContent,
-  NormalInput,
-  MerkleizedInput,
   MerkleizedDeposit,
   MerkleizedChoice,
   MerkleizedHashAndContinuation,
   MerkleizedNotify,
+  MerkleizedInput,
+  inputNotify,
 } from "./inputs.js";
-export { inputNotify } from "./inputs.js";
 
-export type { Party, Address, Role, RoleName } from "./participants.js";
-export { role, partiesToStrings, partyToString } from "./participants.js";
+export { partiesToStrings, partyToString, Party, Address, Role, RoleName } from "./participants.js";
 
-export type { Payee, PayeeAccount, PayeeParty, AccountId } from "./payee.js";
+export { AccountId, Payee, PayeeAccount, PayeeParty } from "./payee.js";
 
-export type { Token, TokenName } from "./token.js";
-export { tokenToString, token, adaToken, lovelace } from "./token.js";
+export { tokenToString, adaToken, lovelace, Token, TokenName } from "./token.js";
 
-export type { Accounts, MarloweState } from "./state.js";
+export { Accounts, MarloweState } from "./state.js";
 
-export type {
-  Value,
-  ValueId,
+export {
   AvailableMoney,
   Constant,
+  TimeIntervalStart,
+  TimeIntervalEnd,
+  ChoiceValue,
+  ValueId,
+  UseValue,
+  ChoseSomething,
+  Value,
+  Observation,
+} from "./value-and-observation.js";
+export {
   NegValue,
   AddValue,
   SubValue,
   MulValue,
   DivValue,
-  ChoiceValue,
-  TimeIntervalStart,
-  TimeIntervalEnd,
-  UseValue,
   Cond,
-  Observation,
   AndObs,
   OrObs,
   NotObs,
-  ChoseSomething,
   ValueEQ,
   ValueGT,
   ValueGE,
@@ -118,6 +117,28 @@ export type {
   ValueLE,
 } from "./value-and-observation.js";
 
-export type { TokenValue } from "./tokenValue.js";
-export { tokenValue, adaValue } from "./tokenValue.js";
-export type { PolicyId } from "./policyId.js";
+export { tokenValue, adaValue, TokenValue, lovelaceValue } from "./tokenValue.js";
+export { PolicyId } from "./policyId.js";
+
+export {
+  Payment,
+  Transaction,
+  TransactionWarning,
+  NonPositiveDeposit,
+  NonPositivePay,
+  PartialPay,
+  Shadowing,
+  AssertionFailed,
+  IntervalError,
+  InvalidInterval,
+  IntervalInPast,
+  TransactionError,
+  AmbiguousTimeIntervalError,
+  ApplyNoMatchError,
+  UselessTransaction,
+  HashMismatchError,
+  TEIntervalError,
+  TransactionSuccess,
+  TransactionErrorCase,
+  TransactionOutput,
+} from "./transaction.js";

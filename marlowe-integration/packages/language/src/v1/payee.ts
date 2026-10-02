@@ -1,35 +1,47 @@
 import { altJsonCodecs, objectOf, type JsonCodec } from "@konduit/codec/json/codecs";
-import type { Party } from "./participants.js";
-import { Party as PartyNamespace } from "./participants.js";
+import { Party } from "./participants.js";
+
+// Types ---------------------------------------------------------------------
 
 export type AccountId = Party;
 
-export namespace AccountId {
-  export const jsonCodec: JsonCodec<AccountId> = PartyNamespace.jsonCodec;
-}
-
-export interface PayeeAccount {
+export type PayeeAccount = {
   account: AccountId;
+};
+
+export type PayeeParty = {
+  party: AccountId;
+};
+
+export type Payee = PayeeAccount | PayeeParty;
+
+// Codecs + smart constructors ------------------------------------------------
+
+export namespace AccountId {
+  export const jsonCodec: JsonCodec<AccountId> = Party.jsonCodec;
 }
 
+export function PayeeAccount(account: AccountId): PayeeAccount {
+  return { account };
+}
 export namespace PayeeAccount {
   export const jsonCodec: JsonCodec<PayeeAccount> = objectOf({
     account: AccountId.jsonCodec,
   });
 }
 
-export interface PayeeParty {
-  party: AccountId;
+export function PayeeParty(party: AccountId): PayeeParty {
+  return { party };
 }
-
 export namespace PayeeParty {
   export const jsonCodec: JsonCodec<PayeeParty> = objectOf({
     party: AccountId.jsonCodec,
   });
 }
 
-export type Payee = PayeeAccount | PayeeParty;
-
+export function Payee(p: Party): Payee {
+  return { party: p };
+}
 export namespace Payee {
   export const jsonCodec: JsonCodec<Payee> = altJsonCodecs(
     [PayeeAccount.jsonCodec, PayeeParty.jsonCodec],
@@ -37,6 +49,8 @@ export namespace Payee {
       "account" in payee ? serAccount(payee) : serParty(payee)
   );
 }
+
+// Helpers --------------------------------------------------------------------
 
 export type PayeeMatcher<T> = {
   party: (party: Party) => T;

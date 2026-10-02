@@ -51,6 +51,9 @@ nixpkgs.lib.nixosSystem {
       };
 
       virtualisation.vmVariant.virtualisation = {
+        forwardPorts = [
+          { from = "host"; host.port = 18090; guest.port = 8090; }
+        ];
         memorySize = 16 * 1024; # 16 GB
         sharedDirectories.preprod-db = {
           source = hostSnapshot;
@@ -58,7 +61,12 @@ nixpkgs.lib.nixosSystem {
         };
       };
 
-      systemd.services.cardano-node.serviceConfig.UMask = "0007";
+      systemd.services.cardano-node.serviceConfig = {
+        UMask = "0007";
+        KillSignal = "SIGINT";
+        TimeoutStopSec = "infinity"; # default ~90s then SIGKILL, which deletes the marker
+      };
+
       services.cardano-node = {
         enable = true;
         environment = "preprod";
@@ -91,6 +99,7 @@ nixpkgs.lib.nixosSystem {
         enable = true;
         package = runtimePackage;
         networkMagic = networkMagic;
+        openFirewall = true;
         port = 8090;
         database.uri = ''postgresql://marlowe-runtime@/${dbName}'';
       };

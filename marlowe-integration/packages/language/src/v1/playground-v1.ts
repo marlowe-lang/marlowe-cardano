@@ -1,6 +1,28 @@
-import type { Timeout, Value, Party, ChoiceId, Token, Contract, Observation, Action, Payee, Case } from "./index.js";
+import type {
+  Timeout,
+  Value,
+  Party as PartyT,
+  ChoiceId as ChoiceIdT,
+  Token as TokenT,
+  Contract,
+  Observation,
+  Action,
+  Payee,
+  Case as CaseT,
+} from "./index.js";
 
-export type { Timeout, Value, Party, ChoiceId, Token, Contract, Observation, Action, Payee, Case };
+export type {
+  Timeout,
+  Value,
+  PartyT as Party,
+  ChoiceIdT as ChoiceId,
+  TokenT as Token,
+  Contract,
+  Observation,
+  Action,
+  Payee,
+  CaseT as Case,
+};
 
 export type SomeNumber = number | string | bigint;
 
@@ -20,21 +42,21 @@ function coerceNumber(n: SomeNumber): bigint {
   }
 }
 
-export const Address = function (address: string): Party {
+export const Address = function (address: string): PartyT {
   return { address: address };
 };
 
-export const Role = function (roleToken: string): Party {
+export const Role = function (roleToken: string): PartyT {
   return { role_token: roleToken };
 };
 
-export type AccountId = Party;
+export type AccountId = PartyT;
 
-const ChoiceId = function (choiceName: string, choiceOwner: Party): ChoiceId {
+const mkChoiceId = function (choiceName: string, choiceOwner: PartyT): ChoiceIdT {
   return { choice_name: choiceName, choice_owner: choiceOwner };
 };
 
-const Token = function (currencySymbol: string, tokenName: string): Token {
+const mkToken = function (currencySymbol: string, tokenName: string): TokenT {
   var regexp = /^([0-9a-f][0-9a-f])*$/g;
   if (currencySymbol.match(regexp)) {
     return { currency_symbol: currencySymbol, token_name: tokenName };
@@ -43,8 +65,8 @@ const Token = function (currencySymbol: string, tokenName: string): Token {
   }
 };
 
-export const ada: Token = { currency_symbol: "", token_name: "" };
-export const lovelace: Token = { currency_symbol: "", token_name: "" };
+export const ada: TokenT = { currency_symbol: "", token_name: "" };
+export const lovelace: TokenT = { currency_symbol: "", token_name: "" };
 
 export type ValueId = string;
 
@@ -69,7 +91,7 @@ function coerceValue(val: EValue): Value {
   }
 }
 
-export const AvailableMoney = function (token: Token, accountId: AccountId): Value {
+export const AvailableMoney = function (token: TokenT, accountId: AccountId): Value {
   return { amount_of_token: token, in_account: accountId };
 };
 
@@ -97,7 +119,7 @@ export const DivValue = function (lhs: EValue, rhs: EValue): Value {
   return { divide: coerceValue(lhs), by: coerceValue(rhs) };
 };
 
-export const ChoiceValue = function (choiceId: ChoiceId): Value {
+export const ChoiceValue = function (choiceId: ChoiceIdT): Value {
   return { value_of_choice: choiceId };
 };
 
@@ -125,7 +147,7 @@ export const NotObs = function (obs: Observation): Observation {
   return { not: obs };
 };
 
-export const ChoseSomething = function (choiceId: ChoiceId): Observation {
+export const ChoseSomething = function (choiceId: ChoiceIdT): Observation {
   return { chose_something_for: choiceId };
 };
 
@@ -157,7 +179,7 @@ export const Bound = function (boundMin: SomeNumber, boundMax: SomeNumber): { fr
   return { from: coerceNumber(boundMin), to: coerceNumber(boundMax) };
 };
 
-export const Deposit = function (accId: AccountId, party: Party, token: Token, value: EValue): Action {
+export const Deposit = function (accId: AccountId, party: PartyT, token: TokenT, value: EValue): Action {
   return {
     party: party,
     deposits: coerceValue(value),
@@ -166,7 +188,7 @@ export const Deposit = function (accId: AccountId, party: Party, token: Token, v
   };
 };
 
-export const Choice = function (choiceId: ChoiceId, bounds: { from: bigint; to: bigint }[]): Action {
+export const Choice = function (choiceId: ChoiceIdT, bounds: { from: bigint; to: bigint }[]): Action {
   return { choose_between: bounds, for_choice: choiceId };
 };
 
@@ -174,15 +196,15 @@ export const Notify = function (obs: Observation): Action {
   return { notify_if: obs };
 };
 
-export function Account(party: Party): Payee {
+export function Account(party: PartyT): Payee {
   return { account: party };
 }
 
-function Party(party: Party): Payee {
+function Party(party: PartyT): Payee {
   return { party: party };
 }
 
-const Case = function (caseAction: Action, continuation: Contract): Case {
+const Case = function (caseAction: Action, continuation: Contract): CaseT {
   return { case: caseAction, then: continuation };
 };
 
@@ -193,7 +215,7 @@ export const Close: Contract = "close";
 export const Pay = function (
   accId: AccountId,
   payee: Payee,
-  token: Token,
+  token: TokenT,
   value: EValue,
   continuation: Contract
 ): Contract {
@@ -210,7 +232,7 @@ export const If = function (obs: Observation, contThen: Contract, contElse: Cont
   return { if: obs, then: contThen, else: contElse };
 };
 
-export const When = function (cases: Case[], timeout: ETimeout, timeoutCont: Contract): Contract {
+export const When = function (cases: CaseT[], timeout: ETimeout, timeoutCont: Contract): Contract {
   var coercedTimeout: Timeout;
   if (typeof timeout == "object") {
     coercedTimeout = timeout;

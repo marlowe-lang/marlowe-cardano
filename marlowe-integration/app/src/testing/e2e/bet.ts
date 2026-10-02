@@ -5,9 +5,25 @@ import type {
   IDeposit,
   NormalInput,
   Observation,
-  Value,
 } from '@marlowe-lang/language/v1';
-import * as lang from '@marlowe-lang/language/v1';
+import {
+  Address,
+  Bound,
+  Case,
+  Choice,
+  ChoiceId,
+  ChoiceValue,
+  Close,
+  Constant,
+  Deposit,
+  If,
+  lovelace,
+  Party,
+  Pay,
+  PayeeParty,
+  ValueEQ,
+  When,
+} from '@marlowe-lang/language/v1';
 import * as marloweRuntimeCli from '../../marloweRuntimeCli.js';
 import * as cardanoCli from '../../cardanoCli.js';
 import { unwrapOk } from '../neverthrow.js';
@@ -33,47 +49,30 @@ function mkDepositContract(opts: {
   continuation: Contract;
 }): Contract {
   const { partyAddr, amount, timeout, continuation } = opts;
-  return {
-    when: [
-      {
-        case: {
-          party: { address: partyAddr },
-          deposits: amount,
-          of_token: lang.lovelace,
-          into_account: { address: partyAddr },
-        },
-        then: continuation,
-      },
-    ],
-    timeout: BigInt(timeout),
-    timeout_continuation: "close",
-  };
+  const party = Party(Address(partyAddr));
+  return When(
+    [Case(Deposit(party, party, lovelace, amount), continuation)],
+    BigInt(timeout),
+    Close(),
+  );
 }
 
 function mkChoiceContract(opts: {
   partyAddr: AddressBech32;
   choiceName: string;
-  bounds: { from: bigint; to: bigint }[];
+  bounds: Bound[];
   timeout: POSIXMilliseconds;
   continuation: Contract;
 }): Contract {
   const { partyAddr, choiceName, bounds, timeout, continuation } = opts;
-  return {
-    when: [
-      {
-        case: {
-          choose_between: bounds,
-          for_choice: {
-            choice_name: choiceName,
-            choice_owner: { address: partyAddr },
-          },
-        },
-        then: continuation,
-      },
+  const oracle = Party(Address(partyAddr));
+  return When(
+    [
+      Case(Choice(bounds, ChoiceId(choiceName, oracle)), continuation),
     ],
-    timeout: BigInt(timeout),
-    timeout_continuation: "close",
-  };
+    BigInt(timeout),
+    Close(),
+  );
 }
 
 // Builder: the settlement contract. Branches on the oracle's choice value:
@@ -92,33 +91,29 @@ function mkSettlementContract(opts: {
   oracleAddr: AddressBech32;
 }): Contract {
   const { party1Addr, party2Addr, amount, choiceName, party1WinsChoice, party2WinsChoice, oracleAddr } = opts;
+  const oracle = Party(Address(oracleAddr));
+  const choiceValue = ChoiceValue(ChoiceId(choiceName, oracle));
+  const team1Wins = ValueEQ(choiceValue, Constant(party1WinsChoice));
+  const team2Wins = ValueEQ(choiceValue, Constant(party2WinsChoice));
 
-  const choiceValue: Value = {
-    value_of_choice: {
-      choice_name: choiceName,
-      choice_owner: { address: oracleAddr },
-    },
-  };
-  const team1Wins: Observation = { value: choiceValue, equal_to: party1WinsChoice };
-  const team2Wins: Observation = { value: choiceValue, equal_to: party2WinsChoice };
+  const payLoserStakeToWinner = (winner: AddressBech32, loser: AddressBech32): Contract =>
+    Pay(
+      amount,
+      lovelace,
+      Party(Address(loser)),
+      PayeeParty(Party(Address(winner))),
+      Close(),
+    );
 
-  const payLoserStakeToWinner = (winner: AddressBech32, loser: AddressBech32): Contract => ({
-    pay: amount,
-    token: lang.lovelace,
-    from_account: { address: loser },
-    to: { party: { address: winner } },
-    then: "close",
-  });
-
-  return {
-    if: team1Wins,
-    then: payLoserStakeToWinner(party1Addr, party2Addr),
-    else: {
-      if: team2Wins,
-      then: payLoserStakeToWinner(party2Addr, party1Addr),
-      else: "close",
-    },
-  };
+  return If(
+    team1Wins,
+    payLoserStakeToWinner(party1Addr, party2Addr),
+    If(
+      team2Wins,
+      payLoserStakeToWinner(party2Addr, party1Addr),
+      Close(),
+    ),
+  );
 }
 
 // Oracle choice encoding for the bet:
@@ -234,7 +229,7 @@ export const mkContractTimeout = (): POSIXMilliseconds => {
 const mkDepositInput = (partyAddr: AddressBech32, amount: bigint): IDeposit => ({
   input_from_party: { address: partyAddr },
   that_deposits: amount,
-  of_token: lang.lovelace,
+  of_token: lovelace,
   into_account: { address: partyAddr },
 });
 
