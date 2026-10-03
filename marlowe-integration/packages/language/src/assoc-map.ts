@@ -77,3 +77,36 @@ export function strCmp(a: string, b: string): Sort {
 export function member<K, V>(cmp: Linorder<K>, key: K, list: AssocMap<K, V>): boolean {
   return lookup(cmp, key, list) !== undefined;
 }
+
+// Structural array equality. Two arrays are equal when they have the same
+// length and every element at index `i` compares equal under `eq`. The
+// element comparator is the only piece of `areEqual` knowledge that varies
+// per type, so the rest of the `*.areEqual` helpers can stay focused on
+// their own shapes.
+export function arrayAreEqualWith<T>(
+  a: readonly T[],
+  b: readonly T[],
+  eq: (x: T, y: T) => boolean,
+): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (!eq(a[i] as T, b[i] as T)) return false;
+  }
+  return true;
+}
+
+// Lazy `areEqual` thunk — mirrors the lazy `fromCodecThunkFn` pattern used
+// by the JSON codecs. The body is only evaluated the first time the
+// returned comparator is invoked, which lets recursive types (`Value`,
+// `Observation`, `Contract`, ...) close over their own namespaces that are
+// not yet defined at module-evaluation time.
+export function areEqualThunk<T>(
+  thunk: () => (a: T, b: T) => boolean,
+): (a: T, b: T) => boolean {
+  let cached: ((a: T, b: T) => boolean) | undefined;
+  return (a, b) => {
+    if (cached === undefined) cached = thunk();
+    return cached(a, b);
+  };
+}

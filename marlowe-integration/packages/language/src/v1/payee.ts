@@ -19,6 +19,10 @@ export type Payee = PayeeAccount | PayeeParty;
 
 export namespace AccountId {
   export const jsonCodec: JsonCodec<AccountId> = Party.jsonCodec;
+  // `AccountId` is currently a `Party` alias. The helper is wired up so
+  // that moving to a tagged/branded representation later only requires
+  // swapping the body here.
+  export const areEqual = (a: AccountId, b: AccountId): boolean => Party.areEqual(a, b);
 }
 
 export function PayeeAccount(account: AccountId): PayeeAccount {
@@ -28,6 +32,8 @@ export namespace PayeeAccount {
   export const jsonCodec: JsonCodec<PayeeAccount> = objectOf({
     account: AccountId.jsonCodec,
   });
+  export const areEqual = (a: PayeeAccount, b: PayeeAccount): boolean =>
+    AccountId.areEqual(a.account, b.account);
 }
 
 export function PayeeParty(party: AccountId): PayeeParty {
@@ -37,6 +43,8 @@ export namespace PayeeParty {
   export const jsonCodec: JsonCodec<PayeeParty> = objectOf({
     party: AccountId.jsonCodec,
   });
+  export const areEqual = (a: PayeeParty, b: PayeeParty): boolean =>
+    AccountId.areEqual(a.party, b.party);
 }
 
 export function Payee(p: Party): Payee {
@@ -48,6 +56,15 @@ export namespace Payee {
     (serAccount, serParty) => (payee: Payee) =>
       "account" in payee ? serAccount(payee) : serParty(payee)
   );
+  export const areEqual = (a: Payee, b: Payee): boolean => {
+    if ("account" in a && "account" in b) {
+      return PayeeAccount.areEqual(a, b);
+    }
+    if ("party" in a && "party" in b) {
+      return PayeeParty.areEqual(a, b);
+    }
+    return false;
+  };
 }
 
 // Helpers --------------------------------------------------------------------

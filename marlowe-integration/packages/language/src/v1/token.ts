@@ -15,6 +15,11 @@ export type Token = {
 
 export namespace TokenName {
   export const jsonCodec: JsonCodec<TokenName> = json2StringCodec;
+  // `TokenName` is currently a `string` alias. The helper is wired up so
+  // that moving to a tagged/branded representation later only requires
+  // swapping the body here — all call sites already go through
+  // `TokenName.areEqual`.
+  export const areEqual = (a: TokenName, b: TokenName): boolean => a === b;
 }
 
 export function Token(currency_symbol: PolicyId, token_name: TokenName): Token {
@@ -25,6 +30,9 @@ export namespace Token {
     currency_symbol: PolicyId.jsonCodec,
     token_name: TokenName.jsonCodec,
   });
+  export const areEqual = (a: Token, b: Token): boolean =>
+    PolicyId.areEqual(a.currency_symbol, b.currency_symbol) &&
+    TokenName.areEqual(a.token_name, b.token_name);
 }
 
 // Helpers --------------------------------------------------------------------

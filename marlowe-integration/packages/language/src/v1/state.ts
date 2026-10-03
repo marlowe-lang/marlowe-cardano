@@ -5,17 +5,12 @@ import {
   tupleOf,
   type JsonCodec,
 } from "@konduit/codec/json/codecs";
-import type { AssocMap } from "../assoc-map.js";
-import type { AccountId } from "./payee.js";
-import { AccountId as AccountIdNamespace } from "./payee.js";
-import type { ValueId } from "./value-and-observation.js";
-import { ValueId as ValueIdNamespace } from "./value-and-observation.js";
-import type { Token } from "./token.js";
-import { Token as TokenNamespace } from "./token.js";
-import type { ChoiceId } from "./choices.js";
-import { ChoiceId as ChoiceIdNamespace } from "./choices.js";
-import type { Party } from "./participants.js";
-import { Party as PartyNamespace } from "./participants.js";
+import { arrayAreEqualWith, type AssocMap } from "../assoc-map.js";
+import { AccountId } from "./payee.js";
+import { ValueId } from "./value-and-observation.js";
+import { Token } from "./token.js";
+import { ChoiceId } from "./choices.js";
+import { Party } from "./participants.js";
 
 // An `AssocMap<K, V>` is encoded as an array of `[K, V]` pairs. For
 // heterogeneous pairs we use nested `tupleOf` to model the JSON shape
@@ -32,13 +27,26 @@ export function accountsCmp(a: [AccountId, Token], b: [AccountId, Token]): Sort 
   return tokenCmp(a[1], b[1]);
 }
 
+const accountKeyAreEqual = (
+  a: [AccountId, Token],
+  b: [AccountId, Token],
+): boolean => AccountId.areEqual(a[0], b[0]) && Token.areEqual(a[1], b[1]);
+
+const assocMapAreEqual = <K, V>(
+  a: AssocMap<K, V>,
+  b: AssocMap<K, V>,
+  eq: (x: K, y: K) => boolean,
+): boolean => arrayAreEqualWith(a, b, (ae, be) => eq(ae[0], be[0]) && ae[1] === be[1]);
+
 export namespace Accounts {
   export const jsonCodec: JsonCodec<Accounts> = arrayOf(
     tupleOf(
-      tupleOf(AccountIdNamespace.jsonCodec, TokenNamespace.jsonCodec),
+      tupleOf(AccountId.jsonCodec, Token.jsonCodec),
       json2BigIntCodec
     )
   );
+  export const areEqual = (a: Accounts, b: Accounts): boolean =>
+    assocMapAreEqual(a, b, accountKeyAreEqual);
 }
 
 export type MarloweState = {
@@ -51,10 +59,15 @@ export type MarloweState = {
 export namespace MarloweState {
   export const jsonCodec: JsonCodec<MarloweState> = objectOf({
     accounts: Accounts.jsonCodec,
-    boundValues: arrayOf(tupleOf(ValueIdNamespace.jsonCodec, json2BigIntCodec)),
-    choices: arrayOf(tupleOf(ChoiceIdNamespace.jsonCodec, json2BigIntCodec)),
+    boundValues: arrayOf(tupleOf(ValueId.jsonCodec, json2BigIntCodec)),
+    choices: arrayOf(tupleOf(ChoiceId.jsonCodec, json2BigIntCodec)),
     minTime: json2BigIntCodec,
   });
+  export const areEqual = (a: MarloweState, b: MarloweState): boolean =>
+    Accounts.areEqual(a.accounts, b.accounts) &&
+    assocMapAreEqual(a.boundValues, b.boundValues, ValueId.areEqual) &&
+    assocMapAreEqual(a.choices, b.choices, ChoiceId.areEqual) &&
+    a.minTime === b.minTime;
 }
 
 function partyCmp(a: Party, b: Party): Sort {

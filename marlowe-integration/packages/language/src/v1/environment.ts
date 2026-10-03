@@ -17,6 +17,7 @@ export namespace TimeInterval {
     from: json2BigIntCodec,
     to: json2BigIntCodec,
   });
+  export const areEqual = (a: TimeInterval, b: TimeInterval): boolean => a.from === b.from && a.to === b.to;
 }
 
 export type Environment = {
@@ -30,6 +31,8 @@ export namespace Environment {
   export const jsonCodec: JsonCodec<Environment> = objectOf({
     timeInterval: TimeInterval.jsonCodec,
   });
+  export const areEqual = (a: Environment, b: Environment): boolean =>
+    TimeInterval.areEqual(a.timeInterval, b.timeInterval);
 }
 
 // `mkEnvironment` curried helper preserved for backward compatibility.

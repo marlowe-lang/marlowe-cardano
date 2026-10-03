@@ -5,8 +5,9 @@ import * as init from '../../src/testing/e2e/init.js';
 import * as storedInit from '../../src/testing/e2e/storedInit.js';
 import * as storedBet from '../../src/testing/e2e/storedBet.js';
 import * as storeClose from '../../src/testing/store/close.js';
-import * as storeBet from '../../src/testing/store/bet.js';
-import * as storeSelectiveBet from '../../src/testing/store/selectiveBet.js';
+import * as storeFullMerkleization from '../../src/testing/store/fullMerkleization.js';
+import * as storeSelectiveMerkleization from '../../src/testing/store/selectiveMerkleization.js';
+import * as selectiveStoredBet from '../../src/testing/e2e/selectiveStoredBet.js';
 import * as fs from 'node:fs'
 import { AddressBech32, NetworkMagicNumber } from '@konduit/konduit-consumer/cardano';
 import { unwrapOrPanicWith } from '@konduit/konduit-consumer/neverthrow';
@@ -141,12 +142,12 @@ test('Store: upload + query a Close source', { tags: ['store', 'marlowe-runtime-
   await storeClose.run();
 })
 
-test('Store: upload + query a bet source', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-  await storeBet.run();
+test('Store: upload + query a fully merkleized bet source', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
+  await storeFullMerkleization.run();
 })
 
 test('Store: selective merkleization preserves the oracle Choice', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-  await storeSelectiveBet.run();
+  await storeSelectiveMerkleization.run();
 })
 
 test('Store: upload + init the bet from the store by id', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
@@ -168,5 +169,20 @@ test('Store: stored bet e2e flow (upload, init by id, apply inputs)', { tags: ['
     faucet,
     winningChoice: 'no-winners',
     tempDir: storedBetDir,
+  });
+})
+
+test('Store: selectively merkleized bet e2e flow (upload with preserveActions, init by id, apply inputs, verify preservation)', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 300000, }, async () => {
+  const faucet: Wallet = { addr: ctx.env.faucetAddr, skeyFile: ctx.env.faucetSkeyFile };
+  const selectiveStoredBetDir = `${ctx.tempDir}/selective-stored-bet` as Path;
+  if (!fs.existsSync(selectiveStoredBetDir)) fs.mkdirSync(selectiveStoredBetDir, { recursive: true });
+  await selectiveStoredBet.run({
+    amount: 5_000_000n,
+    party1: ctx.party1,
+    party2: ctx.party2,
+    oracle: ctx.oracle,
+    faucet,
+    winningChoice: 'no-winners',
+    tempDir: selectiveStoredBetDir,
   });
 })

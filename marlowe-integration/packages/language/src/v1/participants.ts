@@ -13,16 +13,6 @@ export type Address = {
   address: AddressBech32;
 };
 
-export type RoleName = string;
-
-export type Role = {
-  role_token: RoleName;
-};
-
-export type Party = Address | Role;
-
-// Codecs + smart constructors ------------------------------------------------
-
 export function Address(address: AddressBech32): Address {
   return { address };
 }
@@ -32,28 +22,51 @@ export namespace Address {
   });
 }
 
+export type RoleName = string;
+
 export namespace RoleName {
   export const jsonCodec: JsonCodec<RoleName> = json2StringCodec;
+  export const areEqual = (a: RoleName, b: RoleName): boolean => a === b;
 }
+
+export type Role = {
+  role_token: RoleName;
+};
 
 export function Role(roleToken: RoleName): Role {
   return { role_token: roleToken };
 }
+
 export namespace Role {
   export const jsonCodec: JsonCodec<Role> = objectOf({
     role_token: RoleName.jsonCodec,
   });
+
+  export const areEqual = (a: Role, b: Role): boolean => a.role_token === b.role_token;
 }
+
+export type Party = Address | Role;
 
 export function Party(party: Role | Address): Party {
   return party;
 }
+
 export namespace Party {
   export const jsonCodec: JsonCodec<Party> = altJsonCodecs(
     [Address.jsonCodec, Role.jsonCodec],
     (serAddress, serRole) => (party: Party) =>
       "address" in party ? serAddress(party) : serRole(party)
   );
+
+  export const areEqual = (a: Party, b: Party): boolean => {
+    if ("address" in a && "address" in b) {
+      return AddressBech32.areEqual(a.address, b.address);
+    }
+    if ("role_token" in a && "role_token" in b) {
+      return RoleName.areEqual(a.role_token, b.role_token);
+    }
+    return false;
+  };
 }
 
 // Helpers --------------------------------------------------------------------

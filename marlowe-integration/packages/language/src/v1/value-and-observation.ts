@@ -8,6 +8,7 @@ import {
   type JsonCodec,
 } from "@konduit/codec/json/codecs";
 import type { Json } from "@konduit/codec/json";
+import { areEqualThunk } from "../assoc-map.js";
 import { ChoiceId } from "./choices.js";
 import { AccountId } from "./payee.js";
 import { Token } from "./token.js";
@@ -83,6 +84,23 @@ export namespace Value {
       return serCond(value);
     }
   ));
+  // Lazy for the same reason as `jsonCodec` above: the variant helpers
+  // (`NegValue.areEqual`, `Cond.areEqual`, ...) close over `Value.areEqual`
+  // to recurse into nested sub-expressions.
+  export const areEqual = areEqualThunk<Value>(() => (a, b) => {
+    if (typeof a === "bigint") return typeof b === "bigint" && a === b;
+    if (a === "time_interval_start") return b === "time_interval_start";
+    if (a === "time_interval_end") return b === "time_interval_end";
+    if ("amount_of_token" in a) return "amount_of_token" in b && AvailableMoney.areEqual(a, b);
+    if ("negate" in a) return "negate" in b && NegValue.areEqual(a, b);
+    if ("add" in a) return "add" in b && AddValue.areEqual(a, b);
+    if ("value" in a && "minus" in a) return "value" in b && "minus" in b && SubValue.areEqual(a, b);
+    if ("multiply" in a) return "multiply" in b && MulValue.areEqual(a, b);
+    if ("divide" in a) return "divide" in b && DivValue.areEqual(a, b);
+    if ("value_of_choice" in a) return "value_of_choice" in b && ChoiceValue.areEqual(a, b);
+    if ("use_value" in a) return "use_value" in b && UseValue.areEqual(a, b);
+    return "if" in b && Cond.areEqual(a, b);
+  });
 }
 
 // Core `Observation` type -----------------------------------------------------------
@@ -140,6 +158,24 @@ export namespace Observation {
       return serBool(value);
     }
   ));
+  // Lazy for the same reason as `jsonCodec` above: the variant helpers
+  // close over `Observation.areEqual` to recurse into nested sub-terms.
+  export const areEqual = areEqualThunk<Observation>(() => (a, b) => {
+    if (typeof a === "boolean") return typeof b === "boolean" && a === b;
+    if ("both" in a) return "both" in b && AndObs.areEqual(a, b);
+    if ("either" in a) return "either" in b && OrObs.areEqual(a, b);
+    if ("not" in a) return "not" in b && NotObs.areEqual(a, b);
+    if ("chose_something_for" in a) return "chose_something_for" in b && ChoseSomething.areEqual(a, b);
+    if ("equal_to" in a) return "equal_to" in b && ValueEQ.areEqual(a, b);
+    if ("gt" in a) return "gt" in b && ValueGT.areEqual(a, b);
+    if ("ge_than" in a) return "ge_than" in b && ValueGE.areEqual(a, b);
+    if ("lt" in a) return "lt" in b && ValueLT.areEqual(a, b);
+    if ("le_than" in a) return "le_than" in b && ValueLE.areEqual(a, b);
+    // Unreachable: every object variant was exhausted above, so the only
+    // way to fall through is if `a` is the `boolean` case, which was
+    // already handled.
+    return false;
+  });
 }
 
 // Value variants ----------------------------------------------------------------
@@ -157,6 +193,9 @@ export namespace AvailableMoney {
     amount_of_token: Token.jsonCodec,
     in_account: AccountId.jsonCodec,
   });
+  export const areEqual = (a: AvailableMoney, b: AvailableMoney): boolean =>
+    Token.areEqual(a.amount_of_token, b.amount_of_token) &&
+    AccountId.areEqual(a.in_account, b.in_account);
 }
 
 export type Constant = bigint;
@@ -166,6 +205,10 @@ export function Constant(value: bigint): Constant {
 }
 export namespace Constant {
   export const jsonCodec: JsonCodec<Constant> = json2BigIntCodec;
+  // `Constant` is currently a `bigint` alias. The helper is wired up so
+  // that moving to a tagged/branded representation later only requires
+  // swapping the body here.
+  export const areEqual = (a: Constant, b: Constant): boolean => a === b;
 }
 
 export type TimeIntervalStart = "time_interval_start";
@@ -175,6 +218,7 @@ export function TimeIntervalStart(): TimeIntervalStart {
 }
 export namespace TimeIntervalStart {
   export const jsonCodec: JsonCodec<TimeIntervalStart> = jsonConstant("time_interval_start");
+  export const areEqual = (a: TimeIntervalStart, b: TimeIntervalStart): boolean => a === b;
 }
 
 export type TimeIntervalEnd = "time_interval_end";
@@ -184,6 +228,7 @@ export function TimeIntervalEnd(): TimeIntervalEnd {
 }
 export namespace TimeIntervalEnd {
   export const jsonCodec: JsonCodec<TimeIntervalEnd> = jsonConstant("time_interval_end");
+  export const areEqual = (a: TimeIntervalEnd, b: TimeIntervalEnd): boolean => a === b;
 }
 
 export type NegValue = { negate: Value };
@@ -195,6 +240,7 @@ export namespace NegValue {
   export const jsonCodec: JsonCodec<NegValue> = objectOf({
     negate: Value.jsonCodec,
   });
+  export const areEqual = (a: NegValue, b: NegValue): boolean => Value.areEqual(a.negate, b.negate);
 }
 
 export type AddValue = {
@@ -210,6 +256,8 @@ export namespace AddValue {
     add: Value.jsonCodec,
     and: Value.jsonCodec,
   });
+  export const areEqual = (a: AddValue, b: AddValue): boolean =>
+    Value.areEqual(a.add, b.add) && Value.areEqual(a.and, b.and);
 }
 
 export type SubValue = {
@@ -225,6 +273,8 @@ export namespace SubValue {
     value: Value.jsonCodec,
     minus: Value.jsonCodec,
   });
+  export const areEqual = (a: SubValue, b: SubValue): boolean =>
+    Value.areEqual(a.value, b.value) && Value.areEqual(a.minus, b.minus);
 }
 
 export type MulValue = {
@@ -241,6 +291,8 @@ export namespace MulValue {
     multiply: Value.jsonCodec,
     times: Value.jsonCodec,
   });
+  export const areEqual = (a: MulValue, b: MulValue): boolean =>
+    Value.areEqual(a.multiply, b.multiply) && Value.areEqual(a.times, b.times);
 }
 
 export type DivValue = {
@@ -256,6 +308,8 @@ export namespace DivValue {
     divide: Value.jsonCodec,
     by: Value.jsonCodec,
   });
+  export const areEqual = (a: DivValue, b: DivValue): boolean =>
+    Value.areEqual(a.divide, b.divide) && Value.areEqual(a.by, b.by);
 }
 
 export type ChoiceValue = { value_of_choice: ChoiceId };
@@ -267,6 +321,8 @@ export namespace ChoiceValue {
   export const jsonCodec: JsonCodec<ChoiceValue> = objectOf({
     value_of_choice: ChoiceId.jsonCodec,
   });
+  export const areEqual = (a: ChoiceValue, b: ChoiceValue): boolean =>
+    ChoiceId.areEqual(a.value_of_choice, b.value_of_choice);
 }
 
 export type ValueId = string;
@@ -276,6 +332,10 @@ export function ValueId(value: string): ValueId {
 }
 export namespace ValueId {
   export const jsonCodec: JsonCodec<ValueId> = json2StringCodec;
+  // `ValueId` is currently a `string` alias. The helper is wired up so
+  // that moving to a tagged/branded representation later only requires
+  // swapping the body here.
+  export const areEqual = (a: ValueId, b: ValueId): boolean => a === b;
 }
 
 export type UseValue = {
@@ -289,6 +349,7 @@ export namespace UseValue {
   export const jsonCodec: JsonCodec<UseValue> = objectOf({
     use_value: ValueId.jsonCodec,
   });
+  export const areEqual = (a: UseValue, b: UseValue): boolean => ValueId.areEqual(a.use_value, b.use_value);
 }
 
 export type Cond = {
@@ -306,6 +367,10 @@ export namespace Cond {
     then: Value.jsonCodec,
     else: Value.jsonCodec,
   });
+  export const areEqual = (a: Cond, b: Cond): boolean =>
+    Observation.areEqual(a.if, b.if) &&
+    Value.areEqual(a.then, b.then) &&
+    Value.areEqual(a.else, b.else);
 }
 
 // Observation variants ----------------------------------------------------------------
@@ -323,6 +388,8 @@ export namespace AndObs {
     both: Observation.jsonCodec,
     and: Observation.jsonCodec,
   });
+  export const areEqual = (a: AndObs, b: AndObs): boolean =>
+    Observation.areEqual(a.both, b.both) && Observation.areEqual(a.and, b.and);
 }
 
 export type OrObs = {
@@ -338,6 +405,8 @@ export namespace OrObs {
     either: Observation.jsonCodec,
     or: Observation.jsonCodec,
   });
+  export const areEqual = (a: OrObs, b: OrObs): boolean =>
+    Observation.areEqual(a.either, b.either) && Observation.areEqual(a.or, b.or);
 }
 
 export type NotObs = {
@@ -351,6 +420,7 @@ export namespace NotObs {
   export const jsonCodec = objectOf({
     not: Observation.jsonCodec,
   });
+  export const areEqual = (a: NotObs, b: NotObs): boolean => Observation.areEqual(a.not, b.not);
 }
 
 export type ChoseSomething = {
@@ -364,6 +434,8 @@ export namespace ChoseSomething {
   export const jsonCodec: JsonCodec<ChoseSomething> = objectOf({
     chose_something_for: ChoiceId.jsonCodec,
   });
+  export const areEqual = (a: ChoseSomething, b: ChoseSomething): boolean =>
+    ChoiceId.areEqual(a.chose_something_for, b.chose_something_for);
 }
 
 export type ValueEQ = {
@@ -379,6 +451,8 @@ export namespace ValueEQ {
     value: Value.jsonCodec,
     equal_to: Value.jsonCodec,
   });
+  export const areEqual = (a: ValueEQ, b: ValueEQ): boolean =>
+    Value.areEqual(a.value, b.value) && Value.areEqual(a.equal_to, b.equal_to);
 }
 
 export type ValueGT = {
@@ -394,6 +468,8 @@ export namespace ValueGT {
     value: Value.jsonCodec,
     gt: Value.jsonCodec,
   });
+  export const areEqual = (a: ValueGT, b: ValueGT): boolean =>
+    Value.areEqual(a.value, b.value) && Value.areEqual(a.gt, b.gt);
 }
 export type ValueGE = {
   value: Value;
@@ -408,6 +484,8 @@ export namespace ValueGE {
     value: Value.jsonCodec,
     ge_than: Value.jsonCodec,
   });
+  export const areEqual = (a: ValueGE, b: ValueGE): boolean =>
+    Value.areEqual(a.value, b.value) && Value.areEqual(a.ge_than, b.ge_than);
 }
 
 export type ValueLT = {
@@ -423,6 +501,8 @@ export namespace ValueLT {
     value: Value.jsonCodec,
     lt: Value.jsonCodec,
   });
+  export const areEqual = (a: ValueLT, b: ValueLT): boolean =>
+    Value.areEqual(a.value, b.value) && Value.areEqual(a.lt, b.lt);
 }
 
 export type ValueLE = {
@@ -438,4 +518,6 @@ export namespace ValueLE {
     value: Value.jsonCodec,
     le_than: Value.jsonCodec,
   });
+  export const areEqual = (a: ValueLE, b: ValueLE): boolean =>
+    Value.areEqual(a.value, b.value) && Value.areEqual(a.le_than, b.le_than);
 }

@@ -1,4 +1,5 @@
 import { altJsonCodecs, arrayOf, objectOf, type JsonCodec } from "@konduit/codec/json/codecs";
+import { arrayAreEqualWith } from "../assoc-map.js";
 import { Observation, Value } from "./value-and-observation.js";
 import { Bound, ChoiceId } from "./choices.js";
 import { Party } from "./participants.js";
@@ -18,6 +19,9 @@ export namespace Choice {
     choose_between: arrayOf(Bound.jsonCodec),
     for_choice: ChoiceId.jsonCodec,
   });
+  export const areEqual = (a: Choice, b: Choice): boolean =>
+    arrayAreEqualWith(a.choose_between, b.choose_between, Bound.areEqual) &&
+    ChoiceId.areEqual(a.for_choice, b.for_choice);
 }
 
 export interface Deposit {
@@ -42,6 +46,11 @@ export namespace Deposit {
     of_token: Token.jsonCodec,
     into_account: AccountId.jsonCodec,
   });
+  export const areEqual = (a: Deposit, b: Deposit): boolean =>
+    Party.areEqual(a.party, b.party) &&
+    Value.areEqual(a.deposits, b.deposits) &&
+    Token.areEqual(a.of_token, b.of_token) &&
+    AccountId.areEqual(a.into_account, b.into_account);
 }
 
 export interface Notify {
@@ -55,6 +64,8 @@ export namespace Notify {
   export const jsonCodec: JsonCodec<Notify> = objectOf({
     notify_if: Observation.jsonCodec,
   });
+  export const areEqual = (a: Notify, b: Notify): boolean =>
+    Observation.areEqual(a.notify_if, b.notify_if);
 }
 
 export type Action = Deposit | Choice | Notify;
@@ -73,4 +84,13 @@ export namespace Action {
       return serNotify(action);
     }
   );
+  export const areEqual = (a: Action, b: Action): boolean => {
+    if ("party" in a) {
+      return "party" in b && Deposit.areEqual(a, b);
+    }
+    if ("choose_between" in a) {
+      return "choose_between" in b && Choice.areEqual(a, b);
+    }
+    return "notify_if" in b && Notify.areEqual(a, b);
+  };
 }

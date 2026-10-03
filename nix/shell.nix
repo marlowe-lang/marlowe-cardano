@@ -154,6 +154,7 @@ let
       "/home/paluh/.cache/opencode"
       "/home/paluh/projects/cl/"
       "/home/paluh/programming/cardano/mgdoc"
+      "/home/paluh/programming/purescript/projects/magusai"
       "/tmp"
     ];
     # (builtins.trace (lib.concatStringsSep ", " (lib.attrNames project.hsPkgs.cardano-crypto-class.components.library)) project)

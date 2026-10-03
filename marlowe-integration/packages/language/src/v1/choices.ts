@@ -11,10 +11,29 @@ import { Party } from "./participants.js";
 
 export type ChoiceName = string;
 
+export namespace ChoiceName {
+  export const jsonCodec: JsonCodec<ChoiceName> = json2StringCodec;
+  export const areEqual = (a: ChoiceName, b: ChoiceName): boolean => a === b;
+}
+
 export type ChoiceId = {
   choice_name: ChoiceName;
   choice_owner: Party;
 };
+
+export function ChoiceId(choiceName: ChoiceName, choiceOwner: Party): ChoiceId {
+  return { choice_name: choiceName, choice_owner: choiceOwner };
+}
+
+export namespace ChoiceId {
+  export const jsonCodec: JsonCodec<ChoiceId> = objectOf({
+    choice_name: ChoiceName.jsonCodec,
+    choice_owner: Party.jsonCodec,
+  });
+  export const areEqual = (a: ChoiceId, b: ChoiceId): boolean =>
+    ChoiceName.areEqual(a.choice_name, b.choice_name) &&
+    Party.areEqual(a.choice_owner, b.choice_owner);
+}
 
 export type Bound = {
   from: bigint;
@@ -22,22 +41,6 @@ export type Bound = {
 };
 
 export type ChosenNum = bigint;
-
-// Codecs + smart constructors ------------------------------------------------
-
-export namespace ChoiceName {
-  export const jsonCodec: JsonCodec<ChoiceName> = json2StringCodec;
-}
-
-export function ChoiceId(choiceName: ChoiceName, choiceOwner: Party): ChoiceId {
-  return { choice_name: choiceName, choice_owner: choiceOwner };
-}
-export namespace ChoiceId {
-  export const jsonCodec: JsonCodec<ChoiceId> = objectOf({
-    choice_name: ChoiceName.jsonCodec,
-    choice_owner: Party.jsonCodec,
-  });
-}
 
 export function Bound(from: bigint, to: bigint): Bound {
   return { from, to };
@@ -47,10 +50,15 @@ export namespace Bound {
     from: json2BigIntCodec,
     to: json2BigIntCodec,
   });
+  export const areEqual = (a: Bound, b: Bound): boolean => a.from === b.from && a.to === b.to;
 }
 
 export namespace ChosenNum {
   export const jsonCodec: JsonCodec<ChosenNum> = json2BigIntCodec;
+  // `ChosenNum` is currently a `bigint` alias. The helper is wired up so
+  // that moving to a tagged/branded representation later only requires
+  // swapping the body here.
+  export const areEqual = (a: ChosenNum, b: ChosenNum): boolean => a === b;
 }
 
 // Helpers --------------------------------------------------------------------
