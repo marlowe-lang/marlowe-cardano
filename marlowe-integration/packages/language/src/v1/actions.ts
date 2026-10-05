@@ -5,6 +5,8 @@ import { Bound, ChoiceId } from "./choices.js";
 import { Party } from "./participants.js";
 import { AccountId } from "./payee.js";
 import { Token } from "./token.js";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
 
 export interface Choice {
   choose_between: Bound[];
@@ -71,26 +73,47 @@ export namespace Notify {
 export type Action = Deposit | Choice | Notify;
 
 export namespace Action {
+  export const isDeposit = (action: Action): action is Deposit =>
+    typeof action === "object" && action !== null && "party" in action;
+  export const isChoice = (action: Action): action is Choice =>
+    typeof action === "object" && action !== null && "choose_between" in action;
+  export const isNotify = (action: Action): action is Notify =>
+    typeof action === "object" && action !== null && "notify_if" in action;
+
+  export const match = <T>(
+    action: Action,
+    handlers: {
+      deposit: (v: Deposit) => T,
+      choice: (v: Choice) => T,
+      notify: (v: Notify) => T,
+    },
+  ): T =>
+    isDeposit(action) ? handlers.deposit(action)
+    : isChoice(action) ? handlers.choice(action)
+    : handlers.notify(action);
+
+  export const tryMatch = <T>(
+    action: Action,
+    handlers: {
+      deposit?: (v: Deposit) => T,
+      choice?: (v: Choice) => T,
+      notify?: (v: Notify) => T,
+    },
+  ): Result<T, string> =>
+    isDeposit(action) ? handlers.deposit ? ok(handlers.deposit(action)) : err("Missing deposit handler")
+    : isChoice(action) ? handlers.choice ? ok(handlers.choice(action)) : err("Missing choice handler")
+    : handlers.notify ? ok(handlers.notify(action)) : err("Missing notify handler")
+
   export const jsonCodec: JsonCodec<Action> = altJsonCodecs(
     [Deposit.jsonCodec, Choice.jsonCodec, Notify.jsonCodec],
-    (serDeposit, serChoice, serNotify) => (action: Action) => {
-      if ("party" in action) {
-        return serDeposit(action);
-      }
-      if ("choose_between" in action) {
-        return serChoice(action);
-      }
-      // notify_if
-      return serNotify(action);
-    }
+    (serDeposit, serChoice, serNotify) => (action: Action) => match(action, {
+      deposit: serDeposit,
+      choice: serChoice,
+      notify: serNotify,
+    })
   );
-  export const areEqual = (a: Action, b: Action): boolean => {
-    if ("party" in a) {
-      return "party" in b && Deposit.areEqual(a, b);
-    }
-    if ("choose_between" in a) {
-      return "choose_between" in b && Choice.areEqual(a, b);
-    }
-    return "notify_if" in b && Notify.areEqual(a, b);
-  };
+  export const areEqual = (a: Action, b: Action): boolean =>
+    isDeposit(a) ? isDeposit(b) && Deposit.areEqual(a, b)
+    : isChoice(a) ? isChoice(b) && Choice.areEqual(a, b)
+    : isNotify(b) && Notify.areEqual(a, b);
 }

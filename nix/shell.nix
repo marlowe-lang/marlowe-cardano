@@ -155,6 +155,7 @@ let
       "/home/paluh/projects/cl/"
       "/home/paluh/programming/cardano/mgdoc"
       "/home/paluh/programming/purescript/projects/magusai"
+      "/home/paluh/programming/cardano/mainnet/state-node-preprod/"
       "/tmp"
     ];
     # (builtins.trace (lib.concatStringsSep ", " (lib.attrNames project.hsPkgs.cardano-crypto-class.components.library)) project)

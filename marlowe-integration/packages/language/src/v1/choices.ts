@@ -10,7 +10,9 @@ import { Party } from "./participants.js";
 // Types ---------------------------------------------------------------------
 
 export type ChoiceName = string;
-
+export function ChoiceName(value: string): ChoiceName {
+  return value;
+}
 export namespace ChoiceName {
   export const jsonCodec: JsonCodec<ChoiceName> = json2StringCodec;
   export const areEqual = (a: ChoiceName, b: ChoiceName): boolean => a === b;
@@ -20,11 +22,9 @@ export type ChoiceId = {
   choice_name: ChoiceName;
   choice_owner: Party;
 };
-
 export function ChoiceId(choiceName: ChoiceName, choiceOwner: Party): ChoiceId {
   return { choice_name: choiceName, choice_owner: choiceOwner };
 }
-
 export namespace ChoiceId {
   export const jsonCodec: JsonCodec<ChoiceId> = objectOf({
     choice_name: ChoiceName.jsonCodec,
@@ -39,9 +39,6 @@ export type Bound = {
   from: bigint;
   to: bigint;
 };
-
-export type ChosenNum = bigint;
-
 export function Bound(from: bigint, to: bigint): Bound {
   return { from, to };
 }
@@ -53,6 +50,10 @@ export namespace Bound {
   export const areEqual = (a: Bound, b: Bound): boolean => a.from === b.from && a.to === b.to;
 }
 
+export type ChosenNum = bigint;
+export function ChosenNum(value: bigint): ChosenNum {
+  return value;
+}
 export namespace ChosenNum {
   export const jsonCodec: JsonCodec<ChosenNum> = json2BigIntCodec;
   // `ChosenNum` is currently a `bigint` alias. The helper is wired up so

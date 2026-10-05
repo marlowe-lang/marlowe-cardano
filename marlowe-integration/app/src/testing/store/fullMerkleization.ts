@@ -22,9 +22,10 @@ import {
   When,
 } from '@marlowe-lang/language/v1';
 import type { Contract } from '@marlowe-lang/language/v1';
+import type { MarloweRuntimeConfig } from '../../marloweRuntimeCli.js';
 
 type RunOpts = {
-  serverPort?: number;
+  runtime: MarloweRuntimeConfig;
 };
 
 // FIXME: paluh: round-trip the expanded contract through a real `Contract`
@@ -217,7 +218,8 @@ function structuralEqual(a: unknown, b: unknown): boolean {
 //      get merkleized),
 //   3. report a closure that includes every intermediate id plus the main,
 //   4. round-trip the expanded (de-merkleized) form back to the original.
-export const run = async (_opts: RunOpts = {}): Promise<void> => {
+export const run = async (opts: RunOpts): Promise<void> => {
+  const { runtime } = opts;
   const bundle = [
     { label: 'main', type: 'contract', value: betContract },
   ];
@@ -225,6 +227,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   const uploadResult = marloweRuntimeCli.runUploadContractSource(
     bundle,
     'main',
+    runtime,
     {},
     null,
     true,
@@ -248,6 +251,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // against the original.
   const rawResult = marloweRuntimeCli.runGetContractSource(
     sourceId,
+    runtime,
     { expand: false },
     null,
     true,
@@ -262,6 +266,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // comparison is too strict).
   const expandedResult = marloweRuntimeCli.runGetContractSource(
     sourceId,
+    runtime,
     { expand: true },
     null,
     true,
@@ -283,7 +288,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // contain additional entries produced by the merkleization step.
   const closureResult = marloweRuntimeCli.runGetContractSourceClosure(
     sourceId,
-    {},
+    runtime,
     null,
     true,
   );

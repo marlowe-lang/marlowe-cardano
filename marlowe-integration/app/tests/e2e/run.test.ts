@@ -17,6 +17,7 @@ import { Path } from '../../src/exec.js';
 import * as cardanoCli from '../../src/cardanoCli.js';
 import type { Wallet } from '../../src/cardano.js';
 import { Result } from 'neverthrow';
+import { type MarloweRuntimeConfig } from '../../src/marloweRuntimeCli.js';
 
 const parseEnv = (): TestEnv => {
   const repoRoot = process.env.ROOT_DIR || process.cwd();
@@ -44,6 +45,12 @@ const parseEnv = (): TestEnv => {
     if(!fs.existsSync(faucetSkeyFile)) throw new Error(`FAUCET_SKEY_FILE does not exist: ${faucetSkeyFile}`);
     return faucetSkeyFile as Path;
   })();
+  const marloweRuntimeConfig: MarloweRuntimeConfig = {
+    testnetMagic: networkMagicNumber,
+    serverHost: process.env.MARLOWE_RUNTIME_HOST,
+    serverPort: process.env.MARLOWE_RUNTIME_PORT ? parseInt(process.env.MARLOWE_RUNTIME_PORT, 10) : undefined,
+    socketPath: nodeSocketPath,
+  };
   return {
     faucetAddr,
     faucetSkeyFile,
@@ -52,6 +59,7 @@ const parseEnv = (): TestEnv => {
     preserveTempDir,
     repoRoot,
     slotLength,
+    marloweRuntimeConfig,
   };
 }
 
@@ -63,6 +71,7 @@ type TestEnv = {
   preserveTempDir: boolean;
   repoRoot: string;
   slotLength: number;
+  marloweRuntimeConfig: MarloweRuntimeConfig;
 }
 
 type TestContext = {
@@ -119,17 +128,19 @@ afterAll(async () => {
 })
 
 test('Init lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-  await init.run(ctx.env.faucetAddr, ctx.env.faucetSkeyFile);
+  await init.run(ctx.env.marloweRuntimeConfig, ctx.env.faucetAddr, ctx.env.faucetSkeyFile);
 })
 
 test('Deposit lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-  await deposit.run(ctx.env.faucetAddr, ctx.env.faucetSkeyFile);
+  await deposit.run(ctx.env.marloweRuntimeConfig, ctx.env.faucetAddr, ctx.env.faucetSkeyFile);
 })
 
 test('Bet lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
   const faucet: Wallet = { addr: ctx.env.faucetAddr, skeyFile: ctx.env.faucetSkeyFile };
   await bet.run({
+    runtime: ctx.env.marloweRuntimeConfig,
     amount: 2_000_000n,
+    oracleFee: 100_000n,
     party1: ctx.party1,
     party2: ctx.party2,
     oracle: ctx.oracle,
@@ -139,19 +150,20 @@ test('Bet lifecycle using marloweRuntimeCli', { tags: ['lifecycle', 'marlowe-run
 })
 
 test('Store: upload + query a Close source', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-  await storeClose.run();
+  await storeClose.run({ runtime: ctx.env.marloweRuntimeConfig });
 })
 
 test('Store: upload + query a fully merkleized bet source', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-  await storeFullMerkleization.run();
+  await storeFullMerkleization.run({ runtime: ctx.env.marloweRuntimeConfig });
 })
 
 test('Store: selective merkleization preserves the oracle Choice', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
-  await storeSelectiveMerkleization.run();
+  await storeSelectiveMerkleization.run({ runtime: ctx.env.marloweRuntimeConfig });
 })
 
 test('Store: upload + init the bet from the store by id', { tags: ['store', 'marlowe-runtime-cli'], timeout: 120000, }, async () => {
   await storedInit.run(
+    ctx.env.marloweRuntimeConfig,
     ctx.env.faucetAddr,
     ctx.tempDir
   );
@@ -162,7 +174,9 @@ test('Store: stored bet e2e flow (upload, init by id, apply inputs)', { tags: ['
   const storedBetDir = `${ctx.tempDir}/stored-bet` as Path;
   if (!fs.existsSync(storedBetDir)) fs.mkdirSync(storedBetDir, { recursive: true });
   await storedBet.run({
+    runtime: ctx.env.marloweRuntimeConfig,
     amount: 5_000_000n,
+    oracleFee: 100_000n,
     party1: ctx.party1,
     party2: ctx.party2,
     oracle: ctx.oracle,
@@ -177,7 +191,9 @@ test('Store: selectively merkleized bet e2e flow (upload with preserveActions, i
   const selectiveStoredBetDir = `${ctx.tempDir}/selective-stored-bet` as Path;
   if (!fs.existsSync(selectiveStoredBetDir)) fs.mkdirSync(selectiveStoredBetDir, { recursive: true });
   await selectiveStoredBet.run({
+    runtime: ctx.env.marloweRuntimeConfig,
     amount: 5_000_000n,
+    oracleFee: 100_000n,
     party1: ctx.party1,
     party2: ctx.party2,
     oracle: ctx.oracle,

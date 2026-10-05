@@ -5,7 +5,7 @@
  * at runtime if an object has the expected shape (which is useful for both JavaScript and TypeScript).
 
 ```
-  import { Contract, Party, Value, lovelace, datetoTimeout } from "@marlowe.io/language-core-v1"
+  import { Contract, Party, Timeout, Value, lovelace } from "@marlowe.io/language-core-v1"
 
   // 1 Ada is equal to 1 Million lovelaces. The `n` at the end of the number is JavaScript way of
   // using bigint. Marlowe uses bigint to define Constant values.
@@ -20,7 +20,7 @@
   // also work both in TypeScript and JavaScript
   // const tenADA = { multiply: 10n, times: oneADA};
 
-  // The only difference is when we make a mistake. When we add the explicit annotation we inmediatly
+  // The only difference is when you make a mistake. When we add the explicit annotation we inmediatly
   // get a compiler error close to the problematic code.
 
   // Try to modify "role_token" for "rle_token" in these expressions to see the difference.
@@ -40,7 +40,12 @@
       }
     ],
     "timeout_continuation": "close",
-    "timeout": datetoTimeout(new Date("2024-05-22"))
+    "timeout": Timeout.fromDate(new Date("2024-05-22"))
+  }
+      }
+    ],
+    "timeout_continuation": "close",
+    "timeout": Timeout.fromDate(new Date("2024-05-22"))
   }
 ```
  * @packageDocumentation
@@ -49,19 +54,19 @@
 export { Action, Deposit, Choice, Notify } from "./actions.js";
 export { ChoiceName, ChoiceId, Bound, ChosenNum } from "./choices.js";
 export {
+  Assert,
+  Case,
   Close,
-  Pay,
+  Contract,
   If,
   Let,
-  Assert,
-  Contract,
-  When,
-  NormalCase,
   MerkleizedCase,
-  Case,
+  NormalCase,
+  Pay,
   Timeout,
+  When,
+  WhenAction,
 } from "./contract.js";
-export { datetoTimeout, timeoutToDate } from "./contract.js";
 export { Environment, TimeInterval, mkEnvironment } from "./environment.js";
 
 export type { NormalInput } from "./inputs.js";

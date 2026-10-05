@@ -9,7 +9,6 @@ export type TokenValue = {
   amount: bigint;
   token: Token;
 };
-
 export function TokenValue(amount: bigint, token: Token): TokenValue {
   return { amount, token };
 }
@@ -21,8 +20,6 @@ export namespace TokenValue {
   export const areEqual = (a: TokenValue, b: TokenValue): boolean =>
     a.amount === b.amount && Token.areEqual(a.token, b.token);
 }
-
-// Helpers --------------------------------------------------------------------
 
 export const tokenValue: (amount: bigint) => (token: Token) => TokenValue =
   (amount) => (token) => TokenValue(amount, token);

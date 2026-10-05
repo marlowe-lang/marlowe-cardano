@@ -129,9 +129,13 @@
           # NOTE this is important or the static builds will fail with:
           # Error: pg_config not found
           process-compose-postgres-yaml = pkgs.callPackage ./process-compose/postgres.nix {};
-          marlowe-runtime = pkgs.runCommand "marlowe-runtime" { } ''
+          marlowe-runtime = pkgs.runCommand "marlowe-runtime" {
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+          } ''
             mkdir -p $out/bin
-            ln -s ${projectFlake.packages."marlowe-runtime:exe:server"}/bin/server $out/bin/marlowe-runtime
+            makeWrapper ${projectFlake.packages."marlowe-runtime:exe:server"}/bin/server \
+              $out/bin/marlowe-runtime \
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.z3 ]}
           '';
           marlowe-indexer = pkgs.runCommand "marlowe-indexer" { } ''
             mkdir -p $out/bin

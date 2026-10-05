@@ -11,6 +11,7 @@ import { toAsync } from '@konduit/konduit-consumer/neverthrow';
 import { waitPatientlyForResultAsync } from '../../neverthrow.js';
 import { ApplyInputsResponse, ContractId, ContractState } from '@marlowe-lang/runtime/client';
 import { okAsync } from 'neverthrow';
+import type { MarloweRuntimeConfig } from '../../marloweRuntimeCli.js';
 
 // Delayed "close"
 function mkContract(timeout: POSIXMilliseconds): Contract {
@@ -22,11 +23,15 @@ function mkContract(timeout: POSIXMilliseconds): Contract {
 }
 
 // Let's port the above to a much simpler flow which uses our marloweRuntimeCli client.
-export const run = async (faucetAddr: AddressBech32, faucetSkeyFile: Path) => {
+export const run = async (
+  config: MarloweRuntimeConfig,
+  faucetAddr: AddressBech32,
+  faucetSkeyFile: Path,
+) => {
   const timeout = unwrapOk(POSIXMilliseconds.addMilliseconds(POSIXMilliseconds.now(), Milliseconds.fromDigits(6, 0, 0, 0, 0, 0)));
   const contract = mkContract(timeout);
   const result = await
-    toAsync(marloweRuntimeCli.runInit(contract, faucetAddr, {}, null, true))
+    toAsync(marloweRuntimeCli.runInit(contract, faucetAddr, config, {}, null, true))
     .andThen((response) => cardanoCli.signTxEnvelope(faucetSkeyFile, response.tx).map((signedTxEnvelope) => {
         return {
           contractId: response.contractId,
@@ -35,7 +40,7 @@ export const run = async (faucetAddr: AddressBech32, faucetSkeyFile: Path) => {
       }))
     .andThen(({ txEnvelope, contractId }) => cardanoCli.submitTxEnvelope(txEnvelope).map(() => contractId))
     .andThen((contractId) => waitPatientlyForResultAsync(
-        () => toAsync(marloweRuntimeCli.runGet(contractId, {}, null, true)),
+        () => toAsync(marloweRuntimeCli.runGet(contractId, config, {}, null, true)),
         (_res: ContractState) => true,
         { timeoutMs: 120_000, everyMs: 5_000 }
       ),

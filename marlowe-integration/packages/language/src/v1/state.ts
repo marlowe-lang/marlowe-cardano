@@ -16,6 +16,42 @@ import { Party } from "./participants.js";
 // heterogeneous pairs we use nested `tupleOf` to model the JSON shape
 // `[ [K1, K2], V ]`.
 export type Accounts = AssocMap<[AccountId, Token], bigint>;
+export function Accounts(entries: ReadonlyArray<[[AccountId, Token], bigint]>): Accounts {
+  return entries.map(([k, v]) => [k, v] as [[AccountId, Token], bigint]);
+}
+export namespace Accounts {
+  export const jsonCodec: JsonCodec<Accounts> = arrayOf(
+    tupleOf(
+      tupleOf(AccountId.jsonCodec, Token.jsonCodec),
+      json2BigIntCodec
+    )
+  );
+  export const areEqual = (a: Accounts, b: Accounts): boolean =>
+    assocMapAreEqual(a, b, accountKeyAreEqual);
+}
+
+export type MarloweState = {
+  accounts: Accounts;
+  boundValues: AssocMap<ValueId, bigint>;
+  choices: AssocMap<ChoiceId, bigint>;
+  minTime: bigint;
+};
+export function MarloweState(accounts: Accounts, boundValues: AssocMap<ValueId, bigint>, choices: AssocMap<ChoiceId, bigint>, minTime: bigint): MarloweState {
+  return { accounts, boundValues, choices, minTime };
+}
+export namespace MarloweState {
+  export const jsonCodec: JsonCodec<MarloweState> = objectOf({
+    accounts: Accounts.jsonCodec,
+    boundValues: arrayOf(tupleOf(ValueId.jsonCodec, json2BigIntCodec)),
+    choices: arrayOf(tupleOf(ChoiceId.jsonCodec, json2BigIntCodec)),
+    minTime: json2BigIntCodec,
+  });
+  export const areEqual = (a: MarloweState, b: MarloweState): boolean =>
+    Accounts.areEqual(a.accounts, b.accounts) &&
+    assocMapAreEqual(a.boundValues, b.boundValues, ValueId.areEqual) &&
+    assocMapAreEqual(a.choices, b.choices, ChoiceId.areEqual) &&
+    a.minTime === b.minTime;
+}
 
 type Sort = "GreaterThan" | "LowerThan" | "EqualTo";
 
@@ -37,38 +73,6 @@ const assocMapAreEqual = <K, V>(
   b: AssocMap<K, V>,
   eq: (x: K, y: K) => boolean,
 ): boolean => arrayAreEqualWith(a, b, (ae, be) => eq(ae[0], be[0]) && ae[1] === be[1]);
-
-export namespace Accounts {
-  export const jsonCodec: JsonCodec<Accounts> = arrayOf(
-    tupleOf(
-      tupleOf(AccountId.jsonCodec, Token.jsonCodec),
-      json2BigIntCodec
-    )
-  );
-  export const areEqual = (a: Accounts, b: Accounts): boolean =>
-    assocMapAreEqual(a, b, accountKeyAreEqual);
-}
-
-export type MarloweState = {
-  accounts: Accounts;
-  boundValues: AssocMap<ValueId, bigint>;
-  choices: AssocMap<ChoiceId, bigint>;
-  minTime: bigint;
-};
-
-export namespace MarloweState {
-  export const jsonCodec: JsonCodec<MarloweState> = objectOf({
-    accounts: Accounts.jsonCodec,
-    boundValues: arrayOf(tupleOf(ValueId.jsonCodec, json2BigIntCodec)),
-    choices: arrayOf(tupleOf(ChoiceId.jsonCodec, json2BigIntCodec)),
-    minTime: json2BigIntCodec,
-  });
-  export const areEqual = (a: MarloweState, b: MarloweState): boolean =>
-    Accounts.areEqual(a.accounts, b.accounts) &&
-    assocMapAreEqual(a.boundValues, b.boundValues, ValueId.areEqual) &&
-    assocMapAreEqual(a.choices, b.choices, ChoiceId.areEqual) &&
-    a.minTime === b.minTime;
-}
 
 function partyCmp(a: Party, b: Party): Sort {
   if ("role_token" in a && !("role_token" in b)) {

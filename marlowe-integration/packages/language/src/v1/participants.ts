@@ -5,6 +5,8 @@
  */
 import type { Sort } from "../assoc-map.js";
 import { altJsonCodecs, json2StringCodec, objectOf, type JsonCodec } from "@konduit/codec/json/codecs";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
 import { AddressBech32 } from "./address.js";
 
 // Types ---------------------------------------------------------------------
@@ -23,7 +25,9 @@ export namespace Address {
 }
 
 export type RoleName = string;
-
+export function RoleName(value: string): RoleName {
+  return value;
+}
 export namespace RoleName {
   export const jsonCodec: JsonCodec<RoleName> = json2StringCodec;
   export const areEqual = (a: RoleName, b: RoleName): boolean => a === b;
@@ -52,21 +56,41 @@ export function Party(party: Role | Address): Party {
 }
 
 export namespace Party {
+  export const isAddress = (party: Party): party is Address =>
+    typeof party === "object" && party !== null && "address" in party;
+  export const isRole = (party: Party): party is Role =>
+    typeof party === "object" && party !== null && "role_token" in party;
+
+  export const match = <T>(
+    party: Party,
+    handlers: {
+      address: (v: Address) => T,
+      role: (v: Role) => T,
+    },
+  ): T =>
+    isAddress(party) ? handlers.address(party) : handlers.role(party);
+
+  export const tryMatch = <T>(
+    party: Party,
+    handlers: {
+      address?: (v: Address) => T,
+      role?: (v: Role) => T,
+    },
+  ): Result<T, string> =>
+    isAddress(party) ? handlers.address ? ok(handlers.address(party)) : err("Missing address handler")
+    : handlers.role ? ok(handlers.role(party)) : err("Missing role handler");
+
   export const jsonCodec: JsonCodec<Party> = altJsonCodecs(
     [Address.jsonCodec, Role.jsonCodec],
-    (serAddress, serRole) => (party: Party) =>
-      "address" in party ? serAddress(party) : serRole(party)
+    (serAddress, serRole) => (party: Party) => match(party, {
+      address: serAddress,
+      role: serRole,
+    })
   );
 
-  export const areEqual = (a: Party, b: Party): boolean => {
-    if ("address" in a && "address" in b) {
-      return AddressBech32.areEqual(a.address, b.address);
-    }
-    if ("role_token" in a && "role_token" in b) {
-      return RoleName.areEqual(a.role_token, b.role_token);
-    }
-    return false;
-  };
+  export const areEqual = (a: Party, b: Party): boolean =>
+    isAddress(a) ? isAddress(b) && AddressBech32.areEqual(a.address, b.address)
+    : isRole(b) && RoleName.areEqual(a.role_token, b.role_token);
 }
 
 // Helpers --------------------------------------------------------------------

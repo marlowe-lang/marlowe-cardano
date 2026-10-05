@@ -4,9 +4,10 @@ import { unwrapOrPanicWith } from '@konduit/konduit-consumer/neverthrow';
 import type { Json } from '@konduit/codec/json';
 import { stringify as jsonStringify } from '@konduit/codec/json';
 import type { PostContractSourceResponse } from '@marlowe-lang/runtime/client';
+import type { MarloweRuntimeConfig } from '../../marloweRuntimeCli.js';
 
 type RunOpts = {
-  serverPort?: number;
+  runtime: MarloweRuntimeConfig;
 };
 
 // Exercises the simplest possible contract source: a `Close` wrapped in a
@@ -15,7 +16,8 @@ type RunOpts = {
 //   2. return the same contract back from `GET /contracts/sources/{id}`,
 //   3. report an empty adjacency set,
 //   4. report a closure containing exactly the source itself.
-export const run = async (_opts: RunOpts = {}): Promise<void> => {
+export const run = async (opts: RunOpts): Promise<void> => {
+  const { runtime } = opts;
   const bundle = [
     { label: 'main', type: 'contract', value: 'close' },
   ];
@@ -23,6 +25,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   const uploadResult: Result<PostContractSourceResponse, unknown> = await marloweRuntimeCli.runUploadContractSource(
     bundle,
     'main',
+    runtime,
     {},
     null,
     true,
@@ -50,6 +53,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // GET raw (no expand)
   const rawResult = await marloweRuntimeCli.runGetContractSource(
     sourceId,
+    runtime,
     { expand: false },
     null,
     true,
@@ -65,6 +69,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // GET expanded (the demerkleized form should also be "close")
   const expandedResult = await marloweRuntimeCli.runGetContractSource(
     sourceId,
+    runtime,
     { expand: true },
     null,
     true,
@@ -80,7 +85,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // Adjacency: a self-contained `Close` has no neighbours.
   const adjacencyResult = await marloweRuntimeCli.runGetContractSourceAdjacency(
     sourceId,
-    {},
+    runtime,
     null,
     true,
   );
@@ -95,7 +100,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
   // Closure: should contain only the source itself.
   const closureResult = await marloweRuntimeCli.runGetContractSourceClosure(
     sourceId,
-    {},
+    runtime,
     null,
     true,
   );

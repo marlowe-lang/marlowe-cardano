@@ -8,7 +8,6 @@ export type TimeInterval = {
   from: bigint;
   to: bigint;
 };
-
 export function TimeInterval(from: bigint, to: bigint): TimeInterval {
   return { from, to };
 }
@@ -23,7 +22,6 @@ export namespace TimeInterval {
 export type Environment = {
   timeInterval: TimeInterval;
 };
-
 export function Environment(timeInterval: TimeInterval): Environment {
   return { timeInterval };
 }
@@ -35,7 +33,6 @@ export namespace Environment {
     TimeInterval.areEqual(a.timeInterval, b.timeInterval);
 }
 
-// `mkEnvironment` curried helper preserved for backward compatibility.
 export const mkEnvironment =
   (start: Date) =>
   (end: Date): Environment =>

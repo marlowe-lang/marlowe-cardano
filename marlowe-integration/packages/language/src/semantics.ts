@@ -3,24 +3,24 @@
  * to simulate/test a contract.
  ```
  import * as G from "@marlowe.io/language-core-v1/guards";
- import { datetoTimeout } from "@marlowe.io/language-core-v1";
+ import { Timeout } from "@marlowe.io/language-core-v1";
  import { playTrace } from "@marlowe.io/language-core-v1/semantics";
  import { role, lovelace } from "@marlowe.io/language-core-v1/playground-v1";
  import { escrow } from "@marlowe.io/language-examples";
 
  const contract = escrow({
    price: 100,
-   depositTimeout: datetoTimeout(new Date("2050-06-01T00:00:00Z")),
-   disputeTimeout: datetoTimeout(new Date("2050-06-02T00:00:00Z")),
-   answerTimeout: datetoTimeout(new Date("2050-06-03T00:00:00Z")),
-   arbitrageTimeout: datetoTimeout(new Date("2050-06-04T00:00:00Z")),
+   depositTimeout: Timeout.fromDate(new Date("2050-06-01T00:00:00Z")),
+   disputeTimeout: Timeout.fromDate(new Date("2050-06-02T00:00:00Z")),
+   answerTimeout: Timeout.fromDate(new Date("2050-06-03T00:00:00Z")),
+   arbitrageTimeout: Timeout.fromDate(new Date("2050-06-04T00:00:00Z")),
  });
 
  const txs = [
    {
      tx_interval: {
-       from: datetoTimeout(new Date("2050-05-01T00:00:00Z")),
-       to: datetoTimeout(new Date("2050-05-02T00:00:00Z")),
+       from: Timeout.fromDate(new Date("2050-05-01T00:00:00Z")),
+       to: Timeout.fromDate(new Date("2050-05-02T00:00:00Z")),
      },
      tx_inputs: [
        {
@@ -41,7 +41,7 @@
  ];
 
  const txOut = playTrace(
-   datetoTimeout(new Date("2000-06-01T00:00:00Z")),
+   Timeout.fromDate(new Date("2000-06-01T00:00:00Z")),
    contract,
    txs
  );

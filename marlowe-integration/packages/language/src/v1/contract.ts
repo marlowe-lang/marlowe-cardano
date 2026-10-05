@@ -9,73 +9,15 @@ import {
   type JsonError,
 } from "@konduit/codec/json/codecs";
 import { fromCodecThunkFn } from "@konduit/codec";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
 import { areEqualThunk, arrayAreEqualWith } from "../assoc-map.js";
 import { Observation, Value, ValueId } from "./value-and-observation.js";
 import { AccountId, Payee } from "./payee.js";
 import { Token } from "./token.js";
-import { Action } from "./actions.js";
+import { Action, Choice, Deposit, Notify } from "./actions.js";
 
-// Namespaces are sensitive to the order of declaration, so the recursive
-// `Contract` namespace is declared first via `fromCodecThunkFn`. The other
-// namespaces (`Pay`, `If`, `Let`, `Assert`, `NormalCase`, `When`) then
-// capture the codec reference at definition time. `objectOf` only stores
-// field codecs — the recursion is only triggered when the codec is
-// actually invoked, by which time the thunk has been resolved.
-
-// Core `Contract` type --------------------------------------------------------
-
-export type Close = "close";
-
-export type Pay = {
-  pay: Value;
-  token: Token;
-  from_account: AccountId;
-  to: Payee;
-  then: Contract;
-};
-
-export type If = {
-  if: Observation;
-  then: Contract;
-  else: Contract;
-};
-
-export type Let = {
-  let: ValueId;
-  be: Value;
-  then: Contract;
-};
-
-export type Assert = {
-  assert: Observation;
-  then: Contract;
-};
-
-export type When = {
-  when: Case[];
-  timeout: Timeout;
-  timeout_continuation: Contract;
-};
-
-export type NormalCase = NormalCaseImpl;
-export type MerkleizedCase = MerkleizedCaseImpl;
-export type Case = NormalCase | MerkleizedCase;
-export type Timeout = bigint;
 export type Contract = Assert | Close | If | Let | Pay | When;
-
-// Internal type aliases used to keep the implementation types and the public
-// type names distinct while we wire up the codec namespaces. (TS merges the
-// `type X = ...` and `namespace X { ... }` declarations, so we cannot reuse
-// the same name for both a recursive type alias and a non-recursive impl.)
-type NormalCaseImpl = {
-  case: Action;
-  then: Contract;
-};
-type MerkleizedCaseImpl = {
-  case: Action;
-  merkleized_then: string;
-};
-
 export namespace Contract {
   export const isAssert = (contract: Contract): contract is Assert => typeof contract === "object" && "assert" in contract;
   export const isClose = (contract: Contract): contract is Close => contract === "close";
@@ -91,6 +33,17 @@ export namespace Contract {
     : isLet(contract) ? handlers.let(contract)
     : isPay(contract) ? handlers.pay(contract)
     : handlers.when(contract)
+
+  export const tryMatch = <T>(contract: Contract, handlers: { assert?: (assert: Assert) => T, close?: (close: Close) => T, if?: (if_: If) => T, let?: (let_: Let) => T, pay?: (pay: Pay) => T, when?: (when: When) => T }): Result<T, string> =>
+    isAssert(contract) ? handlers.assert ? ok(handlers.assert(contract)) : err("Missing assert handler")
+    : isClose(contract) ? handlers.close ? ok(handlers.close(contract)) : err("Missing close handler")
+    : isIf(contract) ? handlers.if ? ok(handlers.if(contract)) : err("Missing if handler")
+    : isLet(contract) ? handlers.let ? ok(handlers.let(contract)) : err("Missing let handler")
+    : isPay(contract) ? handlers.pay ? ok(handlers.pay(contract)) : err("Missing pay handler")
+    : handlers.when ? ok(handlers.when(contract)) : err("Missing when handler")
+
+  export const tryMatchAndThen = <T>(contract: Contract, handlers: { assert?: (assert: Assert) => Result<T, string>, close?: (close: Close) => Result<T, string>, if?: (if_: If) => Result<T, string>, let?: (let_: Let) => Result<T, string>, pay?: (pay: Pay) => Result<T, string>, when?: (when: When) => Result<T, string> }): Result<T, string> =>
+    tryMatch(contract, handlers).andThen(result => result);
 
   export const areEqual = areEqualThunk<Contract>(() => (a, b) =>
     isAssert(a) ? isAssert(b) && Assert.areEqual(a, b)
@@ -116,9 +69,7 @@ export namespace Contract {
   );
 }
 
-// Smart constructors — same name as the type and the namespace.
-// `function` declarations (not `const`) are required so they can share
-// the name with the type/namespace triple.
+export type Close = "close";
 
 export function Close(): Close {
   return "close";
@@ -128,6 +79,13 @@ export namespace Close {
   export const areEqual = (a: Close, b: Close): boolean => a === b;
 }
 
+export type Pay = {
+  pay: Value;
+  token: Token;
+  from_account: AccountId;
+  to: Payee;
+  then: Contract;
+};
 export function Pay(
   pay: Value,
   token: Token,
@@ -153,6 +111,11 @@ export namespace Pay {
     Contract.areEqual(a.then, b.then);
 }
 
+export type If = {
+  if: Observation;
+  then: Contract;
+  else: Contract;
+};
 export function If(ifObs: Observation, thenCont: Contract, elseCont: Contract): If {
   return { if: ifObs, then: thenCont, else: elseCont };
 }
@@ -168,6 +131,11 @@ export namespace If {
     Contract.areEqual(a.else, b.else);
 }
 
+export type Let = {
+  let: ValueId;
+  be: Value;
+  then: Contract;
+};
 export function Let(letId: ValueId, be: Value, then: Contract): Let {
   return { let: letId, be, then };
 }
@@ -183,6 +151,10 @@ export namespace Let {
     Contract.areEqual(a.then, b.then);
 }
 
+export type Assert = {
+  assert: Observation;
+  then: Contract;
+};
 export function Assert(assertObs: Observation, then: Contract): Assert {
   return { assert: assertObs, then };
 }
@@ -195,20 +167,13 @@ export namespace Assert {
     Observation.areEqual(a.assert, b.assert) && Contract.areEqual(a.then, b.then);
 }
 
-export namespace Timeout {
-  export const jsonCodec: JsonCodec<Timeout> = json2BigIntCodec;
-  // `Timeout` is currently a `bigint` alias. The helper is wired up so
-  // that moving to a tagged/branded representation later only requires
-  // swapping the body here.
-  export const areEqual = (a: Timeout, b: Timeout): boolean => a === b;
-}
+export type NormalCase = {
+  case: Action;
+  then: Contract;
+};
 
-export function datetoTimeout(date: Date): Timeout {
-  return BigInt(Math.floor(date.getTime() / 1000) * 1000);
-}
-
-export function timeoutToDate(timeout: Timeout): Date {
-  return new Date(Number(timeout));
+export function NormalCase(caseAction: Action, then: Contract): NormalCase {
+  return { case: caseAction, then };
 }
 
 export namespace NormalCase {
@@ -216,13 +181,20 @@ export namespace NormalCase {
     case: Action.jsonCodec,
     then: Contract.jsonCodec,
   });
+
   export const areEqual = (a: NormalCase, b: NormalCase): boolean =>
     Action.areEqual(a.case, b.case) && Contract.areEqual(a.then, b.then);
 }
 
-export function MerkleizedCase(caseAction: Action, merkleized_then: string): Case {
+export type MerkleizedCase = {
+  case: Action;
+  merkleized_then: string;
+};
+
+export function MerkleizedCase(caseAction: Action, merkleized_then: string): MerkleizedCase {
   return { case: caseAction, merkleized_then };
 }
+
 export namespace MerkleizedCase {
   export const jsonCodec: JsonCodec<MerkleizedCase> = objectOf({
     case: Action.jsonCodec,
@@ -232,14 +204,24 @@ export namespace MerkleizedCase {
     Action.areEqual(a.case, b.case) && a.merkleized_then === b.merkleized_then;
 }
 
-export function Case(caseAction: Action, continuation: Contract): Case {
-  return { case: caseAction, then: continuation };
+export type Case = NormalCase | MerkleizedCase;
+
+export function Case(caseAction: Action, continuation: Contract | string): Case {
+  if (typeof continuation === "string" && continuation !== Close()) {
+    return MerkleizedCase(caseAction, continuation);
+  }
+  return NormalCase(caseAction, continuation);
 }
+
 export namespace Case {
   export const isNormalCase = (c: Case): c is NormalCase => "then" in c;
   export const isMerkleizedCase = (c: Case): c is MerkleizedCase => "merkleized_then" in c;
   export const match = <T>(c: Case, handlers: { normal: (normalCase: NormalCase) => T, merkleized: (merkleizedCase: MerkleizedCase) => T }): T =>
     isNormalCase(c) ? handlers.normal(c) : handlers.merkleized(c);
+
+  export const tryMatch = <T>(c: Case, handlers: { normal?: (normalCase: NormalCase) => T, merkleized?: (merkleizedCase: MerkleizedCase) => T }): Result<T, string> =>
+    isNormalCase(c) ? handlers.normal ? ok(handlers.normal(c)) : err("Missing normal handler")
+    : handlers.merkleized ? ok(handlers.merkleized(c)) : err("Missing merkleized handler");
 
   export const jsonCodec: JsonCodec<Case> = altJsonCodecs(
     [NormalCase.jsonCodec, MerkleizedCase.jsonCodec],
@@ -252,17 +234,91 @@ export namespace Case {
       : isMerkleizedCase(b) && MerkleizedCase.areEqual(a, b);
 }
 
-export function When(cases: Case[], timeout: Timeout, timeoutCont: Contract): When {
-  return { when: cases, timeout, timeout_continuation: timeoutCont };
+export type Timeout = bigint;
+
+export namespace Timeout {
+  export const jsonCodec: JsonCodec<Timeout> = json2BigIntCodec;
+  // `Timeout` is currently a `bigint` alias. The helper is wired up so
+  // that moving to a tagged/branded representation later only requires
+  // swapping the body here.
+  export const areEqual = (a: Timeout, b: Timeout): boolean => a === b;
+  export const fromDate = (date: Date): Timeout =>
+    BigInt(Math.floor(date.getTime() / 1000) * 1000);
+  export const toDate = (timeout: Timeout): Date => new Date(Number(timeout));
 }
+
+// When ------------------------------------------------------------------------
+
+export type When = {
+  when: Case[];
+  timeout: Timeout;
+  timeout_continuation: Contract;
+};
+
+export function When(cases: Case[], timeout: Timeout, timeoutCont?: Contract): When {
+  return { when: cases, timeout, timeout_continuation: timeoutCont ?? Close() };
+}
+
+// Helper constructor for creating `When` contract with a single case.
+// The order of arguments is chosen to make continuation nesting more ergonomic:
+// ```
+//   WhenAction(
+//     Deposit(party1, party1, lovelace, amount),
+//     timeout,
+//     WhenAction(
+//       Choice([{ from: NO_WINNERS, to: TEAM_2_WINS }], ChoiceId(CHOICE_NAME, oracle)),
+//       timeout,
+//       // continuation,
+//     )
+//    )
+//  ```
+
+export function WhenAction(action: Deposit | Choice | Notify, timeout: Timeout, continuation: Contract, timeoutCont?: Contract): When {
+  return When(
+    [Case(action, continuation)],
+    timeout,
+    timeoutCont ?? Close()
+  );
+}
+
 export namespace When {
   export const jsonCodec: JsonCodec<When> = objectOf({
     when: arrayOf(Case.jsonCodec),
     timeout: Timeout.jsonCodec,
     timeout_continuation: Contract.jsonCodec,
   });
+
   export const areEqual = (a: When, b: When): boolean =>
     arrayAreEqualWith(a.when, b.when, Case.areEqual) &&
     Timeout.areEqual(a.timeout, b.timeout) &&
     Contract.areEqual(a.timeout_continuation, b.timeout_continuation);
+
+  const id = <T>(x: T): T => x;
+
+  // Matching over singleton When cases.
+  export const matchNormalCase = (c: Contract): Result<[NormalCase, Timeout, Contract], JsonError> =>
+    Contract.tryMatch(c, { when: id })
+      .andThen(({ when: cases, timeout, timeout_continuation }) => {
+        if (cases.length !== 1) {
+          return err(`Expected exactly one case in the When, but got ${cases.length}`);
+        }
+        return Case.tryMatch(cases[0], { normal: id }).map(normalCase =>
+          [normalCase, timeout, timeout_continuation] as [NormalCase, Timeout, Contract]
+        );
+      });
+
+  export const matchDeposit = (c: Contract): Result<[Deposit, Contract, Timeout, Contract], JsonError> =>
+    matchNormalCase(c)
+      .andThen(([{ case: action, then }, t , tc]) => Action.tryMatch(action, { deposit: id })
+        .map(deposit => [deposit, then, t, tc] as [Deposit, Contract, Timeout, Contract]));
+
+  export const matchChoice = (c: Contract): Result<[Choice, Contract, Timeout, Contract], JsonError> =>
+    matchNormalCase(c)
+      .andThen(([{ case: action, then }, t, tc]) => Action.tryMatch(action, { choice: id })
+        .map(choice => [choice, then, t, tc] as [Choice, Contract, Timeout, Contract]));
+
+  export const matchNotify = (c: Contract): Result<[Notify, Contract, Timeout, Contract], JsonError> =>
+    matchNormalCase(c)
+      .andThen(([{ case: action, then }, t, tc]) => Action.tryMatch(action, { notify: id })
+        .map(notify => [notify, then, t, tc] as [Notify, Contract, Timeout, Contract]));
 }

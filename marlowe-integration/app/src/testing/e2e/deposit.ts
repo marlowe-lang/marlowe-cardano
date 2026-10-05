@@ -10,6 +10,7 @@ import type { Path } from '../../exec.js';
 import { toAsync } from '@konduit/konduit-consumer/neverthrow';
 import { waitPatientlyForResultAsync } from '../../neverthrow.js';
 import { ApplyInputsResponse, ContractId, ContractState } from '@marlowe-lang/runtime/client';
+import type { MarloweRuntimeConfig } from '../../marloweRuntimeCli.js';
 
 function mkContract(partyAddr: AddressBech32, timeout: POSIXMilliseconds): Contract {
   return {
@@ -30,11 +31,15 @@ function mkContract(partyAddr: AddressBech32, timeout: POSIXMilliseconds): Contr
 }
 
 // Let's port the above to a much simpler flow which uses our marloweRuntimeCli client.
-export const run = async (faucetAddr: AddressBech32, faucetSkeyFile: Path) => {
+export const run = async (
+  config: MarloweRuntimeConfig,
+  faucetAddr: AddressBech32,
+  faucetSkeyFile: Path,
+) => {
   const timeout = unwrapOk(POSIXMilliseconds.addMilliseconds(POSIXMilliseconds.now(), Milliseconds.fromDigits(6, 0, 0, 0, 0)));
   const contract = mkContract(faucetAddr, timeout);
   const result = await
-    toAsync(marloweRuntimeCli.runInit(contract, faucetAddr, {}, null, true))
+    toAsync(marloweRuntimeCli.runInit(contract, faucetAddr, config, {}, null, true))
     .andThen((response) => cardanoCli.signTxEnvelope(faucetSkeyFile, response.tx).map((signedTxEnvelope) => {
         return {
           contractId: response.contractId,
@@ -43,26 +48,13 @@ export const run = async (faucetAddr: AddressBech32, faucetSkeyFile: Path) => {
       }))
     .andThen(({ txEnvelope, contractId }) => cardanoCli.submitTxEnvelope(txEnvelope, true).map(() => contractId))
     .andThen((contractId) => waitPatientlyForResultAsync(
-        () => toAsync(marloweRuntimeCli.runGet(contractId, {}, null, true)),
+        () => toAsync(marloweRuntimeCli.runGet(contractId, config, {}, null, true)),
         (_res: ContractState) => true,
         { timeoutMs: 120_000, everyMs: 5_000 }
       ),
     ).andThen((contractState: ContractState) => {
       console.log("initial conract state:");
       console.log(contractState);
-      // // from lang:
-      //  export type AccountId = Party;
-      //  export interface Token {
-      //    currency_symbol: PolicyId;
-      //    token_name: TokenName;
-      //  }
-      //  export type Party = Address | Role;
-      //  export interface IDeposit {
-      //    input_from_party: Party;
-      //    that_deposits: bigint;
-      //    of_token: Token;
-      //    into_account: AccountId;
-      //  }
       const input = {
         input_from_party: { address: faucetAddr },
         that_deposits: 12000000n,
@@ -70,32 +62,7 @@ export const run = async (faucetAddr: AddressBech32, faucetSkeyFile: Path) => {
         into_account: { address: faucetAddr }
       };
 
-      // // from runtime:
-      // export type ApplyInputsResponse = {
-      //   contractId: ContractId;
-      //   transactionId: string; // FIXME: Use cardano.TxId.jsonCodec when available
-      //   tx: TxEnvelope;
-      //   safetyErrors: Json[]; // FIXME: Use SafetyError type if available
-      // };
-      //
-      // // from marloweRuntimeCli:
-      // export function runApplyInputs(
-      //   marloweInputs: NormalInput[],
-      //   contractId: ContractId,
-      //   userWalletAddress: AddressBech32,
-      //   options: {
-      //     outputDir?: string;
-      //     serverHost?: string;
-      //     serverPort?: PositiveInt;
-      //     socketPath?: string;
-      //     testnetMagic?: TestnetMagic;
-      //   },
-      //   repoRoot: Path | null = null,
-      //   debug: boolean = false
-      // ): Result<ApplyInputsResponse, JsonError | CommandError | string> {
-      //
-      //
-      return marloweRuntimeCli.runApplyInputs([input], contractState.contractId, faucetAddr, {}, null, true);
+      return marloweRuntimeCli.runApplyInputs([input], contractState.contractId, faucetAddr, config, {}, null, true);
     }).andThen((applyInputsResponse: ApplyInputsResponse) => {
       //sign and submit
       return toAsync(cardanoCli.signTxEnvelope(faucetSkeyFile, applyInputsResponse.tx))
@@ -104,7 +71,7 @@ export const run = async (faucetAddr: AddressBech32, faucetSkeyFile: Path) => {
     }).andThen((contractId: ContractId) => {
       // Wait for the contract state to update after applying inputs
       return waitPatientlyForResultAsync(
-        () => toAsync(marloweRuntimeCli.runGet(contractId, {}, null, true)),
+        () => toAsync(marloweRuntimeCli.runGet(contractId, config, {}, null, true)),
         (updatedContractState: ContractState) => (
             updatedContractState.state === null
              && updatedContractState.currentContract === null

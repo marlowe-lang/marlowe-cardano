@@ -2,17 +2,10 @@ import type { Sort } from "../assoc-map.js";
 import { json2StringCodec, objectOf, type JsonCodec } from "@konduit/codec/json/codecs";
 import { PolicyId } from "./policyId.js";
 
-// Types ---------------------------------------------------------------------
-
 export type TokenName = string;
-
-export type Token = {
-  currency_symbol: PolicyId;
-  token_name: TokenName;
-};
-
-// Codecs + smart constructors ------------------------------------------------
-
+export function TokenName(value: string): TokenName {
+  return value;
+}
 export namespace TokenName {
   export const jsonCodec: JsonCodec<TokenName> = json2StringCodec;
   // `TokenName` is currently a `string` alias. The helper is wired up so
@@ -22,6 +15,10 @@ export namespace TokenName {
   export const areEqual = (a: TokenName, b: TokenName): boolean => a === b;
 }
 
+export type Token = {
+  currency_symbol: PolicyId;
+  token_name: TokenName;
+};
 export function Token(currency_symbol: PolicyId, token_name: TokenName): Token {
   return { currency_symbol, token_name };
 }
@@ -34,8 +31,6 @@ export namespace Token {
     PolicyId.areEqual(a.currency_symbol, b.currency_symbol) &&
     TokenName.areEqual(a.token_name, b.token_name);
 }
-
-// Helpers --------------------------------------------------------------------
 
 export const tokenToString: (token: Token) => string = (token) =>
   `${token.currency_symbol}|${token.token_name}`;

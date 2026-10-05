@@ -4,9 +4,10 @@ import type { Json } from "@konduit/codec/json";
 import { stringify as jsonStringify } from '@konduit/codec/json';
 import type { ContractSourceId, PostContractSourceResponse } from '@marlowe-lang/runtime/client';
 import type { Case, Contract, NormalCase } from '@marlowe-lang/language/v1';
+import type { MarloweRuntimeConfig } from '../../marloweRuntimeCli.js';
 
 type RunOpts = {
-  serverPort?: number;
+  runtime: MarloweRuntimeConfig;
 };
 
 const PARTY1_ADDR = 'addr_test1vq2apcdfv7y9tm6gc2090th8747vtqmhu6vemjh0uzzu7pgcy9gsn';
@@ -139,7 +140,8 @@ export const findFirstNonMerkleizedCase = (contract: Contract, getContinuation: 
 }
 
 
-export const run = async (_opts: RunOpts = {}): Promise<void> => {
+export const run = async (opts: RunOpts): Promise<void> => {
+  const { runtime } = opts;
   const bundle = [
     { label: 'main', type: 'contract', value: betContract },
   ];
@@ -148,6 +150,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
     marloweRuntimeCli.runUploadContractSource(
         bundle,
         'main',
+        runtime,
         { preserveActions: [preservedAction] },
         null,
         true
@@ -159,6 +162,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
     marloweRuntimeCli.runUploadContractSource(
         bundle,
         'main',
+        runtime,
         { preserveActions: [] },
         null,
         true
@@ -170,6 +174,7 @@ export const run = async (_opts: RunOpts = {}): Promise<void> => {
     const json = unwrapOrPanicWith(
       marloweRuntimeCli.runGetContractSource(
         contractHash,
+        runtime,
         { expand: false },
         null,
         true,

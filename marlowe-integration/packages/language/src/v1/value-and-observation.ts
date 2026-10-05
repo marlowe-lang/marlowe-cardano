@@ -13,6 +13,8 @@ import { ChoiceId } from "./choices.js";
 import { AccountId } from "./payee.js";
 import { Token } from "./token.js";
 import { fromCodecThunkFn } from "@konduit/codec";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
 
 // Namespaces are sensitive to the order of declaration, so the `Value` and
 // `Observation` types and namespaces are declared first so that their
@@ -40,6 +42,90 @@ export type Value =
   | Cond;
 
 export namespace Value {
+  export const isAvailableMoney = (value: Value): value is AvailableMoney =>
+    typeof value === "object" && value !== null && "amount_of_token" in value;
+  export const isConstant = (value: Value): value is Constant => typeof value === "bigint";
+  export const isNegValue = (value: Value): value is NegValue =>
+    typeof value === "object" && value !== null && "negate" in value;
+  export const isAddValue = (value: Value): value is AddValue =>
+    typeof value === "object" && value !== null && "add" in value;
+  export const isSubValue = (value: Value): value is SubValue =>
+    typeof value === "object" && value !== null && "value" in value && "minus" in value;
+  export const isMulValue = (value: Value): value is MulValue =>
+    typeof value === "object" && value !== null && "multiply" in value;
+  export const isDivValue = (value: Value): value is DivValue =>
+    typeof value === "object" && value !== null && "divide" in value;
+  export const isChoiceValue = (value: Value): value is ChoiceValue =>
+    typeof value === "object" && value !== null && "value_of_choice" in value;
+  export const isTimeIntervalStart = (value: Value): value is TimeIntervalStart =>
+    value === "time_interval_start";
+  export const isTimeIntervalEnd = (value: Value): value is TimeIntervalEnd =>
+    value === "time_interval_end";
+  export const isUseValue = (value: Value): value is UseValue =>
+    typeof value === "object" && value !== null && "use_value" in value;
+  export const isCond = (value: Value): value is Cond =>
+    typeof value === "object" && value !== null && "if" in value;
+
+  export const match = <T>(
+    value: Value,
+    handlers: {
+      available_money: (v: AvailableMoney) => T,
+      constant: (v: Constant) => T,
+      neg_value: (v: NegValue) => T,
+      add_value: (v: AddValue) => T,
+      sub_value: (v: SubValue) => T,
+      mul_value: (v: MulValue) => T,
+      div_value: (v: DivValue) => T,
+      choice_value: (v: ChoiceValue) => T,
+      time_interval_start: (v: TimeIntervalStart) => T,
+      time_interval_end: (v: TimeIntervalEnd) => T,
+      use_value: (v: UseValue) => T,
+      cond: (v: Cond) => T,
+    },
+  ): T =>
+    isAvailableMoney(value) ? handlers.available_money(value)
+    : isConstant(value) ? handlers.constant(value)
+    : isNegValue(value) ? handlers.neg_value(value)
+    : isAddValue(value) ? handlers.add_value(value)
+    : isSubValue(value) ? handlers.sub_value(value)
+    : isMulValue(value) ? handlers.mul_value(value)
+    : isDivValue(value) ? handlers.div_value(value)
+    : isChoiceValue(value) ? handlers.choice_value(value)
+    : isTimeIntervalStart(value) ? handlers.time_interval_start(value)
+    : isTimeIntervalEnd(value) ? handlers.time_interval_end(value)
+    : isUseValue(value) ? handlers.use_value(value)
+    : handlers.cond(value);
+
+  export const tryMatch = <T>(
+    value: Value,
+    handlers: {
+      available_money?: (v: AvailableMoney) => T,
+      constant?: (v: Constant) => T,
+      neg_value?: (v: NegValue) => T,
+      add_value?: (v: AddValue) => T,
+      sub_value?: (v: SubValue) => T,
+      mul_value?: (v: MulValue) => T,
+      div_value?: (v: DivValue) => T,
+      choice_value?: (v: ChoiceValue) => T,
+      time_interval_start?: (v: TimeIntervalStart) => T,
+      time_interval_end?: (v: TimeIntervalEnd) => T,
+      use_value?: (v: UseValue) => T,
+      cond?: (v: Cond) => T,
+    },
+  ): Result<T, string> =>
+    isAvailableMoney(value) ? handlers.available_money ? ok(handlers.available_money(value)) : err("Missing available_money handler")
+    : isConstant(value) ? handlers.constant ? ok(handlers.constant(value)) : err("Missing constant handler")
+    : isNegValue(value) ? handlers.neg_value ? ok(handlers.neg_value(value)) : err("Missing neg_value handler")
+    : isAddValue(value) ? handlers.add_value ? ok(handlers.add_value(value)) : err("Missing add_value handler")
+    : isSubValue(value) ? handlers.sub_value ? ok(handlers.sub_value(value)) : err("Missing sub_value handler")
+    : isMulValue(value) ? handlers.mul_value ? ok(handlers.mul_value(value)) : err("Missing mul_value handler")
+    : isDivValue(value) ? handlers.div_value ? ok(handlers.div_value(value)) : err("Missing div_value handler")
+    : isChoiceValue(value) ? handlers.choice_value ? ok(handlers.choice_value(value)) : err("Missing choice_value handler")
+    : isTimeIntervalStart(value) ? handlers.time_interval_start ? ok(handlers.time_interval_start(value)) : err("Missing time_interval_start handler")
+    : isTimeIntervalEnd(value) ? handlers.time_interval_end ? ok(handlers.time_interval_end(value)) : err("Missing time_interval_end handler")
+    : isUseValue(value) ? handlers.use_value ? ok(handlers.use_value(value)) : err("Missing use_value handler")
+    : handlers.cond ? ok(handlers.cond(value)) : err("Missing cond handler");
+
   // We construct this codec lazily because its variants codecs reference it forming a cycle.
   export const jsonCodec: JsonCodec<Value> = fromCodecThunkFn(() => altJsonCodecs(
     [
@@ -69,38 +155,38 @@ export namespace Value {
       serEnd,
       serUse,
       serCond
-    ) => (value: Value): Json => {
-      if (typeof value === "bigint") return serConst(value);
-      if (value === "time_interval_start") return serStart(value);
-      if (value === "time_interval_end") return serEnd(value);
-      if ("amount_of_token" in value) return serAvail(value);
-      if ("negate" in value) return serNeg(value);
-      if ("add" in value) return serAdd(value);
-      if ("value" in value && "minus" in value) return serSub(value);
-      if ("multiply" in value) return serMul(value);
-      if ("divide" in value) return serDiv(value);
-      if ("value_of_choice" in value) return serChoice(value);
-      if ("use_value" in value) return serUse(value);
-      return serCond(value);
-    }
+    ) => (value: Value): Json => match(value, {
+      available_money: serAvail,
+      constant: serConst,
+      neg_value: serNeg,
+      add_value: serAdd,
+      sub_value: serSub,
+      mul_value: serMul,
+      div_value: serDiv,
+      choice_value: serChoice,
+      time_interval_start: serStart,
+      time_interval_end: serEnd,
+      use_value: serUse,
+      cond: serCond,
+    })
   ));
   // Lazy for the same reason as `jsonCodec` above: the variant helpers
   // (`NegValue.areEqual`, `Cond.areEqual`, ...) close over `Value.areEqual`
   // to recurse into nested sub-expressions.
-  export const areEqual = areEqualThunk<Value>(() => (a, b) => {
-    if (typeof a === "bigint") return typeof b === "bigint" && a === b;
-    if (a === "time_interval_start") return b === "time_interval_start";
-    if (a === "time_interval_end") return b === "time_interval_end";
-    if ("amount_of_token" in a) return "amount_of_token" in b && AvailableMoney.areEqual(a, b);
-    if ("negate" in a) return "negate" in b && NegValue.areEqual(a, b);
-    if ("add" in a) return "add" in b && AddValue.areEqual(a, b);
-    if ("value" in a && "minus" in a) return "value" in b && "minus" in b && SubValue.areEqual(a, b);
-    if ("multiply" in a) return "multiply" in b && MulValue.areEqual(a, b);
-    if ("divide" in a) return "divide" in b && DivValue.areEqual(a, b);
-    if ("value_of_choice" in a) return "value_of_choice" in b && ChoiceValue.areEqual(a, b);
-    if ("use_value" in a) return "use_value" in b && UseValue.areEqual(a, b);
-    return "if" in b && Cond.areEqual(a, b);
-  });
+  export const areEqual = areEqualThunk<Value>(() => (a, b) =>
+    isConstant(a) ? isConstant(b) && Constant.areEqual(a, b)
+    : isTimeIntervalStart(a) ? isTimeIntervalStart(b) && TimeIntervalStart.areEqual(a, b)
+    : isTimeIntervalEnd(a) ? isTimeIntervalEnd(b) && TimeIntervalEnd.areEqual(a, b)
+    : isAvailableMoney(a) ? isAvailableMoney(b) && AvailableMoney.areEqual(a, b)
+    : isNegValue(a) ? isNegValue(b) && NegValue.areEqual(a, b)
+    : isAddValue(a) ? isAddValue(b) && AddValue.areEqual(a, b)
+    : isSubValue(a) ? isSubValue(b) && SubValue.areEqual(a, b)
+    : isMulValue(a) ? isMulValue(b) && MulValue.areEqual(a, b)
+    : isDivValue(a) ? isDivValue(b) && DivValue.areEqual(a, b)
+    : isChoiceValue(a) ? isChoiceValue(b) && ChoiceValue.areEqual(a, b)
+    : isUseValue(a) ? isUseValue(b) && UseValue.areEqual(a, b)
+    : isCond(b) && Cond.areEqual(a, b)
+  );
 }
 
 // Core `Observation` type -----------------------------------------------------------
@@ -118,6 +204,79 @@ export type Observation =
   | boolean;
 
 export namespace Observation {
+  export const isAndObs = (observation: Observation): observation is AndObs =>
+    typeof observation === "object" && observation !== null && "both" in observation;
+  export const isOrObs = (observation: Observation): observation is OrObs =>
+    typeof observation === "object" && observation !== null && "either" in observation;
+  export const isNotObs = (observation: Observation): observation is NotObs =>
+    typeof observation === "object" && observation !== null && "not" in observation;
+  export const isChoseSomething = (observation: Observation): observation is ChoseSomething =>
+    typeof observation === "object" && observation !== null && "chose_something_for" in observation;
+  export const isValueEQ = (observation: Observation): observation is ValueEQ =>
+    typeof observation === "object" && observation !== null && "equal_to" in observation;
+  export const isValueGT = (observation: Observation): observation is ValueGT =>
+    typeof observation === "object" && observation !== null && "gt" in observation;
+  export const isValueGE = (observation: Observation): observation is ValueGE =>
+    typeof observation === "object" && observation !== null && "ge_than" in observation;
+  export const isValueLT = (observation: Observation): observation is ValueLT =>
+    typeof observation === "object" && observation !== null && "lt" in observation;
+  export const isValueLE = (observation: Observation): observation is ValueLE =>
+    typeof observation === "object" && observation !== null && "le_than" in observation;
+  export const isBoolean = (observation: Observation): observation is boolean =>
+    typeof observation === "boolean";
+
+  export const match = <T>(
+    observation: Observation,
+    handlers: {
+      and: (v: AndObs) => T,
+      or: (v: OrObs) => T,
+      not: (v: NotObs) => T,
+      chose_something: (v: ChoseSomething) => T,
+      value_eq: (v: ValueEQ) => T,
+      value_gt: (v: ValueGT) => T,
+      value_ge: (v: ValueGE) => T,
+      value_lt: (v: ValueLT) => T,
+      value_le: (v: ValueLE) => T,
+      boolean: (v: boolean) => T,
+    },
+  ): T =>
+    isAndObs(observation) ? handlers.and(observation)
+    : isOrObs(observation) ? handlers.or(observation)
+    : isNotObs(observation) ? handlers.not(observation)
+    : isChoseSomething(observation) ? handlers.chose_something(observation)
+    : isValueEQ(observation) ? handlers.value_eq(observation)
+    : isValueGT(observation) ? handlers.value_gt(observation)
+    : isValueGE(observation) ? handlers.value_ge(observation)
+    : isValueLT(observation) ? handlers.value_lt(observation)
+    : isValueLE(observation) ? handlers.value_le(observation)
+    : handlers.boolean(observation);
+
+  export const tryMatch = <T>(
+    observation: Observation,
+    handlers: {
+      and?: (v: AndObs) => T,
+      or?: (v: OrObs) => T,
+      not?: (v: NotObs) => T,
+      chose_something?: (v: ChoseSomething) => T,
+      value_eq?: (v: ValueEQ) => T,
+      value_gt?: (v: ValueGT) => T,
+      value_ge?: (v: ValueGE) => T,
+      value_lt?: (v: ValueLT) => T,
+      value_le?: (v: ValueLE) => T,
+      boolean?: (v: boolean) => T,
+    },
+  ): Result<T, string> =>
+    isAndObs(observation) ? handlers.and ? ok(handlers.and(observation)) : err("Missing and handler")
+    : isOrObs(observation) ? handlers.or ? ok(handlers.or(observation)) : err("Missing or handler")
+    : isNotObs(observation) ? handlers.not ? ok(handlers.not(observation)) : err("Missing not handler")
+    : isChoseSomething(observation) ? handlers.chose_something ? ok(handlers.chose_something(observation)) : err("Missing chose_something handler")
+    : isValueEQ(observation) ? handlers.value_eq ? ok(handlers.value_eq(observation)) : err("Missing value_eq handler")
+    : isValueGT(observation) ? handlers.value_gt ? ok(handlers.value_gt(observation)) : err("Missing value_gt handler")
+    : isValueGE(observation) ? handlers.value_ge ? ok(handlers.value_ge(observation)) : err("Missing value_ge handler")
+    : isValueLT(observation) ? handlers.value_lt ? ok(handlers.value_lt(observation)) : err("Missing value_lt handler")
+    : isValueLE(observation) ? handlers.value_le ? ok(handlers.value_le(observation)) : err("Missing value_le handler")
+    : handlers.boolean ? ok(handlers.boolean(observation)) : err("Missing boolean handler");
+
   // We construct this codec lazily because its variants codecs reference it forming a cycle.
   // Another reference loop goes through `Value` though its codec is lazy as well.
   export const jsonCodec: JsonCodec<Observation> = fromCodecThunkFn(() => altJsonCodecs(
@@ -144,38 +303,33 @@ export namespace Observation {
       serLt,
       serLe,
       serBool
-    ) => (value: Observation): Json => {
-      if (typeof value === "boolean") return value;
-      if ("both" in value) return serAnd(value);
-      if ("either" in value) return serOr(value);
-      if ("not" in value) return serNot(value);
-      if ("chose_something_for" in value) return serChose(value);
-      if ("equal_to" in value) return serEq(value);
-      if ("gt" in value) return serGt(value);
-      if ("ge_than" in value) return serGe(value);
-      if ("lt" in value) return serLt(value);
-      if ("le_than" in value) return serLe(value);
-      return serBool(value);
-    }
+    ) => (value: Observation): Json => match(value, {
+      and: serAnd,
+      or: serOr,
+      not: serNot,
+      chose_something: serChose,
+      value_eq: serEq,
+      value_gt: serGt,
+      value_ge: serGe,
+      value_lt: serLt,
+      value_le: serLe,
+      boolean: serBool,
+    })
   ));
   // Lazy for the same reason as `jsonCodec` above: the variant helpers
   // close over `Observation.areEqual` to recurse into nested sub-terms.
-  export const areEqual = areEqualThunk<Observation>(() => (a, b) => {
-    if (typeof a === "boolean") return typeof b === "boolean" && a === b;
-    if ("both" in a) return "both" in b && AndObs.areEqual(a, b);
-    if ("either" in a) return "either" in b && OrObs.areEqual(a, b);
-    if ("not" in a) return "not" in b && NotObs.areEqual(a, b);
-    if ("chose_something_for" in a) return "chose_something_for" in b && ChoseSomething.areEqual(a, b);
-    if ("equal_to" in a) return "equal_to" in b && ValueEQ.areEqual(a, b);
-    if ("gt" in a) return "gt" in b && ValueGT.areEqual(a, b);
-    if ("ge_than" in a) return "ge_than" in b && ValueGE.areEqual(a, b);
-    if ("lt" in a) return "lt" in b && ValueLT.areEqual(a, b);
-    if ("le_than" in a) return "le_than" in b && ValueLE.areEqual(a, b);
-    // Unreachable: every object variant was exhausted above, so the only
-    // way to fall through is if `a` is the `boolean` case, which was
-    // already handled.
-    return false;
-  });
+  export const areEqual = areEqualThunk<Observation>(() => (a, b) =>
+    isBoolean(a) ? isBoolean(b) && a === b
+    : isAndObs(a) ? isAndObs(b) && AndObs.areEqual(a, b)
+    : isOrObs(a) ? isOrObs(b) && OrObs.areEqual(a, b)
+    : isNotObs(a) ? isNotObs(b) && NotObs.areEqual(a, b)
+    : isChoseSomething(a) ? isChoseSomething(b) && ChoseSomething.areEqual(a, b)
+    : isValueEQ(a) ? isValueEQ(b) && ValueEQ.areEqual(a, b)
+    : isValueGT(a) ? isValueGT(b) && ValueGT.areEqual(a, b)
+    : isValueGE(a) ? isValueGE(b) && ValueGE.areEqual(a, b)
+    : isValueLT(a) ? isValueLT(b) && ValueLT.areEqual(a, b)
+    : isValueLE(b) && ValueLE.areEqual(a, b)
+  );
 }
 
 // Value variants ----------------------------------------------------------------
