@@ -4,7 +4,9 @@ module Commands.Options.ServantClientRunner where
 
 import GHC.Generics (Generic)
 import Control.Newtype (Newtype)
-import Options.Applicative (Parser, option, auto, long, short, help, metavar, value, showDefault)
+import Data.Text (Text)
+import qualified Data.Text as T
+import Options.Applicative (Parser, option, auto, long, short, help, metavar, value, showDefault, str)
 import Servant.Client.Streaming (ClientM, ClientError, Scheme (Http), BaseUrl (BaseUrl), mkClientEnv, runClientM)
 import Control.DeepSeq (NFData)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
@@ -15,10 +17,10 @@ newtype Port = Port Int
 
 instance Newtype Port Int
 
-newtype Host = Host String
+newtype Host = Host Text
   deriving (Eq, Show, Generic)
 
-instance Newtype Host String
+instance Newtype Host Text
 
 portParser :: Parser Port
 portParser = option
@@ -31,13 +33,13 @@ portParser = option
   )
 
 hostParser :: Parser Host
-hostParser = option
-  (Host <$> auto)
+hostParser = Host <$> option
+  str
   ( long "server-host"
     <> short 'h'
     <> help "The host on which the web server is running. Defaults to localhost."
     <> metavar "HOST"
-    <> value (Host "localhost")
+    <> value "localhost"
     <> showDefault
   )
 
@@ -61,7 +63,7 @@ mkServantClientRunner :: ServantClientRunnerOptions -> IO ServantClientRunner
 mkServantClientRunner cmd = do
   manager <- newManager defaultManagerSettings
   let
-    baseUrl = BaseUrl Http (N.unpack cmd.serverHost) (N.unpack cmd.serverPort) ""
+    baseUrl = BaseUrl Http (T.unpack . N.unpack $ cmd.serverHost) (N.unpack cmd.serverPort) ""
     clientEnv = mkClientEnv manager baseUrl
   pure $ ServantClientRunner $ flip runClientM clientEnv
 
@@ -72,7 +74,7 @@ mkServantClientRunnerParser = do
   let
     mkRunner opts = do
       let
-        baseUrl = BaseUrl Http (N.unpack opts.serverHost) (N.unpack opts.serverPort) ""
+        baseUrl = BaseUrl Http (T.unpack . N.unpack $ opts.serverHost) (N.unpack opts.serverPort) ""
         clientEnv = mkClientEnv manager baseUrl
       ServantClientRunner $ flip runClientM clientEnv
   pure $ mkRunner <$> servantClientRunnerOptionsParser

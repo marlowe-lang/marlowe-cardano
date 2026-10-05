@@ -11,6 +11,7 @@ import { toAsync } from '@konduit/konduit-consumer/neverthrow';
 import { waitPatientlyForResultAsync } from '../../neverthrow.js';
 import { ApplyInputsResponse, ContractId, ContractState } from '@marlowe-lang/runtime/client';
 import type { MarloweRuntimeConfig } from '../../marloweRuntimeCli.js';
+import { stringify } from '@konduit/codec/json';
 
 function mkContract(partyAddr: AddressBech32, timeout: POSIXMilliseconds): Contract {
   return {
@@ -85,12 +86,8 @@ export const run = async (
       console.log(contractState);
     },
     (error) => {
-      if (typeof error === 'object' && error !== null && 'stderr' in error) {
-        console.error(error.stderr);
-      } else {
-        console.error(error);
-      }
-      throw new Error(`Failed to initialize contract and submit transaction: ${error}`);
+      console.error(stringify(error));
+      throw new Error(`Failed to initialize contract and submit transaction: ${stringify(error)}`);
     }
   );
 }

@@ -231,9 +231,10 @@ export function runApplyInputs(
   debug: boolean = false
 ): Result<ApplyInputsResponse, JsonError | CommandError | string> {
   const tmpDir = options.outputDir ?? mkTempDir(false);
+  const finalOptions = { ...options, outputDir: tmpDir };
   const marloweInputsFile = `${tmpDir}/marlowe-inputs.json` as Path;
   fs.writeFileSync(marloweInputsFile, json.stringify(marloweInputs as Json, undefined, 2));
-  return runApplyInputsCLI(marloweInputsFile, contractId, userWalletAddress, config, options, repoRoot, debug)
+  return runApplyInputsCLI(marloweInputsFile, contractId, userWalletAddress, config, finalOptions, repoRoot, debug)
     .andThen(json => ApplyInputsResponse.jsonCodec.deserialise(json));
 }
 

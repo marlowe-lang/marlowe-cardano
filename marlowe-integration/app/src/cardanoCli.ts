@@ -321,16 +321,16 @@ export const waitForTx = (
   timeoutMs = 200_000,
 ): ResultAsync<null, WaitForUtxoError> => {
   const txId = flattenTxId(txIdOrTxIdRef);
-  console.log(`[cardanoCli] wait-for-tx: txid=${txId} timeoutMs=${timeoutMs}`);
+  if(debug) console.log(`[cardanoCli] wait-for-tx: txid=${txId} timeoutMs=${timeoutMs}`);
   const txOutRef = TxOutRefHex.fromTxOutRef({ txId, txIx: TxIx.fromDigits(0) });
   const start = Date.now();
   return waitForUtxo(txOutRef, debug, delayMs, timeoutMs)
     .map((): null => {
-      console.log(`[cardanoCli] wait-for-tx-confirmed: txid=${txId} elapsedMs=${Date.now() - start}`);
+      if(debug) console.log(`[cardanoCli] wait-for-tx-confirmed: txid=${txId} elapsedMs=${Date.now() - start}`);
       return null;
     })
     .mapErr((err) => {
-      console.error(`[cardanoCli] wait-for-tx-timeout: txid=${txId} elapsedMs=${Date.now() - start} err=${String(err)}`);
+      if(debug) console.error(`[cardanoCli] wait-for-tx-timeout: txid=${txId} elapsedMs=${Date.now() - start} err=${String(err)}`);
       return err;
     });
 };
@@ -403,9 +403,8 @@ export const signTx = function (
 
 export type TxEnvelopeFile = Tagged<Path, 'TxEnvelopeFile'>;
 
-const TX_DIAG_DIR = `${process.env.ROOT_DIR || process.cwd()}/marlowe-integration/test-temp/failed-txs`;
-
 const persistFailedTx = (txFile: Path, label: string): void => {
+  const TX_DIAG_DIR = process.env.ROOT_DIR || process.cwd();
   try {
     nodeFs.mkdirSync(TX_DIAG_DIR, { recursive: true });
     const ts = Date.now();
@@ -423,7 +422,7 @@ export const submitTxFromEnvelopeFile = (
   intervalMs = 1_000,
   timeoutMs = 180_000,
 ): ResultAsync<TxIdHex, WaitForUtxoError> => {
-  console.log(`[cardanoCli] submitTxFromEnvelopeFile: txFile=${txFile}`);
+  if(debug) console.log(`[cardanoCli] submitTxFromEnvelopeFile: txFile=${txFile}`);
   return toAsync(execCardanoCli(
     [
       "conway", "transaction", "submit",
@@ -433,12 +432,14 @@ export const submitTxFromEnvelopeFile = (
   ))
     .andThen(() => toAsync(getTxIdFromTxFile(txFile, debug)))
     .andThen((txId) => {
-      console.log(`[cardanoCli] submit-ok: txid=${txId} file=${txFile}`);
+      if(debug) console.log(`[cardanoCli] submit-ok: txid=${txId} file=${txFile}`);
       return waitForTx(txId, debug, intervalMs, timeoutMs).map(() => txId);
     })
     .mapErr((err) => {
-      console.error(`[cardanoCli] submit-fail: file=${txFile} err=${String(err)}`);
-      persistFailedTx(txFile, "submit-fail");
+      if(debug) {
+        console.error(`[cardanoCli] submit-fail: file=${txFile} err=${String(err)}`);
+        persistFailedTx(txFile, "submit-fail");
+      }
       return err;
     });
 };
@@ -612,10 +613,9 @@ export async function transferFunds(
     debug,
   );
 
-  console.log(`[cardanoCli] transferFunds: built unsigned tx, recipients=${recipients.length} totalLovelace=${totalSplit}`);
+  if(debug) console.log(`[cardanoCli] transferFunds: built unsigned tx, recipients=${recipients.length} totalLovelace=${totalSplit}`);
   await submitTxFromEnvelopeFile(signedTxFile, debug);
   const txId = getTxIdFromTxFile(signedTxFile, debug);
-  console.log(`[cardanoCli] transferFunds: split txId=${txId} file=${signedTxFile}`);
   return txId;
 }
 
