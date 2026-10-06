@@ -1,3 +1,54 @@
+<h2 align="center">
+  <a href="" target="blank_">
+    <img src="./doc/image/logo.svg" alt="Logo" height="75">
+  </a>
+  <br>
+  Implementation of Marlowe On Cardano. On-chain validators, the runtime, and the tools around them.
+</h2>
+  <p align="center">
+    <a href="https://github.com/input-output-hk/marlowe-cardano/releases"><img src="https://img.shields.io/github/v/release/input-output-hk/marlowe-cardano?style=for-the-badge" /></a>
+  </p>
+<div align="center">
+  <a href=""><img src="https://img.shields.io/badge/stability-beta-33bbff.svg" alt="Beta"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>
+</div>
+
+Marlowe-Cardano is an implementation of Marlowe for the Cardano blockchain, built on top of Plutus.
+
+This repository contains:
+
+* The implementation of the Marlowe domain-specific language in Plutus.
+* The Marlowe Runtime which provides a REST API for interacting with Marlowe contracts on the Cardano blockchain.
+* Tools for working with Marlowe, including static analysis.
+
+## Documentation
+
+Please head up to http://marlowe-lang.org/ for the latest documentation.
+
+## Development
+
+Nix setup, including the binary caches: <https://github.com/input-output-hk/iogx/blob/main/doc/nix-setup-guide.md>
+
+```shell
+$ nix develop
+$ cabal build all
+```
+
+## History
+
+On 6 October 2026 the files on main were replaced with a tree reconstructed from scratch. Those new commits are the first parent of the join. git log --first-parent follows them. git blame on a rewritten line names that reconstruction, because the line was written again.
+
+The earlier commits were not removed. They are the second parent of the join, and the old files are the tag legacy-final:
+
+git checkout legacy-final
+git shortlog -sn legacy-final
+
+## License
+
+Apache-2.0. See LICENSE and NOTICE.
+
+
+<!--
 # Marlowe Plutus Validators
 
 This project implements the on-chain component of the Cardano implementation of Marlowe as a Plutus smart contract.
@@ -75,3 +126,5 @@ This writes the default production scripts to `out/`:
 - `out/marlowe-semantics.plutus` - the Marlowe validator as a JSON-encoded CBOR text-envelope
 
 Use `--devel-scripts` to preserve tracing and `--message-format text|json|yaml` to control command output.
+-->
+
