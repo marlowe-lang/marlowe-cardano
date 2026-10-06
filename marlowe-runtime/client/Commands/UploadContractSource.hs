@@ -5,7 +5,6 @@ import Commands.Options.MessageFormat (MessageFormat, messageFormatParser, emitE
 import Commands.Options.ServantClientRunner (mkServantClientRunnerParser, ServantClientRunner (ServantClientRunner))
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import qualified Data.Aeson as Aeson
-import Data.Aeson (Value)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text qualified as T
@@ -14,6 +13,7 @@ import qualified Data.Yaml as Yaml
 import Language.Marlowe.Object.Types (Label (Label), ObjectBundle)
 import Language.Marlowe.Runtime.Web.Client (postContractSource)
 import Language.Marlowe.Runtime.Web.Contract.API (PostContractSourceResponse)
+import Marlowe.Plutus.Semantics.Types (Action)
 import Options.Applicative (Parser, ParserInfo, ReadM, eitherReader, help, info, long, metavar, option, progDesc, strOption, value)
 import Pipes (each)
 import Servant.Client (ClientError)
@@ -21,7 +21,7 @@ import Servant.Client (ClientError)
 data UploadContractSourceCommand = UploadContractSourceCommand
   { bundleFile :: FilePath
   , mainLabel :: Label
-  , preserveActions :: Set Value
+  , preserveActions :: Set Action
   , messageFormat :: MessageFormat
   , servantClientRunner :: ServantClientRunner
   }
@@ -36,18 +36,18 @@ labelParser = option labelReader
     <> help "The label of the top-level contract object in the bundle."
   )
 
-preserveActionsReader :: ReadM (Set Value)
+preserveActionsReader :: ReadM (Set Action)
 preserveActionsReader = eitherReader $ \raw ->
   case Aeson.eitherDecodeStrict (T.encodeUtf8 (T.pack raw)) of
-    Right shapes -> Right (Set.fromList (shapes :: [Value]))
+    Right actions -> Right (Set.fromList (actions :: [Action]))
     Left err -> Left $ "Could not decode preserve-actions JSON: " <> err
 
-preserveActionsParser :: Parser (Set Value)
+preserveActionsParser :: Parser (Set Action)
 preserveActionsParser = option preserveActionsReader
   ( long "preserve-actions"
     <> metavar "JSON"
     <> value Set.empty
-    <> help "JSON-encoded array of Action shapes to preserve during merkleization (omit to merkleize everything)."
+    <> help "JSON-encoded array of Action values to preserve during merkleization (omit to merkleize everything)."
   )
 
 decodeBundleFile :: MonadIO m => MessageFormat -> FilePath -> m ObjectBundle

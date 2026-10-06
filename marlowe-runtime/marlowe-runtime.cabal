@@ -157,7 +157,6 @@ library
     Language.Marlowe.Runtime.Contract.Api
     Language.Marlowe.Runtime.Contract.Store
     Language.Marlowe.Runtime.Contract.Store.Memory
-    Language.Marlowe.Runtime.Contract.TransferServer
     Language.Marlowe.Runtime.Query
     Language.Marlowe.Runtime.Query.Database
     Language.Marlowe.Runtime.Query.Database.PostgreSQL

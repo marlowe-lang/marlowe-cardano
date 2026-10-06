@@ -51,7 +51,6 @@ import Language.Marlowe.Runtime.ChainSync.Api qualified as Core
 import Language.Marlowe.Runtime.Contract.Store qualified as ContractStore
 import Language.Marlowe.Runtime.Contract.Store qualified as Store
 import Language.Marlowe.Runtime.Contract.Store.Memory qualified as StoreMemory
-import Language.Marlowe.Runtime.Contract.TransferServer qualified as TransferServer
 import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1), Transaction(Transaction, transactionId))
 import Language.Marlowe.Runtime.Core.Api qualified as Core
 import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts(..), ReferenceScriptUtxo(..), ScriptDetails(..), ScriptInPlutus, ScriptRegistry, fromCardanoScriptThrowing)
@@ -343,8 +342,8 @@ mkWithBundleImporter store handler = do
     ContractStore.discard
     \stagingArea -> do
       let
-        importBundle = TransferServer.mkImportBundle stagingArea
-      handler importBundle
+        importer = Store.mkBundleImporter stagingArea
+      handler importer
 
 queryLedgerInfo
   :: DatabaseQueries IO

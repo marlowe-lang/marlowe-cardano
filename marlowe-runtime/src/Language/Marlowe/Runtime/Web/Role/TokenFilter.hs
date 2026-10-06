@@ -2,9 +2,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
--- FIXME
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-
 -- | This module defines the request and response types in the Marlowe Runtime
 -- | Web API.
 module Language.Marlowe.Runtime.Web.Role.TokenFilter (

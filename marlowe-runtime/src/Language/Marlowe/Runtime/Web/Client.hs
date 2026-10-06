@@ -1,5 +1,4 @@
 -- FIXME: Drop this when the porting is done.
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Language.Marlowe.Runtime.Web.Client (
   Page (..),
@@ -30,48 +29,54 @@ module Language.Marlowe.Runtime.Web.Client (
 ) where
 
 import Cardano.Api qualified as C
-import Control.Monad.Error.Class (MonadError (catchError))
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (Value)
 import Data.Aeson qualified as A
-import Data.Functor (void)
-import Data.Maybe (fromJust)
-import Data.Proxy (Proxy (..))
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Text (Text)
-import qualified Data.Text as T
 import Data.Time (UTCTime)
-import Data.Version (Version)
-import GHC.TypeLits (KnownSymbol, symbolVal)
 import Language.Marlowe.Object.Types (Label, ObjectBundle)
-import Marlowe.Plutus.Next (Next)
 import Language.Marlowe.Runtime.Web.API (RuntimeAPI, runtimeApi)
-import Language.Marlowe.Runtime.Web.Adapter.CommaList ( CommaList (CommaList),)
+import Language.Marlowe.Runtime.Web.Adapter.CommaList (CommaList (CommaList))
 import Language.Marlowe.Runtime.Web.Adapter.Links (retractLink)
-import Language.Marlowe.Runtime.Web.Adapter.Servant (ListObject (..))
-import Language.Marlowe.Runtime.Web.Contract.API ( ContractHeader, ContractSourceId, ContractState, GetContractsResponse, PostContractSourceResponse, PostContractsRequest, PostContractsResponse, GetContractResponse, ContractId, PreserveActions (PreserveActions))
-import Language.Marlowe.Runtime.Web.Contract.Transaction.API (GetTransactionResponse, GetTransactionsResponse, PostTransactionsRequest(PostTransactionsRequest), PostTransactionsResponse)
 import Language.Marlowe.Runtime.Web.Adapter.Pagination (PaginatedResponse)
-import Language.Marlowe.Runtime.Web.Core.Address ( Address, StakeAddress,)
-import Language.Marlowe.Runtime.Web.Core.Asset ( AssetId, PolicyId,)
-import Language.Marlowe.Runtime.Web.Core.NetworkId (NetworkId)
+import Language.Marlowe.Runtime.Web.Adapter.Servant (ListObject (..))
+import Language.Marlowe.Runtime.Web.Contract.API
+  ( ContractId
+  , ContractSourceId
+  , ContractState
+  , GetContractResponse
+  , PostContractSourceResponse
+  , PostContractsRequest
+  , PostContractsResponse
+  , PreserveActions (PreserveActions, actions)
+  )
+import Language.Marlowe.Runtime.Web.Contract.Transaction.API
+  ( GetTransactionResponse
+  , GetTransactionsResponse
+  , PostTransactionsRequest
+  , PostTransactionsResponse
+  )
+import Language.Marlowe.Runtime.Web.Core.Address (Address, StakeAddress)
 import Language.Marlowe.Runtime.Web.Core.Object.Schema ()
 import Language.Marlowe.Runtime.Web.Core.Party (Party)
-import Language.Marlowe.Runtime.Web.Core.Tip (ChainTip)
-import Language.Marlowe.Runtime.Web.Core.Tx ( TextEnvelope, TxId, TxOutRef,)
+import Language.Marlowe.Runtime.Web.Core.Tx (TxId)
 import Language.Marlowe.Runtime.Web.Core.Tx qualified as Web
-import Language.Marlowe.Runtime.Web.Payout.API ( GetPayoutsResponse, PayoutHeader, PayoutState, PayoutStatus,)
-import Language.Marlowe.Runtime.Web.Tx.API ( CardanoTx, CreateTxEnvelope, Tx (..), TxHeader, WithdrawTxEnvelope, ApplyInputsTxEnvelope)
-import Language.Marlowe.Runtime.Web.Withdrawal.API (GetWithdrawalsResponse, PostWithdrawalsRequest, Withdrawal, WithdrawalHeader,)
-import Marlowe.Plutus.Semantics.Types (Contract)
+import Language.Marlowe.Runtime.Web.Tx.API
+  ( ApplyInputsTxEnvelope
+  , CardanoTx
+  , CreateTxEnvelope
+  , Tx (..)
+  , TxHeader
+  )
+import Marlowe.Plutus.Next (Next)
+import Marlowe.Plutus.Semantics.Types (Action, Contract)
 import Pipes (Producer)
-import Servant (HasResponseHeader, ResponseHeader (..), getResponse, lookupResponseHeader, type (:<|>) ((:<|>)))
-import Servant.API (Headers)
+import Servant (getResponse, type (:<|>) ((:<|>)))
 import Servant.Client (Client, matchUnion)
 import Servant.Client.Streaming (ClientM)
 import Servant.Client.Streaming qualified as ServantStreaming
-import Servant.Pagination (ExtractRange (extractRange), HasPagination (..), PutRange (..), Range, Ranges)
+import Servant.Pagination (Range, RangeType)
 import Servant.Pipes ()
 
 runtimeClient :: Client ClientM RuntimeAPI
@@ -221,14 +226,14 @@ postTransaction changeAddress availableUTxOs contractId request = do
     Nothing -> liftIO $ fail "Unexpected response from postTransaction"
 
 postContractSource
-  :: Set Value
+  :: Set Action
   -> Label
   -> Producer ObjectBundle IO ()
   -> ClientM PostContractSourceResponse
 postContractSource preserveActions main bundles = do
   let (_ :<|> _ :<|> sourceClient) :<|> _ = runtimeClient
   let postContractSourceClient :<|> _ = sourceClient
-  union <- postContractSourceClient main (Just (PreserveActions preserveActions)) bundles
+  union <- postContractSourceClient main (Just (PreserveActions{actions = preserveActions})) bundles
   case matchUnion union of
     Just (response :: PostContractSourceResponse) -> pure response
     Nothing -> liftIO $ fail "Unexpected response from postContractSource"

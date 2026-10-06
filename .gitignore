@@ -1,17 +1,24 @@
 .pre-commit-config.yaml
 .direnv
+
+# Different build directories for different build types
 dist-newstyle
 dist-O0
 dist-O0-repl
+
+# Nix build result dirs
 result
+out
+
+# Local test environment (testnet, postgres, etc.) which are part of our process-compose.
+.run
 .pc-postgres-init.log
 .pc-postgres.log
 .pc.log
+
+# Integration suite install artifacts
 marlowe-integration/node_modules
 marlowe-integration/dist
 marlowe-integration/.yarn
-marlowe-integration/.pnp.*
 marlowe-integration/**/node_modules
-.run
-out
-node_modules
+

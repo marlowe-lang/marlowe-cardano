@@ -22,7 +22,7 @@ import Data.Map (Map)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import GHC.Generics (Generic)
-import Marlowe.Plutus.Semantics.Types (Contract)
+import Marlowe.Plutus.Semantics.Types (Action, Contract)
 import qualified Marlowe.Plutus.Semantics.Types as Semantics
 import Language.Marlowe.Object.Types (Label (Label), ObjectBundle)
 import Language.Marlowe.Runtime.Web.Adapter.Servant (ListObject, OperationId, RenameResponseSchema)
@@ -117,18 +117,17 @@ type PostContractSourcesAPI =
         '[JSON]
         '[PostContractSourceResponse]
 
--- | A header value holding a set of action JSON shapes to preserve during
--- merkleization. The wire format is a JSON-encoded array of objects; each
--- object is treated as an opaque "action shape" (compared structurally
--- against the `Action` carried by each `Case`). Storing raw JSON lets us
--- avoid the runtime's somewhat-quirky `Action` `FromJSON` instance, which
--- conflates the three `Action` constructors under `Alternative`.
-newtype PreserveActions = PreserveActions {unPreserveActions :: Set Aeson.Value}
-  deriving (Show, Eq, Ord, Generic)
+-- | A header value holding a set of `Action` values to preserve during
+-- merkleization. The wire format is a JSON-encoded array of `Action` values
+-- (using the standard `Action` JSON shape, with each constructor's keys
+-- distinct from the others). During merkleization, any `Case` whose
+-- `Action` is in this set is kept as a plain `Case` (its action stays
+-- readable on-chain) instead of being rewritten as a `MerkleizedCase`.
+newtype PreserveActions = PreserveActions {actions :: Set Action}
+  deriving stock (Show, Eq, Ord, Generic)
+  deriving anyclass NFData
 
-instance NFData PreserveActions
-
--- | Parse a JSON-encoded array of action shapes. An empty (or
+-- | Parse a JSON-encoded array of `Action` values. An empty (or
 -- all-whitespace) value is treated as "no preserved actions". An invalid
 -- JSON value causes the whole request to fail.
 instance FromHttpApiData PreserveActions where
@@ -138,7 +137,7 @@ instance FromHttpApiData PreserveActions where
           Nothing -> Right $ PreserveActions Set.empty
           Just _ ->
             case Aeson.eitherDecodeStrict (T.encodeUtf8 trimmed) of
-              Right shapes -> Right $ PreserveActions $ Set.fromList shapes
+              Right actions -> Right $ PreserveActions $ Set.fromList actions
               Left err ->
                 Left $
                   "Could not decode X-Preserve-Actions JSON value `"
@@ -154,8 +153,8 @@ instance ToHttpApiData PreserveActions where
   toUrlPiece _ = ""
   toQueryParam _ = ""
   toEncodedUrlPiece _ = mempty
-  toHeader (PreserveActions shapes) =
-    LBS.toStrict $ Aeson.encode (toJSON (Set.toList shapes))
+  toHeader (PreserveActions actions) =
+    LBS.toStrict $ Aeson.encode actions
 
 instance HasStatus Contract where
   type StatusOf Contract = 200

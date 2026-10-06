@@ -5,9 +5,9 @@
 -- | Defines a custom Monad for the web server's handler functions to run in.
 module Language.Marlowe.Runtime.Web.Server.Monad (
   ApplyInputs,
+  BundleImporter,
   ContractStore,
   GetContractSource,
-  ImportBundle,
   InitContract,
   LoadTransactions,
   LoadTxError (..),
@@ -79,7 +79,7 @@ import Data.Time (UTCTime)
 import Data.Set (Set)
 import Language.Marlowe.Runtime.Transaction.Constraints (WalletContext)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
-import Language.Marlowe.Runtime.Contract.TransferServer (ImportBundle)
+import Language.Marlowe.Runtime.Contract.Store (BundleImporter)
 
 -- | Our monad stack is not fully compatible with Servant's `Handler` as we want to avoid
 -- `ExceptT` (which is part of the `Handler`). We avoid `ExceptT` because it doesn't
@@ -194,7 +194,7 @@ type BurnRoleTokens m =
   -> RoleTokenFilter
   -> m (Either BurnRoleTokensError (BurnRoleTokensTx V1))
 
-type WithBundleImporter m a = (ImportBundle m -> m a) -> m a
+type WithBundleImporter m a = (BundleImporter m -> m a) -> m a
 
 -- | A thin adapter around `ContractStore.getContract` that returns a
 -- `ContractWithAdjacency` with `DatumHash`es instead of `ContractHash`es.

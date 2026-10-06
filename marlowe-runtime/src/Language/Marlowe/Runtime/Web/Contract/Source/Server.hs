@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
 
 module Language.Marlowe.Runtime.Web.Contract.Source.Server
@@ -8,42 +7,36 @@ module Language.Marlowe.Runtime.Web.Contract.Source.Server
   , toSourceId
   ) where
 
+import Control.Lens (view)
+import Control.Monad.Catch (throwM)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Class (lift)
 import Data.Aeson ((.=))
 import Data.Aeson qualified as A
-import Control.Exception qualified as Ex
-import Control.Monad.Catch (MonadThrow, throwM)
-import Control.Monad.Fail (MonadFail)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Map qualified as Map
 import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Traversable (for)
-import Language.Marlowe.Object.Link (LinkError (UnknownSymbol, DuplicateLabel, TypeMismatch))
-import Language.Marlowe.Object.Types (ContractHash (ContractHash, unContractHash), Label, ObjectBundle)
-import Language.Marlowe.Object.Types qualified as O
-import Language.Marlowe.Runtime.ChainSync.Api qualified as Chain
-import Language.Marlowe.Runtime.Core.Api qualified as Api
-import Language.Marlowe.Runtime.Core.Api (MarloweVersionTag (V1))
+import Language.Marlowe.Object.Link (LinkError (DuplicateLabel, TypeMismatch, UnknownSymbol))
+import Language.Marlowe.Object.Types (ContractHash (ContractHash), Label, ObjectBundle)
+import Language.Marlowe.Runtime.Contract.Store (MainLabel (MainLabel))
 import Language.Marlowe.Runtime.Contract.Store qualified as Store
-import Language.Marlowe.Runtime.Contract.TransferServer qualified as TS
+import Language.Marlowe.Runtime.Core.Api (MarloweVersionTag (V1))
+import Language.Marlowe.Runtime.Core.Api qualified as Api
 import Language.Marlowe.Runtime.Web.Adapter.Servant qualified as Adapter
+import Language.Marlowe.Runtime.Web.Adapter.Servant.UVerbT (UVerbT, runUVerbT)
 import Language.Marlowe.Runtime.Web.Contract.API qualified as Web
 import Language.Marlowe.Runtime.Web.Server.ApiError (badRequest', badRequest'', notFound')
+import Language.Marlowe.Runtime.Web.Server.Monad (ServerM, getContractSourceL, withBundleImporterL)
 import Marlowe.Plutus.Merkle (Continuations, deepDemerkleize, demerkleizeContract)
 import Marlowe.Plutus.Semantics.Types qualified as Core
-import Pipes (Producer, (>->), hoist)
+import Pipes (Producer, hoist, (>->))
 import Pipes.Prelude qualified as Pipes
 import PlutusLedgerApi.V2 qualified as PV2
 import PlutusTx.Builtins.Internal (BuiltinByteString (..))
-import Servant (HasServer (ServerT), err404, type (:<|>) ((:<|>)), Union)
-import System.IO.Error (userError)
-import Control.Lens (view)
-import Language.Marlowe.Runtime.Web.Server.Monad (getContractSourceL, withBundleImporterL, ServerM, runEff0, runEff1)
-import Language.Marlowe.Runtime.Web.Adapter.Servant.UVerbT (runUVerbT, UVerbT)
-import Control.Monad.Trans.Class (lift)
-import Language.Marlowe.Runtime.Contract.TransferServer (MainLabel(MainLabel))
+import Servant (HasServer (ServerT), type (:<|>) ((:<|>)), Union)
 
 -- | The Servant server for `ContractSourcesAPI`.
 server :: ServerT Web.ContractSourcesAPI ServerM
@@ -138,27 +131,28 @@ post
   -> Producer ObjectBundle IO ()
   -> ServerM (Union '[Web.PostContractSourceResponse])
 post main mPreserveActions bundles = do
-  let preserveActions = maybe Set.empty Web.unPreserveActions mPreserveActions
+  let preserveActions =
+        maybe (Store.PreserveActions Set.empty) (\dto -> Store.PreserveActions dto.actions) mPreserveActions
   withBundleImporter <- view withBundleImporterL
-  withBundleImporter \importBundle -> runUVerbT do
+  withBundleImporter \importer -> runUVerbT do
     let
       importBundles :: Producer
         (Map Label ContractHash)
         (UVerbT '[Web.PostContractSourceResponse] ServerM)
-        (Either TS.ImportError (Map Label ContractHash))
+        (Either Store.ImportError (Map Label ContractHash))
       importBundles =
         hoist liftIO (Right mempty <$ bundles)
-          >-> hoist lift (importBundle (MainLabel main) preserveActions)
+          >-> hoist lift (Store.runBundleImporter importer (MainLabel main) preserveActions)
     (intermediate, result) <- Pipes.fold' (<>) mempty id importBundles
     case (intermediate <>) <$> result of
       Left err -> case err of
-        TS.ContinuationNotInStore hash ->
+        Store.ContinuationNotInStore hash ->
           lift $ throwM $ badRequest'' "Merkleized continuation not in store." "BadRequest" hash
-        TS.LinkError (UnknownSymbol s) ->
+        Store.LinkError (UnknownSymbol s) ->
           lift $ throwM $ badRequest'' "Symbol not defined." "BadRequest" s
-        TS.LinkError (DuplicateLabel s) ->
+        Store.LinkError (DuplicateLabel s) ->
           lift $ throwM $ badRequest'' "Duplicate label." "BadRequest" s
-        TS.LinkError (TypeMismatch expected actual) ->
+        Store.LinkError (TypeMismatch expected actual) ->
           lift $ throwM $
             badRequest'' "Type mismatch." "BadRequest" $
               A.object
