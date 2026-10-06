@@ -1,6 +1,6 @@
 cabal-version: 3.4
 name:          marlowe-plutus
-version:       0.2.0.0
+version:       0.3.0
 license:       Apache-2.0
 build-type:    Simple
 maintainer:    tomasz.rybarczyk@marlowe-lang.org

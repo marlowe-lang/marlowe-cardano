@@ -9,7 +9,7 @@ author:        paluh (aka Tomasz Rybarczyk)
 synopsis:      Marlowe pure transaction builders
 category:      Language
 data-files:
-  script-registry/pre-1.1.0.json
+  script-registry/0.3.0.json
 
 source-repository head
   type:     git
@@ -107,7 +107,7 @@ library
     , log-base
     , marlowe-contrib:foldable-traversable
     , marlowe-object
-    , marlowe-plutus ^>=0.2
+    , marlowe-plutus ^>=0.3
     , microlens
     , network-uri
     , nonempty-containers
@@ -295,7 +295,7 @@ executable cli
     , log-base-inlined
     , marlowe-contrib:optparse
     , marlowe-object
-    , marlowe-plutus ^>=0.2
+    , marlowe-plutus ^>=0.3
     , marlowe-transactions
     , monad-control ^>=1
     , mtl

@@ -1,7 +1,7 @@
 {
-    "currentRelease": "pre-1.1.0",
+    "currentRelease": "0.3.0",
     "scripts": {
-        "pre-1.1.0": {
+        "0.3.0": {
             "description": null,
             "marloweScript": {
                 "script": {

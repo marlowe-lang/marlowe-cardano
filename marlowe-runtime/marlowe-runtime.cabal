@@ -110,7 +110,7 @@ library
     , marlowe-contract-store:api
     , marlowe-indexer:db
     , marlowe-object
-    , marlowe-plutus ^>=0.2
+    , marlowe-plutus ^>=0.3
     , marlowe-transactions
     , monad-control ^>=1
     , mtl
@@ -286,7 +286,7 @@ executable server
     , marlowe-contrib:optparse
 
     , marlowe-object
-    , marlowe-plutus ^>=0.2
+    , marlowe-plutus ^>=0.3
     , marlowe-runtime
     , marlowe-transactions
     , monad-control ^>=1

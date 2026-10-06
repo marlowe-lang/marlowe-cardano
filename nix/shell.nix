@@ -76,6 +76,7 @@ let
     pkgs.bzip2
     pkgs.b2sum
     pkgs.cacert
+    pkgs.check-jsonschema
     pkgs.coreutils
     pkgs.curl
     pkgs.fd

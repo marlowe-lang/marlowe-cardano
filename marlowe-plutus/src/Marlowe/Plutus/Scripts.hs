@@ -148,16 +148,6 @@ mkRolePayoutValidator
   -- ^ The script context.
   -> Bool
   -- ^ Whether the transaction validated.
--- mkRolePayoutValidator ScriptContext{scriptContextTxInfo, scriptContextScriptInfo} =
---   let
---     (currency, role) = case scriptContextScriptInfo of
---       SpendingScript _ (H.Just (Datum d)) -> unsafeFromBuiltinData d
---       _ -> traceError "q"
---   in
---     -- The role token for the correct currency must be present.
---     -- [Marlowe-Cardano Specification: "17. Payment authorized".]
---     Val.singleton currency role 1 `Val.leq` valueSpent scriptContextTxInfo
--- 
 mkRolePayoutValidator ScriptContext{scriptContextTxInfo, scriptContextScriptInfo} =
   case scriptContextScriptInfo of
     SpendingScript _ (H.Just (Datum d)) ->

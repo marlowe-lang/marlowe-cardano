@@ -323,7 +323,7 @@ loadScriptRegistry jsonFile = runExceptT do
     Right registry -> pure registry
 
 defaultRegistry :: FilePath
-defaultRegistry = "script-registry/pre-1.1.0.json"
+defaultRegistry = "script-registry/0.3.0.json"
 
 -- | IO that loads the registry shipped with the 'marlowe-transactions'
 -- package (see 'data-files: script-registry/*.json' in the cabal file).

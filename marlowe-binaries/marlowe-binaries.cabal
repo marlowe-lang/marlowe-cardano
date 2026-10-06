@@ -1,6 +1,6 @@
 cabal-version: 3.4
 name:          marlowe-binaries
-version:       0.2.0.0
+version:       0.3.0
 license:       Apache-2.0
 build-type:    Simple
 maintainer:    tomasz.rybarczyk@marlowe-lang.org
@@ -121,17 +121,21 @@ library
   import:          lang
   hs-source-dirs:  src
   build-depends:
+    , aeson
     , base
     , bytestring
     , cardano-crypto-class
-    , marlowe-plutus:{marlowe-plutus} ^>=0.2
+    , containers
+    , marlowe-plutus:{marlowe-plutus} ^>=0.3
     , plutus-core
     , plutus-ledger-api
     , plutus-tx
     , plutus-tx-plugin
+    , text
 
   exposed-modules:
     Marlowe.Plutus.Binaries
+    Marlowe.Plutus.Binaries.Blueprint
     Marlowe.Plutus.Binaries.Core
     Marlowe.Plutus.Binaries.Devel
     Marlowe.Plutus.Binaries.Production
@@ -145,6 +149,7 @@ library marlowe-binaries-api
 
   exposed-modules:
     Marlowe.Plutus.Binaries.Api.Benchmark
+    Marlowe.Plutus.Binaries.Api.Blueprint
     Marlowe.Plutus.Binaries.Api.Compile
 
   other-modules:
@@ -207,6 +212,7 @@ executable marlowe-binaries
   other-modules:
     Commands.Benchmark
     Commands
+    Commands.Blueprint
     Commands.Compile
     Options
     Paths_marlowe_binaries
