@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Language.Marlowe.Runtime.Web.Contract.Source.Server
   ( post
@@ -32,7 +31,6 @@ import Language.Marlowe.Runtime.Contract.TransferServer qualified as TS
 import Language.Marlowe.Runtime.Web.Adapter.Servant qualified as Adapter
 import Language.Marlowe.Runtime.Web.Contract.API qualified as Web
 import Language.Marlowe.Runtime.Web.Server.ApiError (badRequest', badRequest'', notFound')
-import Marlowe.ContractStore.Protocol.Transfer.Types qualified as T
 import Marlowe.Plutus.Merkle (Continuations, deepDemerkleize, demerkleizeContract)
 import Marlowe.Plutus.Semantics.Types qualified as Core
 import Pipes (Producer, (>->), hoist)
@@ -147,20 +145,20 @@ post main mPreserveActions bundles = do
       importBundles :: Producer
         (Map Label ContractHash)
         (UVerbT '[Web.PostContractSourceResponse] ServerM)
-        (Either T.ImportError (Map Label ContractHash))
+        (Either TS.ImportError (Map Label ContractHash))
       importBundles =
         hoist liftIO (Right mempty <$ bundles)
           >-> hoist lift (importBundle (MainLabel main) preserveActions)
     (intermediate, result) <- Pipes.fold' (<>) mempty id importBundles
     case (intermediate <>) <$> result of
       Left err -> case err of
-        T.ContinuationNotInStore hash ->
+        TS.ContinuationNotInStore hash ->
           lift $ throwM $ badRequest'' "Merkleized continuation not in store." "BadRequest" hash
-        T.LinkError (UnknownSymbol s) ->
+        TS.LinkError (UnknownSymbol s) ->
           lift $ throwM $ badRequest'' "Symbol not defined." "BadRequest" s
-        T.LinkError (DuplicateLabel s) ->
+        TS.LinkError (DuplicateLabel s) ->
           lift $ throwM $ badRequest'' "Duplicate label." "BadRequest" s
-        T.LinkError (TypeMismatch expected actual) ->
+        TS.LinkError (TypeMismatch expected actual) ->
           lift $ throwM $
             badRequest'' "Type mismatch." "BadRequest" $
               A.object

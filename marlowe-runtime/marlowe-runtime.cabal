@@ -107,7 +107,6 @@ library
     , lens
     , lens-aeson
     , log-base
-    , marlowe-contract-store:api
     , marlowe-indexer:db
     , marlowe-object
     , marlowe-plutus ^>=0.3
@@ -282,7 +281,6 @@ executable server
     , log-base
     , log-base-inlined
     , marlowe-binaries:marlowe-binaries-api
-    , marlowe-contract-store:api
     , marlowe-contrib:optparse
 
     , marlowe-object
