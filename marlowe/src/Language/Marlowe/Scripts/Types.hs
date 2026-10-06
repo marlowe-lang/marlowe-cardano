@@ -48,7 +48,7 @@ import Cardano.Api (
   ),
   readFileTextEnvelopeAnyOf,
  )
-import Cardano.Api.Shelley (PlutusScript (..))
+import Cardano.Api.Plutus (PlutusScript (..))
 import Data.ByteString.Char8 qualified as B8
 import Data.ByteString.Internal qualified as B
 import Data.ByteString.Short qualified as SBS
@@ -124,13 +124,13 @@ plutusScriptToExpr (PlutusScriptSerialised (SBS.fromShort -> script)) =
       PlutusScriptV2 -> ''PlutusScriptV2
       PlutusScriptV3 -> Haskell.error "PlutusScriptV3 type constructor not exposed by cardano-api!"
     `AppE` ( AppE (VarE 'SBS.toShort)
-              $ AppE (VarE 'unsafePerformIO)
-              $ VarE 'BS.unsafePackAddressLen
-              `AppE` LitE (IntegerL $ Haskell.fromIntegral $ B8.length script)
-              `AppE` LitE
-                ( bytesPrimL
-                    ( let B.PS ptr off sz = script
-                       in mkBytes ptr (Haskell.fromIntegral off) (Haskell.fromIntegral sz)
-                    )
-                )
+               $ AppE (VarE 'unsafePerformIO)
+               $ VarE 'BS.unsafePackAddressLen
+               `AppE` LitE (IntegerL $ Haskell.fromIntegral $ B8.length script)
+               `AppE` LitE
+                 ( bytesPrimL
+                     ( let B.PS ptr off sz = script
+                        in mkBytes ptr (Haskell.fromIntegral off) (Haskell.fromIntegral sz)
+                     )
+                 )
            )

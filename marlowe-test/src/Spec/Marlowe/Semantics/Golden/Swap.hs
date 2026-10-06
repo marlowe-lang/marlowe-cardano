@@ -33,6 +33,9 @@ import Language.Marlowe.Core.V1.Semantics.Types (
   State (State, accounts, boundValues, choices, minTime),
   Token (Token),
   Value (Constant),
+  mkRoleUtf8,
+  mkTokenNameUtf8,
+  unsafeMkCurrencySymbolHex,
  )
 import Language.Marlowe.Util ()
 import PlutusLedgerApi.V2 (CurrencySymbol, POSIXTime (..))
@@ -40,20 +43,20 @@ import PlutusLedgerApi.V2 (CurrencySymbol, POSIXTime (..))
 import qualified PlutusTx.AssocMap as AM (Map, unsafeFromList)
 
 aSymbol, bSymbol :: CurrencySymbol
-aSymbol = "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8"
-bSymbol = "1b9af43b0eaafc42dfaefbbf4e71437af45454c7292a6b6606363741"
+aSymbol = unsafeMkCurrencySymbolHex "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8"
+bSymbol = unsafeMkCurrencySymbolHex "1b9af43b0eaafc42dfaefbbf4e71437af45454c7292a6b6606363741"
 
 aParty :: Party
-aParty = "Party A"
+aParty = mkRoleUtf8 "Party A"
 
 bParty :: Party
-bParty = "Party B"
+bParty = mkRoleUtf8 "Party B"
 
 aToken :: Token
-aToken = Token aSymbol "Token A"
+aToken = Token aSymbol (mkTokenNameUtf8 "Token A")
 
 bToken :: Token
-bToken = Token bSymbol "Token B"
+bToken = Token bSymbol (mkTokenNameUtf8 "Token B")
 
 -- | The Swap contract.
 contract :: Contract
@@ -117,8 +120,8 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments =
-            [Payment aParty (Party aParty) (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "Token A") 300_000_000]
+        , txOutPayments = do
+            [Payment aParty (Party aParty) aToken 300_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -144,8 +147,8 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [ Payment aParty (Party bParty) (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "Token A") 300_000_000
-            , Payment bParty (Party aParty) (Token "1b9af43b0eaafc42dfaefbbf4e71437af45454c7292a6b6606363741" "Token B") 500_000_000
+            [ Payment aParty (Party bParty) aToken 300_000_000
+            , Payment bParty (Party aParty) bToken 500_000_000
             ]
         , txOutState =
             State
@@ -190,7 +193,7 @@ invalids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment aParty (Party aParty) (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "Token A") 300_000_000]
+            [Payment aParty (Party aParty) aToken 300_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -216,8 +219,8 @@ invalids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [ Payment aParty (Party bParty) (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "Token A") 300_000_000
-            , Payment bParty (Party aParty) (Token "1b9af43b0eaafc42dfaefbbf4e71437af45454c7292a6b6606363741" "Token B") 500_000_000
+            [ Payment aParty (Party bParty) aToken 300_000_000
+            , Payment bParty (Party aParty) bToken 500_000_000
             ]
         , txOutState =
             State

@@ -13,8 +13,9 @@
 
 module Adapter.Cardano.Api.ProtocolParameters where
 
+import Cardano.Api.Era (ShelleyLedgerEra)
 import Cardano.Api.Ledger
-import Cardano.Api.Shelley (LedgerProtocolParameters (..), ShelleyLedgerEra)
+import Cardano.Api.ProtocolParameters (LedgerProtocolParameters (..))
 import Data.Aeson
 import GHC.Generics
 

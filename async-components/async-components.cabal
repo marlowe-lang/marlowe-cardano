@@ -55,14 +55,14 @@ library
   build-depends:
     , base >=4.9 && <5
     , co-log ^>=0.6
-    , eventuo11y >=0.9 && <0.11
+    , eventuo11y >=0.9.0.1
     , eventuo11y-extras ==0.1.1.0
-    , eventuo11y-otel ^>=0.1
+    , eventuo11y-otel ^>=0.2
     , exceptions ^>=0.10
     , general-allocate ^>=0.2
-    , hs-opentelemetry-api ^>=0.0.3
-    , hs-opentelemetry-exporter-handle ^>=0.0.1.1
-    , hs-opentelemetry-sdk ^>=0.0.3
+    , hs-opentelemetry-api
+    , hs-opentelemetry-exporter-handle
+    , hs-opentelemetry-sdk
     , mtl >=2.2 && <3
     , servant-client ^>=0.20
     , servant-server ^>=0.20

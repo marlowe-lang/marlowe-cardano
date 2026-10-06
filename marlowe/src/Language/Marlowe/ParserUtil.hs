@@ -11,10 +11,3 @@ getInteger ctx x = case (floatingOrInteger x :: Either Double Integer) of
 
 withInteger :: String -> JSON.Value -> Parser Integer
 withInteger ctx = withScientific ctx $ getInteger ctx
-
-customOptions :: Options
-customOptions =
-  defaultOptions
-    { unwrapUnaryRecords = True
-    , sumEncoding = TaggedObject{tagFieldName = "tag", contentsFieldName = "contents"}
-    }

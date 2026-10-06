@@ -1,0 +1,11 @@
+New in version 0.0.3:
+ - Updating transformers dependency
+
+New in version 0.0.2:
+ - Updating transformers dependency
+
+New in version 0.0.1:
+ - eta expanding definition of traverseMFor for GHC 7 compatibility
+
+New in version 0.0.1.1:
+ - documenation of the Multiplate laws

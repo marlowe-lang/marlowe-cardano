@@ -60,15 +60,16 @@ library
   import:          lang
   hs-source-dirs:  src
   build-depends:
-    , aeson ^>=2.2
+    , aeson
     , base >=4.9 && <5
     , base16-aeson ==0.1.0.0
+    , base16-bytestring
     , bech32 >=1.1 && <2
-    , bytestring >=0.10.12 && <0.12
-    , cardano-api ^>=9.2
+    , bytestring
+    , cardano-api
     , containers ^>=0.6.5
     , deepseq
-    , deriving-aeson ^>=0.2.9
+    , deriving-aeson
     , either ^>=5.0.2
     , ilist ==0.4.0.1
     , marlowe-adapter
@@ -76,16 +77,16 @@ library
     , multiplate ==0.0.3
     , newtype-generics ^>=0.6.2
     , ordered-containers ^>=0.2
-    , plutus-ledger-api ^>=1.31
-    , plutus-tx ^>=1.31
+    , plutus-ledger-api
+    , plutus-tx
     , profunctors >=5.6 && <6
     , range ==0.3.0.2
-    , sbv ^>=9.2
+    , sbv
     , scientific ^>=0.3.7
     , template-haskell
-    , text ^>=2.0
+    , text
     , time >=1.9.3 && <2
-    , transformers ^>=0.5.6
+    , transformers ^>=0.6.1
     , wl-pprint >=1.2 && <2
 
   exposed-modules:

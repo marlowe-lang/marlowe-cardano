@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Marlowe.Util (
-  ada,
   addAccountsDiff,
   emptyAccountsDiff,
   extractNonMerkleizedContractRoles,
@@ -14,29 +13,27 @@ module Language.Marlowe.Util (
 ) where
 
 import Cardano.Api (SerialiseAsRawBytes (..), hashScriptDataBytes, unsafeHashableScriptData)
-import Cardano.Api.Shelley (fromPlutusData)
+import Cardano.Api.Plutus (fromPlutusData)
 import Data.List (foldl')
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String
-import qualified Data.Text as T (pack)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import Language.Marlowe.Core.V1.Semantics
 import Language.Marlowe.Core.V1.Semantics.Types
 import Language.Marlowe.Core.V1.Semantics.Types.Address (deserialiseAddressBech32)
 import qualified PlutusLedgerApi.V1.Value as Val
-import PlutusLedgerApi.V2 (ToData, adaSymbol, adaToken, toBuiltin, toData)
+import PlutusLedgerApi.V2 (ToData, toBuiltin, toData)
 import qualified PlutusTx
 import qualified PlutusTx.Prelude as P
 
 instance IsString Party where
   fromString s = case deserialiseAddressBech32 $ T.pack s of
     Just (network, address) -> Address network address
-    Nothing -> Role $ fromString s
-
-ada :: Token
-ada = Token adaSymbol adaToken
+    Nothing -> Role . Val.TokenName . toBuiltin $ TE.encodeUtf8 . T.pack $ s
 
 type AccountsDiff = Map Party Money
 

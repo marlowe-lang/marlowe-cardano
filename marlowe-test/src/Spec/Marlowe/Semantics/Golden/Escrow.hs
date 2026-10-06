@@ -30,11 +30,12 @@ import Language.Marlowe.Core.V1.Semantics.Types (
   Contract (Close, Pay, When),
   Input (NormalInput),
   InputContent (IChoice, IDeposit),
-  Party (Role),
+  Party,
   Payee (Account, Party),
   State (State, accounts, boundValues, choices, minTime),
-  Token (Token),
   Value (Constant),
+  ada,
+  mkRoleUtf8,
  )
 import Language.Marlowe.Util ()
 import PlutusLedgerApi.V2 (POSIXTime (..))
@@ -42,16 +43,13 @@ import PlutusLedgerApi.V2 (POSIXTime (..))
 import qualified PlutusTx.AssocMap as AM (Map, unsafeFromList)
 
 seller :: Party
-seller = "Seller"
+seller = mkRoleUtf8 "Seller"
 
 buyer :: Party
-buyer = "Buyer"
+buyer = mkRoleUtf8 "Buyer"
 
 mediator :: Party
-mediator = Role "Mediator"
-
-ada :: Token
-ada = Token "" ""
+mediator = mkRoleUtf8 "Mediator"
 
 -- | The Escrow contract.
 contract :: Contract
@@ -135,7 +133,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment seller (Party seller) (Token "" "") 100_000_000]
+        , txOutPayments = [Payment seller (Party seller) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -160,7 +158,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment seller (Party seller) (Token "" "") 100_000_000]
+        , txOutPayments = [Payment seller (Party seller) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -187,7 +185,7 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment seller (Account buyer) (Token "" "") 100_000_000, Payment buyer (Party buyer) (Token "" "") 100_000_000]
+            [Payment seller (Account buyer) (ada) 100_000_000, Payment buyer (Party buyer) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -217,7 +215,7 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment seller (Account buyer) (Token "" "") 100_000_000, Payment buyer (Party buyer) (Token "" "") 100_000_000]
+            [Payment seller (Account buyer) (ada) 100_000_000, Payment buyer (Party buyer) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -248,7 +246,7 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment seller (Account buyer) (Token "" "") 100_000_000, Payment buyer (Party buyer) (Token "" "") 100_000_000]
+            [Payment seller (Account buyer) (ada) 100_000_000, Payment buyer (Party buyer) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -282,9 +280,9 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [ Payment seller (Account buyer) (Token "" "") 100_000_000
-            , Payment buyer (Account seller) (Token "" "") 100_000_000
-            , Payment seller (Party seller) (Token "" "") 100_000_000
+            [ Payment seller (Account buyer) (ada) 100_000_000
+            , Payment buyer (Account seller) (ada) 100_000_000
+            , Payment seller (Party seller) (ada) 100_000_000
             ]
         , txOutState =
             State
@@ -324,7 +322,7 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment seller (Account buyer) (Token "" "") 100_000_000, Payment buyer (Party buyer) (Token "" "") 100_000_000]
+            [Payment seller (Account buyer) (ada) 100_000_000, Payment buyer (Party buyer) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -372,7 +370,7 @@ invalids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment seller (Party seller) (Token "" "") 100_000_000]
+        , txOutPayments = [Payment seller (Party seller) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -397,7 +395,7 @@ invalids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment seller (Party seller) (Token "" "") 100_000_000]
+        , txOutPayments = [Payment seller (Party seller) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -424,7 +422,7 @@ invalids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment seller (Account buyer) (Token "" "") 100_000_000, Payment buyer (Party buyer) (Token "" "") 100_000_000]
+            [Payment seller (Account buyer) (ada) 100_000_000, Payment buyer (Party buyer) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -454,7 +452,7 @@ invalids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment seller (Account buyer) (Token "" "") 100_000_000, Payment buyer (Party buyer) (Token "" "") 100_000_000]
+            [Payment seller (Account buyer) (ada) 100_000_000, Payment buyer (Party buyer) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -485,7 +483,7 @@ invalids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment seller (Account buyer) (Token "" "") 100_000_000, Payment buyer (Party buyer) (Token "" "") 100_000_000]
+            [Payment seller (Account buyer) (ada) 100_000_000, Payment buyer (Party buyer) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}

@@ -57,7 +57,7 @@ import Language.Marlowe.Core.V1.Semantics.Types (
 import PlutusLedgerApi.V1 (DatumHash (..), toBuiltin, toData)
 
 import Cardano.Api (SerialiseAsRawBytes (..), hashScriptDataBytes, unsafeHashableScriptData)
-import Cardano.Api.Shelley (fromPlutusData)
+import Cardano.Api.Plutus (fromPlutusData)
 import qualified Data.Map.Strict as M (Map, lookup, singleton)
 
 -- | Hashed continuations of a Marlowe contract.

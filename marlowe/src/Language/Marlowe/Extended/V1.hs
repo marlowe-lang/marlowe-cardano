@@ -25,7 +25,7 @@ module Language.Marlowe.Extended.V1 (
   S.Token (..),
   S.ValueId (..),
   ToCore (..),
-  ada,
+  S.ada,
   adaSymbol,
   adaToken,
   (%),
@@ -43,7 +43,6 @@ import qualified Language.Marlowe.Core.V1.Semantics.Types as S
 import Language.Marlowe.Extended.V1.Metadata.Types (MetaData)
 import Language.Marlowe.ParserUtil (getInteger, withInteger)
 import Language.Marlowe.Pretty (Pretty (..), pretty)
-import Language.Marlowe.Util (ada)
 import PlutusLedgerApi.V2 (adaSymbol, adaToken)
 import qualified PlutusLedgerApi.V2 as L
 import Text.PrettyPrint.Leijen (parens, text)

@@ -1,0 +1,37 @@
+cabal-version: 3.4
+name:          multiplate
+version:       0.0.3
+x-revision:    1
+license:       MIT
+license-file:  LICENSE
+build-type:    Simple
+copyright:     2010, Russell O'Connor
+author:        Russell O'Connor
+maintainer:    Russell O'Connor <roconnor@theorem.ca>
+homepage:      http://haskell.org/haskellwiki/Multiplate
+synopsis:
+  Lightweight generic library for mutually recursive data types.
+
+category:      Generics, Lenses
+description:
+  Multiplate is an alternative extension of the Uniplate/Compos core library
+  to support mutally recursive
+  datatypes in a way that is as powerful as Compos, as easy to use as Biplate, and
+  more portable than both of them.
+
+  Multiplate does not require GADTs and does not require multi-parameter type classes.
+  It only requires rank 3 polymorphism.
+
+data-files:    CHANGELOG
+
+library
+  -- see https://github.com/haskell-infra/hackage-trustees/issues/156
+  build-depends:
+    , base >=3 && <5
+    , transformers >=0.2 && <0.7
+
+  default-extensions:
+    RankNTypes
+    ScopedTypeVariables
+
+  exposed-modules:    Data.Generics.Multiplate

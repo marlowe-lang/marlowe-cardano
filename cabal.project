@@ -10,8 +10,8 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 index-state:
-  , hackage.haskell.org 2024-08-07T14:18:16Z
-  , cardano-haskell-packages 2024-08-28T06:44:16Z
+  , hackage.haskell.org 2025-06-06T12:15:17Z
+  , cardano-haskell-packages 2025-07-17T12:00:21Z
 
 packages:
   async-components
@@ -39,6 +39,7 @@ packages:
   libs/aeson-via-serialise
   libs/base16-aeson
   libs/cardano-debug
+  libs/multiplate
   libs/plutus-ledger-aeson
   libs/plutus-ledger-ada
   libs/plutus-ledger-slot
@@ -181,34 +182,56 @@ package plutus-script-utils
 package freer-extras
   optimization: False
 
--- marlowe-cli only
-
-source-repository-package
-  type: git
-  location: https://github.com/input-output-hk/cardano-addresses
-  tag: 0b66b8ad3703ab349414de58f3503843dfb22a1e
-  --sha256: sha256-69iE7LrigHTSKJrgq6uGU+U4j+NtBwR4ae18vsLyVvI=
-  subdir: core
+constraints:
+  , base16 ^>=1.0
+  , bytestring >=0.10.12 && <0.13
+  , cardano-api == 10.17.2.0
+  , cardano-ledger-shelley ==1.16.0.0
+  , ouroboros-network-framework ^>=0.18
+  , ouroboros-network-protocols ^>=0.14
+  , ouroboros-network-api ^>=0.14
+  , plutus-ledger-api ==1.45.0.0
+  , hasql ==1.9.1.2
+  , hs-opentelemetry-api ^>=0.2.0
+  , text ^>= 2.1.1
+  , zlib +bundled-c-zlib
 
 allow-newer:
   primitive,
   optparse-applicative
 
+-- source-repository-package
+--   type: git
+--   location: https://github.com/input-output-hk/cardano-addresses
+--   tag: 0b66b8ad3703ab349414de58f3503843dfb22a1e
+--   --sha256: sha256-69iE7LrigHTSKJrgq6uGU+U4j+NtBwR4ae18vsLyVvI=
+--   subdir: core
 
 source-repository-package
    type: git
    location: https://github.com/input-output-hk/actus-core
-   tag: 3bddfeb838c695adf2c6689b3beda3ef1019de7
-   --sha256: 12pahjijkym93sm1qh9l9jw6wlv3vf46l73hpdwrm25rz195hi47
+   tag: 42451170dc61c5c11c4144bd5a69046f149e8016
+   --sha256: sha256-Zlf2wyK+a4Pz50b+d8nmnJhwz96Yu5A4lROB5stwurU=
 
 
 source-repository-package
    type: git
-   location: https://github.com/input-output-hk/marlowe
-   tag: e94fab24826f5b095e8fc7c5a41fac939e5fb9ae
+   location: https://github.com/marlowe-lang/marlowe
+   tag: 2a5a03fbff15fd0469b89a65a56cc17e89be2acc
    subdir: marlowe-spec-test
+           haskell
            isabelle
-   --sha256: sha256-29HMWsmDsRTyuJVJE+yc1rujNX6U6oVZ2homTab1syw=
+   --sha256: sha256-DmjFaROtuxyoVOOdTIYh28evqaa7ZbQyzkaJUTZMcxI=
 
-
+source-repository-package
+   type: git
+   location: https://github.com/paluh/eventuo11y
+   tag: d6b1acf47c490e9efd996a1efcb1dc67fb7d3c2d
+   subdir: eventuo11y-batteries
+           eventuo11y-dsl
+           eventuo11y-json
+           eventuo11y-otel
+           eventuo11y-prometheus
+           .
+   --sha256: sha256-iAssHIrBbImNYP8n59Zcv8fU+dvzz5w/SBPIst/0ho0=
 

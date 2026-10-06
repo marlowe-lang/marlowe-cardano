@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
@@ -1054,10 +1055,10 @@ warningsTraceCustom
   -> Contract
   -> Maybe State
   -> IO
-      ( Either
-          ThmResult
-          (Maybe (POSIXTime, [TransactionInput], [TransactionWarning]))
-      )
+       ( Either
+           ThmResult
+           (Maybe (POSIXTime, [TransactionInput], [TransactionWarning]))
+       )
 warningsTraceCustom onlyAssertions slotLength con maybeState =
   do
     thmRes@(ThmResult result) <- satCommand
@@ -1083,10 +1084,10 @@ warningsTraceWithState
   -> Contract
   -> Maybe State
   -> IO
-      ( Either
-          ThmResult
-          (Maybe (POSIXTime, [TransactionInput], [TransactionWarning]))
-      )
+       ( Either
+           ThmResult
+           (Maybe (POSIXTime, [TransactionInput], [TransactionWarning]))
+       )
 warningsTraceWithState = warningsTraceCustom False
 
 -- Like warningsTraceCustom but only checks assertions.
@@ -1095,10 +1096,10 @@ onlyAssertionsWithState
   -> Contract
   -> Maybe State
   -> IO
-      ( Either
-          ThmResult
-          (Maybe (POSIXTime, [TransactionInput], [TransactionWarning]))
-      )
+       ( Either
+           ThmResult
+           (Maybe (POSIXTime, [TransactionInput], [TransactionWarning]))
+       )
 onlyAssertionsWithState = warningsTraceCustom True
 
 -- Like warningsTraceWithState but without initialState.
@@ -1106,8 +1107,8 @@ warningsTrace
   :: SlotLength
   -> Contract
   -> IO
-      ( Either
-          ThmResult
-          (Maybe (POSIXTime, [TransactionInput], [TransactionWarning]))
-      )
+       ( Either
+           ThmResult
+           (Maybe (POSIXTime, [TransactionInput], [TransactionWarning]))
+       )
 warningsTrace sl con = warningsTraceWithState sl con Nothing

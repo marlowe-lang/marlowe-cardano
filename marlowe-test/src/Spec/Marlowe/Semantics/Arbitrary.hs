@@ -90,6 +90,8 @@ import Language.Marlowe.Core.V1.Semantics.Types (
   Value (..),
   ValueId (..),
   getAction,
+  mkTokenNameByteString,
+  unsafeMkCurrencySymbolHex,
  )
 import Language.Marlowe.Core.V1.Semantics.Types.Address (testnet)
 import PlutusLedgerApi.V2 (
@@ -149,8 +151,7 @@ arbitraryFibonacci = frequency . zip fibonacciFrequencies . fmap pure
 shrinkByteString :: (a -> BuiltinByteString) -> [a] -> a -> [a]
 shrinkByteString f universe selected =
   filter
-    ( \candidate -> lengthOfByteString (f candidate) > 0 && lengthOfByteString (f candidate) < lengthOfByteString (f selected)
-    )
+    (\candidate -> lengthOfByteString (f candidate) > 0 && lengthOfByteString (f candidate) < lengthOfByteString (f selected))
     universe
 
 -- | Select an element of a list with high probability, or create a non-element at random with low probability.
@@ -322,24 +323,25 @@ instance Arbitrary PubKeyHash where
 -- | Some currency symbols.
 randomCurrencySymbols :: [CurrencySymbol]
 randomCurrencySymbols =
-  [ "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8"
-  , "1b9af43b0eaafc42dfaefbbf4e71437af45454c7292a6b6606363741"
-  , "23d79373f7d9edbd016c99e21a473f498a2e425491244ecbc663e9d0"
-  , "2839d40108e194eced45205c89613df56bd482e07e6c81a1df2b0e9b"
-  , "2c60fb96c894b099f1a21ca9cf51c8c46a4672eb9a30b85252e9adb7"
-  , "35c100db45fdf04b9317a2c520c2638ead47fd792984f32c9652cbc7"
-  , "443d7002ac74be8c3c53f901d95c89c5932ee8946b188ca9f59db24e"
-  , "63f3875b161780b82c7706fbc36fe906e54742e9f5b4c68d260e5da9"
-  , "64da8cbb98eccc616bb0061efed2717393e4b48d8f78147396f4521f"
-  , "66879477b60f46e5c5ad1d1bb124ab5c3d46a3acc9e54b7da4259655"
-  , "9019bb7fb44ec03537b61a6f4aa3fd7b1effaf0776c3d449e9c6274e"
-  , "9f92753881b398a247e53b6cad08eab0e158cf1ef5df84c7f5766041"
-  , "c1f46ec0147542f9bc155805993497ed44150687a41d0a63af3be466"
-  , "cc2189d7adde0ed26355fd03e134feb508e5924959b07a53557f285e"
-  , "cc2189d7adde0ed26355fd03e134feb508e5924959b07a53557f"
-  , "cc2189d7adde0ed26355fd03e134feb508e5924959b07a53557f123456"
-  , ""
-  ]
+  unsafeMkCurrencySymbolHex
+    <$> [ "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8"
+        , "1b9af43b0eaafc42dfaefbbf4e71437af45454c7292a6b6606363741"
+        , "23d79373f7d9edbd016c99e21a473f498a2e425491244ecbc663e9d0"
+        , "2839d40108e194eced45205c89613df56bd482e07e6c81a1df2b0e9b"
+        , "2c60fb96c894b099f1a21ca9cf51c8c46a4672eb9a30b85252e9adb7"
+        , "35c100db45fdf04b9317a2c520c2638ead47fd792984f32c9652cbc7"
+        , "443d7002ac74be8c3c53f901d95c89c5932ee8946b188ca9f59db24e"
+        , "63f3875b161780b82c7706fbc36fe906e54742e9f5b4c68d260e5da9"
+        , "64da8cbb98eccc616bb0061efed2717393e4b48d8f78147396f4521f"
+        , "66879477b60f46e5c5ad1d1bb124ab5c3d46a3acc9e54b7da4259655"
+        , "9019bb7fb44ec03537b61a6f4aa3fd7b1effaf0776c3d449e9c6274e"
+        , "9f92753881b398a247e53b6cad08eab0e158cf1ef5df84c7f5766041"
+        , "c1f46ec0147542f9bc155805993497ed44150687a41d0a63af3be466"
+        , "cc2189d7adde0ed26355fd03e134feb508e5924959b07a53557f285e"
+        , "cc2189d7adde0ed26355fd03e134feb508e5924959b07a53557f"
+        , "cc2189d7adde0ed26355fd03e134feb508e5924959b07a53557f123456"
+        , ""
+        ]
 
 instance Arbitrary CurrencySymbol where
   arbitrary = arbitraryFibonacci randomCurrencySymbols
@@ -347,24 +349,25 @@ instance Arbitrary CurrencySymbol where
 -- | Some token names.
 randomTokenNames :: [TokenName]
 randomTokenNames =
-  [ "I"
-  , "AD"
-  , "PIN"
-  , "TALE"
-  , "RIVER"
-  , "METHOD"
-  , "REVENUE"
-  , ""
-  , "POSSIBILITY"
-  , "SATISFACTION"
-  , "PAYMENT CONCEPT"
-  , "OFFICE DEFINITION"
-  , "ARTISAN CONVERSATION"
-  , "SOFTWARE FEEDBACK METHOD"
-  , "INDEPENDENCE EXPLANATION REVENUE"
-  , "INDEPENDENCE EXPLANATION REVENUE INDEPENDENCE EXPLANATION REVENUE"
-  , "INDEPENDENCE EXPLANATION REVENUE INDEPENDENCE EXPLANATION REVENUE INDEPENDENCE EXPLANATION REVENUE INDEPENDENCE EXPLANATION REVENUE"
-  ]
+  mkTokenNameByteString
+    <$> [ "I"
+        , "AD"
+        , "PIN"
+        , "TALE"
+        , "RIVER"
+        , "METHOD"
+        , "REVENUE"
+        , ""
+        , "POSSIBILITY"
+        , "SATISFACTION"
+        , "PAYMENT CONCEPT"
+        , "OFFICE DEFINITION"
+        , "ARTISAN CONVERSATION"
+        , "SOFTWARE FEEDBACK METHOD"
+        , "INDEPENDENCE EXPLANATION REVENUE"
+        , "INDEPENDENCE EXPLANATION REVENUE INDEPENDENCE EXPLANATION REVENUE"
+        , "INDEPENDENCE EXPLANATION REVENUE INDEPENDENCE EXPLANATION REVENUE INDEPENDENCE EXPLANATION REVENUE INDEPENDENCE EXPLANATION REVENUE"
+        ]
 
 instance Arbitrary TokenName where
   arbitrary = arbitraryFibonacci randomTokenNames
@@ -382,22 +385,23 @@ instance SemiArbitrary Token where
 -- | Some role names.
 randomRoleNames :: [TokenName]
 randomRoleNames =
-  [ "Cy"
-  , "Noe"
-  , "Sten"
-  , "Cara"
-  , "Alene"
-  , "Hande"
-  , ""
-  , "I"
-  , "Zakkai"
-  , "Laurent"
-  , "Prosenjit"
-  , "Dafne Helge Mose"
-  , "Nonso Ernie Blanka"
-  , "Umukoro Alexander Columb"
-  , "Urbanus Roland Alison Ty Ryoichi"
-  ]
+  mkTokenNameByteString
+    <$> [ "Cy"
+        , "Noe"
+        , "Sten"
+        , "Cara"
+        , "Alene"
+        , "Hande"
+        , ""
+        , "I"
+        , "Zakkai"
+        , "Laurent"
+        , "Prosenjit"
+        , "Dafne Helge Mose"
+        , "Nonso Ernie Blanka"
+        , "Umukoro Alexander Columb"
+        , "Urbanus Roland Alison Ty Ryoichi"
+        ]
 
 instance Arbitrary Party where
   arbitrary =
@@ -552,7 +556,7 @@ invalidValues :: Integer -> Integer -> [Integer]
 invalidValues lower upper = [x | x <- availableValues, x < lower || x > upper]
 
 availableValues :: [Integer]
-availableValues = tail $ [0 ..] >>= \x -> [x, -x]
+availableValues = drop 1 $ [0 ..] >>= \x -> [x, -x]
 
 -- | Generate a semi-random time interval.
 arbitraryTimeInterval :: Gen TimeInterval

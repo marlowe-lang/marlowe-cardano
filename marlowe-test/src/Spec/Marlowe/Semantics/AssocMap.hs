@@ -22,7 +22,6 @@ module Spec.Marlowe.Semantics.AssocMap (
   assocMapValid,
 ) where
 
-import Data.Bifunctor (bimap)
 import Data.Function (on)
 import Data.List (groupBy, nub, sortBy)
 
@@ -54,9 +53,11 @@ assocMapInsert k v =
 
 -- | Insert an entry into a map.
 assocMapAdd :: (Ord k) => (Num v) => k -> v -> AM.Map k v -> AM.Map k v
-assocMapAdd k v =
+assocMapAdd k v = do
+  let sumStep [] = error "Impossible: empty group in assocMapAdd."
+      sumStep groupped@((key, _) : _) = (key, sum (snd <$> groupped))
   AM.unsafeFromList
-    . fmap (bimap head sum . unzip)
+    . fmap sumStep
     . groupBy ((==) `on` fst)
     . sortBy (compare `on` fst)
     . ((k, v) :)

@@ -57,7 +57,7 @@ library
     , async-components
     , base >=4.9 && <5
     , bytestring
-    , cardano-api ^>=9.2
+    , cardano-api
     , cardano-crypto-wrapper
     , cardano-integration
     , cardano-ledger-byron
@@ -66,11 +66,11 @@ library
     , deepseq
     , eventuo11y >=0.9 && <0.11
     , eventuo11y-extras
-    , eventuo11y-otel ^>=0.1
+    , eventuo11y-otel ^>=0.2
     , exceptions
     , hasql
     , hasql-pool
-    , hs-opentelemetry-api ^>=0.0.3
+    , hs-opentelemetry-api
     , http-client
     , marlowe-chain-sync
     , marlowe-chain-sync:chain-indexer

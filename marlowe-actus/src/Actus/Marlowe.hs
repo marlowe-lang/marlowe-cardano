@@ -42,7 +42,8 @@ import Actus.Model (
   validateTerms,
  )
 import Control.Applicative ((<|>))
-import Control.Monad.Reader (Reader, filterM, runReader, withReader)
+import Control.Monad (filterM)
+import Control.Monad.Reader (Reader, runReader, withReader)
 import Data.List as L (foldl', groupBy)
 import Data.Maybe (isNothing)
 import Data.Time (LocalTime (..), UTCTime (UTCTime), nominalDiffTimeToSeconds, timeOfDayToTime)

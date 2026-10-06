@@ -61,7 +61,7 @@ module Language.Marlowe.Core.V1.Semantics (
   computeTransaction,
   playTrace,
 
-  -- * Supporting Functions
+  -- * Supporting Functions/Constants
   addMoneyToAccount,
   applyAction,
   applyAllInputs,
@@ -159,7 +159,17 @@ import qualified PlutusLedgerApi.V2 as Val
 import PlutusTx (makeIsDataIndexed)
 import qualified PlutusTx.AssocMap as Map
 import qualified PlutusTx.Builtins as Builtins
+import PlutusTx.Foldable (
+  foldMap,
+  foldr,
+ )
 import PlutusTx.Lift (makeLift)
+import PlutusTx.List (
+  all,
+  map,
+  reverse,
+  (++),
+ )
 import PlutusTx.Prelude (
   AdditiveGroup ((-)),
   AdditiveSemigroup ((+)),
@@ -169,22 +179,16 @@ import PlutusTx.Prelude (
   Maybe (..),
   MultiplicativeSemigroup ((*)),
   Ord (max, min, (<), (<=), (>), (>=)),
-  all,
-  foldMap,
-  foldr,
   fromBuiltin,
   fst,
-  map,
   negate,
   not,
   otherwise,
   return,
-  reverse,
   snd,
   toBuiltin,
   ($),
   (&&),
-  (++),
   (.),
   (=<<),
   (>>=),
@@ -623,7 +627,6 @@ reduceContractStep env state contract = case contract of
         if endTime < timeout
           then NotReduced
           else -- if timeout in the past – reduce to timeout continuation
-
             if timeout <= startTime
               then Reduced ReduceNoWarning ReduceNoPayment state cont
               else -- if timeout in the time range – issue an ambiguity error
@@ -699,7 +702,6 @@ applyAction _ state (IChoice choId1 choice) (Choice choId2 bounds) =
     -- from internal ordering) to Marlowe's Isabelle semantics
     -- given the precondition that the initial state's `choices`
     -- in Isabelle was sorted and did not contain duplicate entries.
-
       let newState = state{choices = Map.insert choId1 choice (choices state)}
        in AppliedAction ApplyNoWarning newState
     else NotAppliedAction

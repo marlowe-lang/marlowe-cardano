@@ -94,7 +94,7 @@ executable marlowe-integration-tests
     , base >=4.9 && <5
     , base16
     , bytestring
-    , cardano-api ^>=9.2
+    , cardano-api
     , co-log ^>=0.6
     , containers
     , deepseq
@@ -124,10 +124,10 @@ executable marlowe-integration-tests
     , marlowe-test
     , mtl
     , network-uri
-    , ouroboros-network-protocols ^>=0.9
+    , ouroboros-network-protocols
     , pipes ^>=4.3.16
     , plutus-ledger-api
-    , plutus-tx ^>=1.31
+    , plutus-tx
     , QuickCheck
     , resourcet
     , servant-client

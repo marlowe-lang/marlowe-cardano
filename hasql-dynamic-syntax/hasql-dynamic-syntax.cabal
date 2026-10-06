@@ -59,17 +59,18 @@ library
 
   other-modules:   Hasql.DynamicSyntax.Ast.Internal
   build-depends:
-    , aeson ^>=2.2
+    , aeson
     , base >=4.9 && <5
-    , bytestring >=0.10.12 && <0.12
-    , hasql ^>=1.6
-    , hasql-implicits ^>=0.1
+    , bytestring
+    , hasql
+    , hasql-implicits
+    , iproute ^>=1.7.15
     , network-ip
     , postgresql-syntax ^>=0.4.1
     , scientific ^>=0.3.7
-    , text ^>=2.0
+    , text
     , time >=1.9 && <2
-    , transformers ^>=0.5.6
+    , transformers ^>=0.6.1
     , uuid >=1.3 && <2
     , vector ^>=0.13
 

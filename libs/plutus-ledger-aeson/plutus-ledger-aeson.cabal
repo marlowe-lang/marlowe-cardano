@@ -40,9 +40,9 @@ library
   -- Other IOG dependencies
   --------------------------
   build-depends:
-    , plutus-core ^>=1.31
-    , plutus-ledger-api ^>=1.31
-    , plutus-tx ^>=1.31
+    , plutus-core
+    , plutus-ledger-api
+    , plutus-tx
 
   ------------------------
   -- Non-IOG dependencies

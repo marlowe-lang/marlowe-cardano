@@ -57,11 +57,13 @@ import Language.Marlowe.Core.V1.Merkle (Continuations)
 import Language.Marlowe.Core.V1.Plate (extractRoleNames)
 import qualified Language.Marlowe.Core.V1.Semantics as V1
 import Language.Marlowe.Core.V1.Semantics.Types.Address (deserialiseAddressBech32, serialiseAddressBech32)
+import qualified PlutusLedgerApi.V1.Value as Val
 import PlutusLedgerApi.V2 (
   CurrencySymbol (..),
   TokenName (..),
  )
 import qualified PlutusLedgerApi.V2 as P (Address (..))
+import PlutusTx.Builtins.HasOpaque (stringToBuiltinByteStringHex)
 import qualified PlutusTx.Prelude as P (lengthOfByteString)
 
 -- | We slowly migrate towards "Parse don't validate" approach instead of check list.
@@ -86,7 +88,7 @@ pattern SafeCurrencySymbol currencySymbol <- SafeCurrencySymbol_ currencySymbol
 
 currencySymbolValidator :: SafetyValidator CurrencySymbol SafeCurrencySymbol
 currencySymbolValidator = Validator.fromFnEither \currencySymbol -> case unCurrencySymbol currencySymbol of
-  "" -> pure $ SafeCurrencySymbol_ ""
+  "" -> pure . SafeCurrencySymbol_ . Val.CurrencySymbol . stringToBuiltinByteStringHex $ ""
   byteString | P.lengthOfByteString byteString /= 28 -> Left [InvalidCurrencySymbol currencySymbol]
   _ -> pure $ SafeCurrencySymbol_ currencySymbol
 

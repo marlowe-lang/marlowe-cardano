@@ -139,18 +139,19 @@ library
 
   other-modules:   Paths_marlowe_test
   build-depends:
-    , aeson ^>=2.2
+    , aeson
     , base >=4.9 && <5
-    , bytestring >=0.10.12 && <0.12
+    , bytestring
     , containers ^>=0.6.5
     , directory ^>=1.3
     , filepath ^>=1.4
     , marlowe-cardano ==0.2.1.0
     , mtl >=2.2 && <3
-    , plutus-ledger-api ^>=1.31
-    , plutus-tx ^>=1.31
+    , plutus-ledger-api
+    , plutus-tx
     , QuickCheck >=2.14 && <3
     , tasty-quickcheck ^>=0.11
+    , transformers
 
   if flag(trace-plutus)
     cpp-options: -DTRACE_PLUTUS
@@ -158,7 +159,6 @@ library
 executable test-suite
   import:         lang
   hs-source-dirs: test
-  type:           exitcode-stdio-1.0
   main-is:        Spec.hs
   other-modules:
     Spec.Marlowe.Marlowe
@@ -196,29 +196,29 @@ executable test-suite
     Spec.Marlowe.StaticAnalysis.Regression
 
   build-depends:
-    , aeson ^>=2.2
+    , aeson
     , base >=4.9 && <5
-    , bytestring >=0.10.12 && <0.12
-    , cardano-api ^>=9.2
+    , bytestring
+    , cardano-api
     , containers ^>=0.6.5
-    , data-default ^>=0.7.1
+    , data-default
     , filepath ^>=1.4
     , hint ^>=0.9
     , ilist ==0.4.0.1
     , lens >=5.2 && <6
     , marlowe-cardano ==0.2.1.0
-    , marlowe-spec-test ==0.1.0.1
+    , marlowe-spec-test ==0.1.0.2
     , marlowe-test
     , mtl >=2.2 && <3
-    , plutus-ledger-api ^>=1.31
-    , plutus-tx ^>=1.31
+    , plutus-ledger-api
+    , plutus-tx
     , QuickCheck >=2.14 && <3
     , quickcheck-instances ^>=0.3.29
-    , sbv >=8.4
+    , sbv
     , tasty ^>=1.5
     , tasty-hunit ^>=0.10
     , tasty-quickcheck ^>=0.11
-    , text ^>=2.0
+    , text
     , type-iso ==1.0.1.0
 
   if flag(trace-plutus)

@@ -1,25 +1,19 @@
 { repoRoot, inputs, pkgs, lib, system }:
 
 let
-
   project = repoRoot.nix.project;
 
-
   staticPkgs = project.cabalProject.projectCross.musl64.hsPkgs;
-
 
   static =
     staticPkgs.marlowe-apps.components.exes //
     staticPkgs.marlowe-cli.components.exes;
 
-
   allStatic = pkgs.runCommand "all-statics" { } ''
     mkdir -p $out
     ${lib.concatMapStringsSep "\n" (drv: "cp ${drv}/bin/* $out") (lib.attrValues static)}
   '';
-
 in
-
 [
   # Default packages, apps, checks, devShells, hydraJobs for the Haskell project.
   (

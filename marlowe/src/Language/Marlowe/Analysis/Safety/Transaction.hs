@@ -41,7 +41,9 @@ module Language.Marlowe.Analysis.Safety.Transaction (
   firstRoleAuthorizationAnnotator,
 ) where
 
-import Control.Monad.Except (MonadError (throwError), MonadIO (..), foldM, liftEither, liftIO)
+import Control.Monad (foldM)
+import Control.Monad.Except (MonadError (throwError), liftEither)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.Bifunctor (first)
 import Data.List (nub, nubBy)
 import Data.String (IsString (..))
@@ -71,6 +73,7 @@ import Language.Marlowe.Core.V1.Semantics.Types (
   Payee (Party),
   State (..),
   Token (..),
+  ada,
   getInputContent,
  )
 import Language.Marlowe.FindInputs (getAllInputs)
@@ -176,8 +179,8 @@ executeTransaction evaluationContext semanticsValidator semanticsAddress payoutA
         merkleDatums =
           concat
             [ case input of
-              MerkleizedInput _ _ contract -> pure . P.Datum $ P.toBuiltinData contract
-              _ -> mempty
+                MerkleizedInput _ _ contract -> pure . P.Datum $ P.toBuiltinData contract
+                _ -> mempty
             | input <- txInputs
             ]
         outMerkle =
@@ -326,8 +329,8 @@ calcMarloweTxExBudget
         merkleDatums =
           concat
             [ case input of
-              MerkleizedInput _ _ contract -> pure . P.Datum $ P.toBuiltinData contract
-              NormalInput{} -> mempty
+                MerkleizedInput _ _ contract -> pure . P.Datum $ P.toBuiltinData contract
+                NormalInput{} -> mempty
             | input <- txInputs
             ]
         outMerkles =
@@ -625,7 +628,7 @@ findTransactions' annotate requireContinuations mc@MerkleizedContract{..} =
           P.Address
             (P.PubKeyCredential "88888888888888888888888888888888888888888888888888888888")
             (Just . P.StakingHash $ P.PubKeyCredential "99999999999999999999999999999999999999999999999999999999")
-      minAda = AM.singleton (Token "" "") $ worstMinimumUtxo' utxoCostPerByte mcContract mcContinuations
+      minAda = AM.singleton ada $ worstMinimumUtxo' utxoCostPerByte mcContract mcContinuations
       initialAccounts = AM.unsafeFromList $ first (creatorAddress,) <$> AM.toList minAda
       minTime = 0
       state = AlreadyInitialized (State initialAccounts AM.empty AM.empty minTime)

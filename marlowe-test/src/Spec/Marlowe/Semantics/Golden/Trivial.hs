@@ -32,8 +32,8 @@ import Language.Marlowe.Core.V1.Semantics.Types (
   Party,
   Payee (Party),
   State (State, accounts, boundValues, choices, minTime),
-  Token (Token),
   Value (Constant),
+  ada,
  )
 import Language.Marlowe.Util ()
 import PlutusLedgerApi.V2 (POSIXTime (..))
@@ -42,9 +42,6 @@ import qualified PlutusTx.AssocMap as AM (Map, unsafeFromList)
 
 party :: Party
 party = "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-
-ada :: Token
-ada = Token "" ""
 
 -- | The Trivial contract.
 contract :: Contract
@@ -108,7 +105,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment party (Party party) (Token "" "") 40_000_000]
+        , txOutPayments = [Payment party (Party party) (ada) 40_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -135,7 +132,7 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment party (Party party) (Token "" "") 10_000_000, Payment party (Party party) (Token "" "") 30_000_000]
+            [Payment party (Party party) (ada) 10_000_000, Payment party (Party party) (ada) 30_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -165,7 +162,7 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment party (Party party) (Token "" "") 10_000_000, Payment party (Party party) (Token "" "") 30_000_000]
+            [Payment party (Party party) (ada) 10_000_000, Payment party (Party party) (ada) 30_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -208,7 +205,7 @@ invalids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment party (Party party) (Token "" "") 40_000_000]
+        , txOutPayments = [Payment party (Party party) (ada) 40_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -235,7 +232,7 @@ invalids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment party (Party party) (Token "" "") 10_000_000, Payment party (Party party) (Token "" "") 30_000_000]
+            [Payment party (Party party) (ada) 10_000_000, Payment party (Party party) (ada) 30_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -265,7 +262,7 @@ invalids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment party (Party party) (Token "" "") 10_000_000, Payment party (Party party) (Token "" "") 30_000_000]
+            [Payment party (Party party) (ada) 10_000_000, Payment party (Party party) (ada) 30_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}

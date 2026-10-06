@@ -57,14 +57,14 @@ library
     Language.Marlowe.Object.Types
 
   build-depends:
-    , aeson ^>=2.2
+    , aeson
     , aeson-record ==0.1.0.0
     , base >=4.9 && <5
-    , base16 ^>=0.3.2
+    , base16
     , binary ^>=0.8.8
-    , bytestring >=0.10.12 && <0.12
-    , cardano-api ^>=9.2
-    , cardano-ledger-core ^>=1.13.2
+    , bytestring
+    , cardano-api
+    , cardano-ledger-core
     , dlist ^>=1.0
     , filepath ^>=1.4
     , hashable >=1.3 && <2
@@ -73,13 +73,13 @@ library
     , marlowe-protocols ==0.3.0.0
     , mtl >=2.2 && <3
     , pipes ^>=4.3.16
-    , plutus-ledger-api ^>=1.31
-    , text ^>=2.0
+    , plutus-ledger-api
+    , text
     , time >=1.9 && <2
-    , transformers ^>=0.5.6
+    , transformers
     , unliftio ^>=0.2.1
     , unordered-containers ^>=0.2.19
-    , zip ^>=1.7.2
+    , zip >=2.2.1
 
 library gen
   import:          lang
@@ -87,8 +87,8 @@ library gen
   exposed-modules: Language.Marlowe.Object.Gen
   build-depends:
     , base >=4.9 && <5
-    , bytestring >=0.10.12 && <0.12
-    , cardano-api-gen ^>=8.1
+    , bytestring
+    , cardano-api-gen
     , hedgehog-quickcheck ^>=0.1
     , lens >=5.2 && <6
     , marlowe-object ==1.0.0
@@ -109,7 +109,7 @@ test-suite marlowe-object-test
     Language.Marlowe.Object.TypesSpec
 
   build-depends:
-    , aeson ^>=2.2
+    , aeson
     , base >=4.9 && <5
     , binary ^>=0.8.8
     , hspec

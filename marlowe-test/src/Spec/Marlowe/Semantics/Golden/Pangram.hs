@@ -54,6 +54,12 @@ import Language.Marlowe.Core.V1.Semantics.Types (
     UseValue
   ),
   ValueId (ValueId),
+  ada,
+  mkChoiceIdUtf8,
+  mkRoleUtf8,
+  mkTokenNameUtf8,
+  unsafeMkCurrencySymbolHex,
+  unsafeMkPartyAddressBech32,
  )
 import Language.Marlowe.Util ()
 import PlutusLedgerApi.V2 (POSIXTime (..))
@@ -61,28 +67,50 @@ import PlutusLedgerApi.V2 (POSIXTime (..))
 import qualified PlutusTx.AssocMap as AM (Map, unsafeFromList)
 
 party1 :: Party
-party1 = "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
+party1 =
+  unsafeMkPartyAddressBech32
+    "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
 
 party2 :: Party
-party2 = "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
+party2 =
+  unsafeMkPartyAddressBech32
+    "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
 
 party3 :: Party
-party3 = "Cy"
+party3 = mkRoleUtf8 "Cy"
 
 party4 :: Party
-party4 = "Noe"
+party4 = mkRoleUtf8 "Noe"
 
 party5 :: Party
-party5 = "Sten"
+party5 = mkRoleUtf8 "Sten"
 
 token1 :: Token
-token1 = Token "" ""
+token1 = ada
 
 token2 :: Token
-token2 = Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN"
+token2 =
+  Token
+    (unsafeMkCurrencySymbolHex "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8")
+    (mkTokenNameUtf8 "PIN")
 
 token3 :: Token
-token3 = Token "1b9af43b0eaafc42dfaefbbf4e71437af45454c7292a6b6606363741" "TALE"
+token3 =
+  Token
+    (unsafeMkCurrencySymbolHex "1b9af43b0eaafc42dfaefbbf4e71437af45454c7292a6b6606363741")
+    (mkTokenNameUtf8 "TALE")
+
+choice1 :: ChoiceId
+choice1 = mkChoiceIdUtf8 "be" party1
+
+choice2 :: ChoiceId
+choice2 = mkChoiceIdUtf8 "be" party3
+
+choice3 :: ChoiceId
+choice3 = mkChoiceIdUtf8 "dry" party3
+
+choice4 :: ChoiceId
+choice4 = mkChoiceIdUtf8 "grab" party4
 
 -- | The Pangram contract.
 contract :: Contract
@@ -90,10 +118,6 @@ contract =
   let start = 1
       delta = 5
       timeout i = POSIXTime $ start + delta * i
-      choice1 = ChoiceId "be" party1
-      choice2 = ChoiceId "be" party3
-      choice3 = ChoiceId "dry" party3
-      choice4 = ChoiceId "grab" party4
       value1 = ChoiceValue choice1
       value2 = ChoiceValue choice2
       value3 = ChoiceValue choice3
@@ -206,13 +230,13 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0]
+            [TransactionNonPositiveDeposit "Cy" "Cy" token2 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -232,7 +256,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -242,7 +266,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0]
+            [TransactionNonPositiveDeposit "Cy" "Cy" token2 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -262,7 +286,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -270,26 +294,26 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                (Party party3)
+                token2
                 0
                 5
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                (Party party3)
+                token2
                 0
             ]
         , txOutState =
@@ -310,7 +334,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -318,7 +342,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -328,25 +352,25 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -372,7 +396,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -380,7 +404,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -394,18 +418,18 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -414,7 +438,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -440,7 +464,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -450,7 +474,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0]
+            [TransactionNonPositiveDeposit "Cy" "Cy" token2 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -470,7 +494,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -478,18 +502,18 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -497,7 +521,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -518,7 +542,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -526,7 +550,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -536,25 +560,25 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -580,7 +604,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -588,7 +612,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -602,18 +626,18 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -621,7 +645,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -648,12 +672,12 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
     , TransactionOutput
-        { txOutWarnings = [TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0]
+        { txOutWarnings = [TransactionNonPositiveDeposit "Cy" "Noe" ada 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -673,7 +697,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -682,7 +706,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 41}, POSIXTime{getPOSIXTime = 41}), txInputs = []}
       ]
     , TransactionOutput
-        { txOutWarnings = [TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0]
+        { txOutWarnings = [TransactionNonPositiveDeposit "Cy" "Noe" ada 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -702,7 +726,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -710,18 +734,18 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -729,7 +753,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -750,7 +774,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -758,7 +782,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -768,25 +792,25 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -812,7 +836,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -820,7 +844,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -834,18 +858,18 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -854,7 +878,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -880,7 +904,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -889,7 +913,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 41}, POSIXTime{getPOSIXTime = 41}), txInputs = []}
       ]
     , TransactionOutput
-        { txOutWarnings = [TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0]
+        { txOutWarnings = [TransactionNonPositiveDeposit "Cy" "Noe" ada 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -909,7 +933,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -917,18 +941,18 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -936,7 +960,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -957,7 +981,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -965,7 +989,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -975,25 +999,25 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -1019,7 +1043,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -1027,7 +1051,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -1041,18 +1065,18 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -1060,7 +1084,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -1116,13 +1140,13 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0]
+            [TransactionNonPositiveDeposit "Cy" "Cy" token2 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -1146,7 +1170,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1156,7 +1180,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0]
+            [TransactionNonPositiveDeposit "Cy" "Cy" token2 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -1180,7 +1204,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1188,18 +1212,18 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             ]
@@ -1207,7 +1231,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -1233,7 +1257,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1241,7 +1265,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1251,25 +1275,25 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -1300,7 +1324,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1308,7 +1332,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1322,18 +1346,18 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 0 0
@@ -1342,7 +1366,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -1373,7 +1397,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1383,7 +1407,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -1409,7 +1433,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1417,19 +1441,19 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -1437,7 +1461,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -1462,7 +1486,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1470,7 +1494,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1480,26 +1504,26 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -1529,7 +1553,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1537,7 +1561,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1551,19 +1575,19 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -1571,7 +1595,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -1602,13 +1626,13 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -1631,7 +1655,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1641,7 +1665,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -1664,7 +1688,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1672,17 +1696,17 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             ]
@@ -1690,9 +1714,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -1717,7 +1741,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1725,7 +1749,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1735,26 +1759,26 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 6
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -1784,7 +1808,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1792,7 +1816,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1806,17 +1830,17 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 5 5
@@ -1825,9 +1849,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -1857,7 +1881,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1867,7 +1891,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = [TransactionShadowing "choose2" 0 0]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -1890,7 +1914,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1898,18 +1922,18 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
             [ TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -1917,9 +1941,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -1943,7 +1967,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1951,7 +1975,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -1962,26 +1986,26 @@ valids =
     , TransactionOutput
         { txOutWarnings =
             [ TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -2010,7 +2034,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -2018,7 +2042,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -2033,17 +2057,17 @@ valids =
     , TransactionOutput
         { txOutWarnings =
             [ TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -2051,9 +2075,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -2114,13 +2138,13 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0]
+            [TransactionNonPositiveDeposit "Cy" "Cy" token2 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -2147,7 +2171,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2157,7 +2181,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0]
+            [TransactionNonPositiveDeposit "Cy" "Cy" token2 0]
         , txOutPayments = []
         , txOutState =
             State
@@ -2184,7 +2208,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2192,18 +2216,18 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -2211,7 +2235,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -2241,7 +2265,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2249,7 +2273,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2259,25 +2283,25 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -2322,7 +2346,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2330,7 +2354,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2344,18 +2368,18 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -2364,7 +2388,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -2409,7 +2433,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2419,7 +2443,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -2448,7 +2472,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2456,19 +2480,19 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -2476,7 +2500,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -2505,7 +2529,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2513,7 +2537,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2523,26 +2547,26 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -2576,7 +2600,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2584,7 +2608,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2598,19 +2622,19 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            [ TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -2618,7 +2642,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -2663,13 +2687,13 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -2695,7 +2719,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2705,7 +2729,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -2731,7 +2755,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2739,17 +2763,17 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             ]
@@ -2757,9 +2781,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -2788,7 +2812,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2796,7 +2820,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2806,26 +2830,26 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 6
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -2869,7 +2893,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2877,7 +2901,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2891,17 +2915,17 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings =
-            [ TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            [ TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 5 5
@@ -2910,9 +2934,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -2956,7 +2980,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -2966,7 +2990,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = [TransactionShadowing "choose2" 0 0]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -2992,7 +3016,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -3000,18 +3024,18 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
     , TransactionOutput
         { txOutWarnings =
             [ TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -3019,9 +3043,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -3049,7 +3073,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -3057,7 +3081,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -3068,26 +3092,26 @@ valids =
     , TransactionOutput
         { txOutWarnings =
             [ TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -3120,7 +3144,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -3128,7 +3152,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -3143,17 +3167,17 @@ valids =
     , TransactionOutput
         { txOutWarnings =
             [ TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -3161,9 +3185,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -3203,7 +3227,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3217,7 +3241,7 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -3242,7 +3266,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3251,7 +3275,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -3260,9 +3284,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -3286,7 +3310,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3295,7 +3319,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3308,9 +3332,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -3334,7 +3358,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3343,7 +3367,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3351,7 +3375,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -3360,14 +3384,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             ]
@@ -3375,7 +3399,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -3400,7 +3424,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3409,7 +3433,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3417,7 +3441,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3430,27 +3454,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -3480,7 +3504,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3489,7 +3513,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3497,7 +3521,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3514,20 +3538,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -3536,7 +3560,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -3566,7 +3590,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3575,7 +3599,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3588,9 +3612,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -3614,7 +3638,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3623,7 +3647,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3631,7 +3655,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -3640,14 +3664,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -3655,7 +3679,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -3680,7 +3704,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3689,7 +3713,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3697,7 +3721,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3710,27 +3734,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -3760,7 +3784,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3769,7 +3793,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3777,7 +3801,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3794,20 +3818,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -3815,7 +3839,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -3856,7 +3880,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3865,7 +3889,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -3874,9 +3898,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -3900,7 +3924,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3909,7 +3933,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3922,9 +3946,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -3948,7 +3972,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -3957,7 +3981,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -3965,7 +3989,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -3974,14 +3998,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -3989,7 +4013,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4014,7 +4038,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4023,7 +4047,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4031,7 +4055,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4044,27 +4068,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4094,7 +4118,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4103,7 +4127,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4111,7 +4135,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4128,20 +4152,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -4150,7 +4174,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4180,7 +4204,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4189,7 +4213,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4202,9 +4226,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -4228,7 +4252,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4237,7 +4261,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4245,7 +4269,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -4254,14 +4278,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -4269,7 +4293,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4294,7 +4318,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4303,7 +4327,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4311,7 +4335,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4324,27 +4348,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4374,7 +4398,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4383,7 +4407,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4391,7 +4415,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -4408,20 +4432,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -4429,7 +4453,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4470,7 +4494,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4488,7 +4512,7 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -4513,7 +4537,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4526,7 +4550,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -4535,9 +4559,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -4561,7 +4585,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4574,7 +4598,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -4587,9 +4611,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -4613,7 +4637,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4626,7 +4650,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -4634,7 +4658,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -4643,14 +4667,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -4658,7 +4682,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4684,7 +4708,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4697,7 +4721,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -4705,7 +4729,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -4718,27 +4742,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4779,7 +4803,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4792,7 +4816,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -4800,7 +4824,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -4817,20 +4841,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 1 5
             , TransactionShadowing "x" 0 0
@@ -4839,7 +4863,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -4880,7 +4904,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4893,7 +4917,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -4906,9 +4930,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -4933,7 +4957,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -4946,7 +4970,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -4954,7 +4978,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -4963,15 +4987,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -4979,7 +5003,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -5004,7 +5028,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5017,7 +5041,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5025,7 +5049,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5038,28 +5062,28 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -5089,7 +5113,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5102,7 +5126,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5110,7 +5134,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5127,21 +5151,21 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -5149,7 +5173,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -5190,7 +5214,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5203,7 +5227,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -5212,10 +5236,10 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -5237,7 +5261,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5250,7 +5274,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5263,10 +5287,10 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -5288,7 +5312,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5301,7 +5325,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5309,7 +5333,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -5318,13 +5342,13 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 6
             ]
@@ -5332,9 +5356,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -5359,7 +5383,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5372,7 +5396,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5380,7 +5404,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5393,28 +5417,28 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -5454,7 +5478,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5467,7 +5491,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5475,7 +5499,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5492,19 +5516,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 5 5
@@ -5513,9 +5537,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -5555,7 +5579,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5568,7 +5592,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5581,11 +5605,11 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -5607,7 +5631,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5620,7 +5644,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5628,7 +5652,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -5637,14 +5661,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -5652,9 +5676,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -5678,7 +5702,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5691,7 +5715,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5699,7 +5723,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5712,29 +5736,29 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -5763,7 +5787,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5776,7 +5800,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5784,7 +5808,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -5801,20 +5825,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -5822,9 +5846,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -5864,7 +5888,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5885,7 +5909,7 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -5910,7 +5934,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5926,7 +5950,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -5935,9 +5959,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -5961,7 +5985,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -5977,7 +6001,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -5990,9 +6014,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -6017,7 +6041,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6033,7 +6057,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6041,7 +6065,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -6050,14 +6074,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -6065,7 +6089,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -6102,7 +6126,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6118,7 +6142,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6126,7 +6150,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6139,27 +6163,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -6201,7 +6225,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6217,7 +6241,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6225,7 +6249,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6242,20 +6266,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 0 0
@@ -6264,7 +6288,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -6306,7 +6330,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6322,7 +6346,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6335,9 +6359,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -6362,7 +6386,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6378,7 +6402,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6386,7 +6410,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -6395,15 +6419,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -6411,7 +6435,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -6437,7 +6461,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6453,7 +6477,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6461,7 +6485,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6474,28 +6498,28 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -6536,7 +6560,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6552,7 +6576,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6560,7 +6584,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6577,21 +6601,21 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -6599,7 +6623,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -6641,7 +6665,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6657,7 +6681,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -6666,10 +6690,10 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -6691,7 +6715,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6707,7 +6731,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6720,10 +6744,10 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -6746,7 +6770,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6762,7 +6786,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6770,7 +6794,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -6779,13 +6803,13 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             ]
@@ -6793,9 +6817,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -6831,7 +6855,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6847,7 +6871,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6855,7 +6879,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6868,28 +6892,28 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -6930,7 +6954,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -6946,7 +6970,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6954,7 +6978,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -6971,19 +6995,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 5 5
@@ -6992,9 +7016,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -7035,7 +7059,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7051,7 +7075,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -7064,11 +7088,11 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -7090,7 +7114,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7106,7 +7130,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -7114,7 +7138,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -7123,14 +7147,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -7138,9 +7162,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -7165,7 +7189,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7181,7 +7205,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -7189,7 +7213,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -7202,29 +7226,29 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -7264,7 +7288,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7280,7 +7304,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -7288,7 +7312,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -7305,20 +7329,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -7326,9 +7350,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -7369,7 +7393,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7381,7 +7405,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7394,12 +7418,12 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -7424,7 +7448,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7436,7 +7460,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7444,7 +7468,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -7453,14 +7477,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -7484,7 +7508,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7496,7 +7520,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7504,7 +7528,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -7517,14 +7541,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -7548,7 +7572,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7560,7 +7584,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7568,7 +7592,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -7576,7 +7600,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -7585,19 +7609,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -7605,7 +7629,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -7631,7 +7655,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7643,7 +7667,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7651,7 +7675,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -7659,7 +7683,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -7672,32 +7696,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -7738,7 +7762,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7750,7 +7774,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7758,7 +7782,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -7766,7 +7790,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -7783,25 +7807,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 1 5
             , TransactionShadowing "x" 0 0
@@ -7810,7 +7834,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -7851,7 +7875,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7863,7 +7887,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7871,7 +7895,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -7884,14 +7908,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -7915,7 +7939,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7927,7 +7951,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -7935,7 +7959,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -7943,7 +7967,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -7952,19 +7976,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -7972,7 +7996,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -7998,7 +8022,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8010,7 +8034,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8018,7 +8042,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8026,7 +8050,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8039,32 +8063,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -8105,7 +8129,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8117,7 +8141,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8125,7 +8149,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8133,7 +8157,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8150,25 +8174,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -8176,7 +8200,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -8218,7 +8242,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8230,7 +8254,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8238,7 +8262,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -8247,14 +8271,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -8278,7 +8302,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8290,7 +8314,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8298,7 +8322,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8311,14 +8335,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -8342,7 +8366,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8354,7 +8378,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8362,7 +8386,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8370,7 +8394,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -8379,19 +8403,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -8399,7 +8423,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -8425,7 +8449,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8437,7 +8461,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8445,7 +8469,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8453,7 +8477,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8466,32 +8490,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -8532,7 +8556,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8544,7 +8568,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8552,7 +8576,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8560,7 +8584,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8577,25 +8601,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 0 0
@@ -8604,7 +8628,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -8645,7 +8669,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8657,7 +8681,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8665,7 +8689,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8678,14 +8702,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -8709,7 +8733,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8721,7 +8745,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8729,7 +8753,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8737,7 +8761,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -8746,19 +8770,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -8766,7 +8790,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -8792,7 +8816,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8804,7 +8828,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8812,7 +8836,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8820,7 +8844,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8833,32 +8857,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -8899,7 +8923,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8911,7 +8935,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -8919,7 +8943,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8927,7 +8951,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -8944,25 +8968,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -8970,7 +8994,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -9012,7 +9036,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9024,7 +9048,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9041,12 +9065,12 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -9071,7 +9095,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9083,7 +9107,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9095,7 +9119,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -9104,14 +9128,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -9135,7 +9159,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9147,7 +9171,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9159,7 +9183,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9172,14 +9196,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -9204,7 +9228,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9216,7 +9240,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9228,7 +9252,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9236,7 +9260,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -9245,19 +9269,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -9265,7 +9289,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -9302,7 +9326,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9314,7 +9338,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9326,7 +9350,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9334,7 +9358,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9347,32 +9371,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -9414,7 +9438,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9426,7 +9450,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9438,7 +9462,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9446,7 +9470,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9463,25 +9487,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 0 0
@@ -9490,7 +9514,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -9532,7 +9556,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9544,7 +9568,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9556,7 +9580,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9569,14 +9593,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -9601,7 +9625,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9613,7 +9637,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9625,7 +9649,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9633,7 +9657,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -9642,20 +9666,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -9663,7 +9687,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -9689,7 +9713,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9701,7 +9725,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9713,7 +9737,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9721,7 +9745,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9734,33 +9758,33 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -9801,7 +9825,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9813,7 +9837,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9825,7 +9849,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9833,7 +9857,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -9850,26 +9874,26 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -9877,7 +9901,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -9919,7 +9943,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9931,7 +9955,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9943,7 +9967,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -9952,15 +9976,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -9982,7 +10006,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -9994,7 +10018,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10006,7 +10030,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10019,15 +10043,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -10050,7 +10074,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10062,7 +10086,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10074,7 +10098,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10082,7 +10106,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -10091,18 +10115,18 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             ]
@@ -10110,9 +10134,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -10148,7 +10172,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10160,7 +10184,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10172,7 +10196,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10180,7 +10204,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10193,33 +10217,33 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 6
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -10260,7 +10284,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10272,7 +10296,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10284,7 +10308,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10292,7 +10316,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10309,24 +10333,24 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 5 5
@@ -10335,9 +10359,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -10378,7 +10402,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10390,7 +10414,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10402,7 +10426,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10415,16 +10439,16 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -10446,7 +10470,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10458,7 +10482,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10470,7 +10494,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10478,7 +10502,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -10487,19 +10511,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -10507,9 +10531,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -10534,7 +10558,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10546,7 +10570,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10558,7 +10582,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10566,7 +10590,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10579,34 +10603,34 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -10646,7 +10670,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10658,7 +10682,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10670,7 +10694,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10678,7 +10702,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -10695,25 +10719,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -10721,9 +10745,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -10764,7 +10788,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10776,7 +10800,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10796,12 +10820,12 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -10826,7 +10850,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10838,7 +10862,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10853,7 +10877,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -10862,14 +10886,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -10893,7 +10917,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10905,7 +10929,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10920,7 +10944,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -10933,14 +10957,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -10968,7 +10992,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10980,7 +11004,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -10995,7 +11019,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11003,7 +11027,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -11012,19 +11036,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -11032,7 +11056,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -11070,7 +11094,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11082,7 +11106,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11097,7 +11121,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11105,7 +11129,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11118,32 +11142,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -11186,7 +11210,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11198,7 +11222,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11213,7 +11237,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11221,7 +11245,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11238,25 +11262,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -11265,7 +11289,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -11308,7 +11332,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11320,7 +11344,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11335,7 +11359,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11348,14 +11372,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -11381,7 +11405,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11393,7 +11417,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11408,7 +11432,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11416,7 +11440,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -11425,20 +11449,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -11446,7 +11470,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -11483,7 +11507,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11495,7 +11519,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11510,7 +11534,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11518,7 +11542,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11531,33 +11555,33 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -11599,7 +11623,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11611,7 +11635,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11626,7 +11650,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11634,7 +11658,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11651,26 +11675,26 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -11678,7 +11702,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -11721,7 +11745,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11733,7 +11757,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11748,7 +11772,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -11757,15 +11781,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -11787,7 +11811,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11799,7 +11823,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11814,7 +11838,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11827,15 +11851,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -11861,7 +11885,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11873,7 +11897,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11888,7 +11912,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11896,7 +11920,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -11905,18 +11929,18 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 6
             ]
@@ -11924,9 +11948,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -11963,7 +11987,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11975,7 +11999,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -11990,7 +12014,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -11998,7 +12022,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12011,33 +12035,33 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -12079,7 +12103,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12091,7 +12115,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12106,7 +12130,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12114,7 +12138,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12131,24 +12155,24 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 5 5
@@ -12157,9 +12181,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -12201,7 +12225,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12213,7 +12237,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12228,7 +12252,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12241,16 +12265,16 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -12273,7 +12297,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12285,7 +12309,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12300,7 +12324,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12308,7 +12332,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -12317,19 +12341,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -12337,9 +12361,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -12375,7 +12399,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12387,7 +12411,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12402,7 +12426,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12410,7 +12434,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12423,34 +12447,34 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -12491,7 +12515,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12503,7 +12527,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12518,7 +12542,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12526,7 +12550,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -12543,25 +12567,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -12569,9 +12593,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -12613,7 +12637,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12627,7 +12651,7 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -12652,7 +12676,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12661,7 +12685,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -12670,9 +12694,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -12696,7 +12720,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12705,7 +12729,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -12718,9 +12742,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -12744,7 +12768,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12753,7 +12777,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -12761,7 +12785,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -12770,14 +12794,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -12785,7 +12809,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -12810,7 +12834,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12819,7 +12843,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -12827,7 +12851,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -12840,27 +12864,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -12890,7 +12914,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12899,7 +12923,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -12907,7 +12931,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -12924,20 +12948,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 1 5
             , TransactionShadowing "x" 0 0
@@ -12946,7 +12970,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -12976,7 +13000,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -12985,7 +13009,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -12998,9 +13022,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -13024,7 +13048,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13033,7 +13057,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13041,7 +13065,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -13050,14 +13074,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -13065,7 +13089,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13090,7 +13114,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13099,7 +13123,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13107,7 +13131,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13120,27 +13144,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13170,7 +13194,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13179,7 +13203,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13187,7 +13211,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13204,20 +13228,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -13225,7 +13249,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13266,7 +13290,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13275,7 +13299,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -13284,9 +13308,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -13310,7 +13334,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13319,7 +13343,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13332,9 +13356,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -13358,7 +13382,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13367,7 +13391,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13375,7 +13399,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -13384,14 +13408,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -13399,7 +13423,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13424,7 +13448,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13433,7 +13457,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13441,7 +13465,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13454,27 +13478,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13504,7 +13528,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13513,7 +13537,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13521,7 +13545,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13538,20 +13562,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -13560,7 +13584,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13590,7 +13614,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13599,7 +13623,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13612,9 +13636,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -13638,7 +13662,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13647,7 +13671,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13655,7 +13679,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -13664,14 +13688,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -13679,7 +13703,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13704,7 +13728,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13713,7 +13737,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13721,7 +13745,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13734,27 +13758,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13784,7 +13808,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13793,7 +13817,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13801,7 +13825,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -13818,20 +13842,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -13839,7 +13863,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -13880,7 +13904,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13898,7 +13922,7 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -13923,7 +13947,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13936,7 +13960,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -13945,9 +13969,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -13971,7 +13995,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -13984,7 +14008,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -13997,9 +14021,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -14023,7 +14047,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14036,7 +14060,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14044,7 +14068,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -14053,14 +14077,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -14068,7 +14092,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -14094,7 +14118,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14107,7 +14131,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14115,7 +14139,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14128,27 +14152,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -14189,7 +14213,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14202,7 +14226,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14210,7 +14234,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14227,20 +14251,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -14249,7 +14273,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -14290,7 +14314,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14303,7 +14327,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14316,9 +14340,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -14343,7 +14367,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14356,7 +14380,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14364,7 +14388,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -14373,15 +14397,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -14389,7 +14413,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -14414,7 +14438,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14427,7 +14451,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14435,7 +14459,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14448,28 +14472,28 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -14499,7 +14523,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14512,7 +14536,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14520,7 +14544,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14537,21 +14561,21 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -14559,7 +14583,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -14600,7 +14624,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14613,7 +14637,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -14622,10 +14646,10 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -14647,7 +14671,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14660,7 +14684,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14673,10 +14697,10 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -14698,7 +14722,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14711,7 +14735,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14719,7 +14743,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -14728,13 +14752,13 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             ]
@@ -14742,9 +14766,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -14769,7 +14793,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14782,7 +14806,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14790,7 +14814,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14803,28 +14827,28 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -14864,7 +14888,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14877,7 +14901,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14885,7 +14909,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14902,19 +14926,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 5 5
@@ -14923,9 +14947,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -14965,7 +14989,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -14978,7 +15002,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -14991,11 +15015,11 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -15017,7 +15041,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15030,7 +15054,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -15038,7 +15062,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -15047,14 +15071,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -15062,9 +15086,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -15088,7 +15112,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15101,7 +15125,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -15109,7 +15133,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -15122,29 +15146,29 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -15173,7 +15197,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15186,7 +15210,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -15194,7 +15218,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -15211,20 +15235,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -15232,9 +15256,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -15274,7 +15298,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15295,7 +15319,7 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -15320,7 +15344,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15336,7 +15360,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -15345,9 +15369,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -15371,7 +15395,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15387,7 +15411,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15400,9 +15424,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -15427,7 +15451,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15443,7 +15467,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15451,7 +15475,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -15460,14 +15484,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             ]
@@ -15475,7 +15499,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -15512,7 +15536,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15528,7 +15552,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15536,7 +15560,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15549,27 +15573,27 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -15611,7 +15635,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15627,7 +15651,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15635,7 +15659,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15652,20 +15676,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -15674,7 +15698,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -15716,7 +15740,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15732,7 +15756,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15745,9 +15769,9 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -15772,7 +15796,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15788,7 +15812,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15796,7 +15820,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -15805,15 +15829,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -15821,7 +15845,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -15847,7 +15871,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15863,7 +15887,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15871,7 +15895,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15884,28 +15908,28 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -15946,7 +15970,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -15962,7 +15986,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15970,7 +15994,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -15987,21 +16011,21 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -16009,7 +16033,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -16051,7 +16075,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16067,7 +16091,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -16076,10 +16100,10 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -16101,7 +16125,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16117,7 +16141,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16130,10 +16154,10 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -16156,7 +16180,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16172,7 +16196,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16180,7 +16204,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -16189,13 +16213,13 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             ]
@@ -16203,9 +16227,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -16241,7 +16265,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16257,7 +16281,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16265,7 +16289,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16278,28 +16302,28 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -16340,7 +16364,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16356,7 +16380,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16364,7 +16388,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16381,19 +16405,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 5 5
@@ -16402,9 +16426,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -16445,7 +16469,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16461,7 +16485,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16474,11 +16498,11 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -16500,7 +16524,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16516,7 +16540,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16524,7 +16548,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -16533,14 +16557,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -16548,9 +16572,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -16575,7 +16599,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16591,7 +16615,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16599,7 +16623,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16612,29 +16636,29 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -16674,7 +16698,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16690,7 +16714,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16698,7 +16722,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 16}, POSIXTime{getPOSIXTime = 16})
@@ -16715,20 +16739,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -16736,9 +16760,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -16779,7 +16803,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16791,7 +16815,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16804,12 +16828,12 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -16834,7 +16858,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16846,7 +16870,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16854,7 +16878,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -16863,14 +16887,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -16894,7 +16918,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16906,7 +16930,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16914,7 +16938,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -16927,14 +16951,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -16958,7 +16982,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16970,7 +16994,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -16978,7 +17002,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -16986,7 +17010,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -16995,19 +17019,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -17015,7 +17039,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -17041,7 +17065,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17053,7 +17077,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17061,7 +17085,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17069,7 +17093,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17082,32 +17106,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -17148,7 +17172,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17160,7 +17184,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17168,7 +17192,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17176,7 +17200,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17193,25 +17217,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 0 0
@@ -17220,7 +17244,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -17261,7 +17285,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17273,7 +17297,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17281,7 +17305,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17294,14 +17318,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -17325,7 +17349,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17337,7 +17361,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17345,7 +17369,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17353,7 +17377,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -17362,19 +17386,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -17382,7 +17406,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -17408,7 +17432,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17420,7 +17444,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17428,7 +17452,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17436,7 +17460,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17449,32 +17473,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -17515,7 +17539,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17527,7 +17551,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17535,7 +17559,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17543,7 +17567,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17560,25 +17584,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -17586,7 +17610,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -17628,7 +17652,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17640,7 +17664,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17648,7 +17672,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -17657,14 +17681,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -17688,7 +17712,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17700,7 +17724,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17708,7 +17732,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17721,14 +17745,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -17752,7 +17776,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17764,7 +17788,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17772,7 +17796,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17780,7 +17804,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -17789,19 +17813,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -17809,7 +17833,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -17835,7 +17859,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17847,7 +17871,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17855,7 +17879,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17863,7 +17887,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17876,32 +17900,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -17942,7 +17966,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17954,7 +17978,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -17962,7 +17986,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17970,7 +17994,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -17987,25 +18011,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
@@ -18014,7 +18038,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -18055,7 +18079,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18067,7 +18091,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18075,7 +18099,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -18088,14 +18112,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -18119,7 +18143,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18131,7 +18155,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18139,7 +18163,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -18147,7 +18171,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -18156,19 +18180,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -18176,7 +18200,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -18202,7 +18226,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18214,7 +18238,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18222,7 +18246,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -18230,7 +18254,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -18243,32 +18267,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -18309,7 +18333,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18321,7 +18345,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18329,7 +18353,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -18337,7 +18361,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -18354,25 +18378,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Noe" (Token "" "") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Noe" ada 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -18380,7 +18404,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -18422,7 +18446,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18434,7 +18458,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18451,12 +18475,12 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -18481,7 +18505,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18493,7 +18517,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18505,7 +18529,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -18514,14 +18538,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -18545,7 +18569,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18557,7 +18581,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18569,7 +18593,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -18582,14 +18606,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -18614,7 +18638,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18626,7 +18650,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18638,7 +18662,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -18646,7 +18670,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -18655,19 +18679,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -18675,7 +18699,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -18712,7 +18736,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18724,7 +18748,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18736,7 +18760,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -18744,7 +18768,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -18757,32 +18781,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 1
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -18824,7 +18848,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18836,7 +18860,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18848,7 +18872,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -18856,7 +18880,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -18873,25 +18897,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 0 0
@@ -18900,7 +18924,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -18942,7 +18966,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18954,7 +18978,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -18966,7 +18990,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -18979,14 +19003,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -19011,7 +19035,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19023,7 +19047,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19035,7 +19059,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19043,7 +19067,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -19052,20 +19076,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -19073,7 +19097,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -19099,7 +19123,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19111,7 +19135,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19123,7 +19147,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19131,7 +19155,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19144,33 +19168,33 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -19211,7 +19235,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19223,7 +19247,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19235,7 +19259,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19243,7 +19267,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19260,26 +19284,26 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -19287,7 +19311,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -19329,7 +19353,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19341,7 +19365,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19353,7 +19377,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -19362,15 +19386,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -19392,7 +19416,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19404,7 +19428,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19416,7 +19440,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19429,15 +19453,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -19460,7 +19484,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19472,7 +19496,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19484,7 +19508,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19492,7 +19516,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -19501,18 +19525,18 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             ]
@@ -19520,9 +19544,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -19558,7 +19582,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19570,7 +19594,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19582,7 +19606,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19590,7 +19614,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19603,33 +19627,33 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -19670,7 +19694,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19682,7 +19706,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19694,7 +19718,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19702,7 +19726,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19719,24 +19743,24 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 5 5
@@ -19745,9 +19769,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -19788,7 +19812,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19800,7 +19824,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19812,7 +19836,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19825,16 +19849,16 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -19856,7 +19880,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19868,7 +19892,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19880,7 +19904,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19888,7 +19912,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -19897,19 +19921,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -19917,9 +19941,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -19944,7 +19968,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19956,7 +19980,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -19968,7 +19992,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19976,7 +20000,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -19989,34 +20013,34 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -20056,7 +20080,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20068,7 +20092,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20080,7 +20104,7 @@ valids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -20088,7 +20112,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 26}, POSIXTime{getPOSIXTime = 26})
@@ -20105,25 +20129,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -20131,9 +20155,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -20174,7 +20198,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20186,7 +20210,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20206,12 +20230,12 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
         , txOutPayments = []
@@ -20236,7 +20260,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20248,7 +20272,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20263,7 +20287,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -20272,14 +20296,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -20303,7 +20327,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20315,7 +20339,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20330,7 +20354,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20343,14 +20367,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             ]
         , txOutPayments = []
         , txOutState =
@@ -20378,7 +20402,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20390,7 +20414,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20405,7 +20429,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20413,7 +20437,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -20422,19 +20446,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             ]
@@ -20442,7 +20466,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -20480,7 +20504,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20492,7 +20516,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20507,7 +20531,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20515,7 +20539,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20528,32 +20552,32 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -20596,7 +20620,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20608,7 +20632,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20623,7 +20647,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20631,7 +20655,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20648,25 +20672,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 5
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 0 0
@@ -20675,7 +20699,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -20718,7 +20742,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20730,7 +20754,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20745,7 +20769,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20758,14 +20782,14 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
             ]
         , txOutPayments = []
@@ -20791,7 +20815,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20803,7 +20827,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20818,7 +20842,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20826,7 +20850,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -20835,20 +20859,20 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             ]
@@ -20856,7 +20880,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -20893,7 +20917,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20905,7 +20929,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -20920,7 +20944,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20928,7 +20952,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -20941,33 +20965,33 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -21009,7 +21033,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21021,7 +21045,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21036,7 +21060,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21044,7 +21068,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21061,26 +21085,26 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Cy" "Cy" (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN") 0
+            , TransactionNonPositiveDeposit "Cy" "Cy" token2 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 7
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 0 0
             ]
@@ -21088,7 +21112,7 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutState =
@@ -21131,7 +21155,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21143,7 +21167,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21158,7 +21182,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -21167,15 +21191,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -21197,7 +21221,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21209,7 +21233,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21224,7 +21248,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21237,15 +21261,15 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -21271,7 +21295,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21283,7 +21307,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21298,7 +21322,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21306,7 +21330,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -21315,18 +21339,18 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             ]
@@ -21334,9 +21358,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -21373,7 +21397,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21385,7 +21409,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21400,7 +21424,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21408,7 +21432,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21421,33 +21445,33 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 6
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -21489,7 +21513,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21501,7 +21525,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21516,7 +21540,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21524,7 +21548,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21541,24 +21565,24 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 10
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "choose1" 5 1
             , TransactionShadowing "x" 5 5
@@ -21567,9 +21591,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -21611,7 +21635,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21623,7 +21647,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21638,7 +21662,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21651,16 +21675,16 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
             ]
-        , txOutPayments = [Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -21683,7 +21707,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21695,7 +21719,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21710,7 +21734,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21718,7 +21742,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 46}, POSIXTime{getPOSIXTime = 46}), txInputs = []}
       ]
@@ -21727,19 +21751,19 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             ]
@@ -21747,9 +21771,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -21785,7 +21809,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21797,7 +21821,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21812,7 +21836,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21820,7 +21844,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21833,34 +21857,34 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             ]
         , txOutPayments =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -21901,7 +21925,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21913,7 +21937,7 @@ valids =
                   ( IDeposit
                       "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                       "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
-                      (Token "" "")
+                      ada
                       0
                   )
               ]
@@ -21928,7 +21952,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Noe" "Cy" (Token "" "") 5)]
+          , txInputs = [NormalInput (IDeposit "Noe" "Cy" ada 5)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21936,7 +21960,7 @@ valids =
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
-          , txInputs = [NormalInput (IDeposit "Cy" "Sten" (Token "" "") 0)]
+          , txInputs = [NormalInput (IDeposit "Cy" "Sten" ada 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 6}, POSIXTime{getPOSIXTime = 6})
@@ -21953,25 +21977,25 @@ valids =
             [ TransactionNonPositiveDeposit
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionNonPositiveDeposit
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
-                (Token "" "")
+                ada
                 0
             , TransactionShadowing "choose2" 0 0
-            , TransactionNonPositiveDeposit "Sten" "Cy" (Token "" "") 0
+            , TransactionNonPositiveDeposit "Sten" "Cy" ada 0
             , TransactionPartialPay
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
                 12
             , TransactionNonPositivePay
                 "addr_test1qp2l7afky3eqfkrht5f3qgy7x2yek5dejcnpnuqlwywz9twr7cz4mu6gh005gdck67p7y9d8s8zsfgjkcdy75mrjh6jqp8jwfw"
                 (Party "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
             , TransactionShadowing "x" 5 5
             ]
@@ -21979,9 +22003,9 @@ valids =
             [ Payment
                 "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gfvqnpz"
                 (Party "Cy")
-                (Token "13e78e78c233e131b0cbe4424225d338b7c5ac65e16df0a3e6c9d8f8" "PIN")
+                token2
                 0
-            , Payment "Noe" (Party "Noe") (Token "" "") 5
+            , Payment "Noe" (Party "Noe") ada 5
             ]
         , txOutState =
             State
@@ -22025,7 +22049,7 @@ invalids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" token2 1)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 1)]
           }
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 36}, POSIXTime{getPOSIXTime = 36}), txInputs = []}
       ]
@@ -22050,7 +22074,7 @@ invalids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" token2 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -22079,7 +22103,7 @@ invalids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" token2 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -22097,7 +22121,7 @@ invalids =
             , TransactionNonPositiveDeposit "Sten" "Cy" token1 0
             , TransactionPartialPay party1 (Party "Cy") token2 0 5
             ]
-        , txOutPayments = [Payment party1 (Party "Cy") (Token "" "") 0]
+        , txOutPayments = [Payment party1 (Party "Cy") ada 0]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -22116,7 +22140,7 @@ invalids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" token2 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
@@ -22139,7 +22163,7 @@ invalids =
             , TransactionPartialPay party1 (Party "Cy") token2 0 5
             , TransactionNonPositivePay party2 (Party party1) token2 0
             ]
-        , txOutPayments = [Payment party1 (Party "Cy") (Token "" "") 0]
+        , txOutPayments = [Payment party1 (Party "Cy") ada 0]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -22159,7 +22183,7 @@ invalids =
       , TransactionInput{txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21}), txInputs = []}
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 21}, POSIXTime{getPOSIXTime = 21})
-          , txInputs = [NormalInput (IDeposit "Cy" "Cy" token2 0)]
+          , txInputs = [NormalInput (IDeposit party3 party3 token2 0)]
           }
       , TransactionInput
           { txInterval = (POSIXTime{getPOSIXTime = 11}, POSIXTime{getPOSIXTime = 11})
@@ -22188,7 +22212,7 @@ invalids =
             , TransactionShadowing "choose1" 5 5
             , TransactionShadowing "x" 0 0
             ]
-        , txOutPayments = [Payment party1 (Party "Cy") (Token "" "") 0]
+        , txOutPayments = [Payment party1 (Party "Cy") ada 0]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -22247,7 +22271,7 @@ invalids =
             , TransactionPartialPay party1 (Party "Cy") token2 0 12
             , TransactionNonPositivePay party2 (Party party1) token2 0
             ]
-        , txOutPayments = [Payment party1 (Party "Cy") (Token "" "") 0, Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment party1 (Party "Cy") ada 0, Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -22324,7 +22348,7 @@ invalids =
             , TransactionNonPositivePay party2 (Party party1) token2 0
             , TransactionShadowing "x" 5 5
             ]
-        , txOutPayments = [Payment party1 (Party "Cy") (Token "" "") 0, Payment "Noe" (Party "Noe") (Token "" "") 5]
+        , txOutPayments = [Payment party1 (Party "Cy") ada 0, Payment "Noe" (Party "Noe") ada 5]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}

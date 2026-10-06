@@ -51,5 +51,5 @@ library
 
   exposed-modules:    Data.Aeson.Applicative
   build-depends:
-    , aeson ^>=2.2
+    , aeson
     , base >=4.9 && <5

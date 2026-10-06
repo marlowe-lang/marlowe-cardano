@@ -11,17 +11,17 @@ module Network.Protocol.Singleton where
 import Data.Kind (Constraint, Type)
 import Network.TypedProtocol hiding (FlipAgency, TheyHaveAgency)
 
-type SingClientHasAgency :: forall ps. ps -> Constraint
-class SingClientHasAgency st where
-  singClientHasAgency :: ClientHasAgency st
+type SingClientAgency :: forall ps. ps -> Constraint
+class SingClientAgency st where
+  singClientAgency :: ClientAgency st
 
-type SingServerHasAgency :: forall ps. ps -> Constraint
-class SingServerHasAgency st where
-  singServerHasAgency :: ServerHasAgency st
+type SingServerAgency :: forall ps. ps -> Constraint
+class SingServerAgency st where
+  singServerAgency :: ServerAgency st
 
-type SingNobodyHasAgency :: forall ps. ps -> Constraint
-class SingNobodyHasAgency st where
-  singNobodyHasAgency :: NobodyHasAgency st
+type SingNobodyAgency :: forall ps. ps -> Constraint
+class SingNobodyAgency st where
+  singNobodyAgency :: NobodyAgency st
 
 data SPeerRole (pr :: PeerRole) where
   SAsClient :: SPeerRole 'AsClient
@@ -33,26 +33,26 @@ class SingPeerRole (pr :: PeerRole) where
 class SingWeHaveAgency pr st where
   singWeHaveAgency :: WeHaveAgency pr st
 
-instance (SingClientHasAgency st) => SingWeHaveAgency 'AsClient st where
-  singWeHaveAgency = ClientAgency singClientHasAgency
+instance (SingClientAgency st) => SingWeHaveAgency 'AsClient st where
+  singWeHaveAgency = ClientAgency singClientAgency
 
-instance (SingServerHasAgency st) => SingWeHaveAgency 'AsServer st where
-  singWeHaveAgency = ServerAgency singServerHasAgency
+instance (SingServerAgency st) => SingWeHaveAgency 'AsServer st where
+  singWeHaveAgency = ServerAgency singServerAgency
 
 type family FlipAgency (pr :: PeerRole) = (r :: PeerRole) | r -> pr where
   FlipAgency 'AsClient = 'AsServer
   FlipAgency 'AsServer = 'AsClient
 
-type TheyHaveAgency pr = PeerHasAgency (FlipAgency pr)
+type TheyHaveAgency pr = ActiveAgency (FlipAgency pr)
 
 class SingTheyHaveAgency pr st where
   singTheyHaveAgency :: TheyHaveAgency pr st
 
-instance (SingServerHasAgency st) => SingTheyHaveAgency 'AsClient st where
-  singTheyHaveAgency = ServerAgency singServerHasAgency
+instance (SingServerAgency st) => SingTheyHaveAgency 'AsClient st where
+  singTheyHaveAgency = ServerAgency singServerAgency
 
-instance (SingClientHasAgency st) => SingTheyHaveAgency 'AsServer st where
-  singTheyHaveAgency = ClientAgency singClientHasAgency
+instance (SingClientAgency st) => SingTheyHaveAgency 'AsServer st where
+  singTheyHaveAgency = ClientAgency singClientAgency
 
 class OurRole (pr :: PeerRole) where
   type OurAgency pr :: ps -> Type
@@ -63,17 +63,17 @@ class TheirRole (pr :: PeerRole) where
   theirAgency :: TheirAgency pr (st :: ps) -> TheyHaveAgency pr st
 
 instance OurRole 'AsClient where
-  type OurAgency 'AsClient = ClientHasAgency
+  type OurAgency 'AsClient = ClientAgency
   ourAgency = ClientAgency
 
 instance OurRole 'AsServer where
-  type OurAgency 'AsServer = ServerHasAgency
+  type OurAgency 'AsServer = ServerAgency
   ourAgency = ServerAgency
 
 instance TheirRole 'AsClient where
-  type TheirAgency 'AsClient = ServerHasAgency
+  type TheirAgency 'AsClient = ServerAgency
   theirAgency = ServerAgency
 
 instance TheirRole 'AsServer where
-  type TheirAgency 'AsServer = ClientHasAgency
+  type TheirAgency 'AsServer = ClientAgency
   theirAgency = ClientAgency

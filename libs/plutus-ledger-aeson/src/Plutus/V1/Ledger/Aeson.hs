@@ -27,9 +27,9 @@ import PlutusTx.Builtins.Aeson ()
 import Data.Hashable (Hashable)
 import PlutusLedgerApi.V1
 import PlutusLedgerApi.V1.Bytes qualified as Bytes
-import PlutusLedgerApi.V1.Scripts
+import PlutusLedgerApi.V1.Scripts ()
 import PlutusLedgerApi.V1.Tx
-import PlutusLedgerApi.V1.Value
+import PlutusLedgerApi.V1.Value ()
 
 deriving anyclass instance ToJSON DatumHash
 deriving anyclass instance FromJSON DatumHash
@@ -74,8 +74,8 @@ instance FromJSON CurrencySymbol where
   parseJSON =
     JSON.withObject "CurrencySymbol" $ \object -> do
       raw <- object .: "unCurrencySymbol"
-      EncodeBase16 bytes <- parseJSON raw
-      pure $ CurrencySymbol $ PlutusTx.Builtins.toBuiltin bytes
+      EncodeBase16 bts <- parseJSON raw
+      pure $ CurrencySymbol $ PlutusTx.Builtins.toBuiltin bts
 
 deriving anyclass instance Hashable CurrencySymbol
 deriving newtype instance Serialise CurrencySymbol

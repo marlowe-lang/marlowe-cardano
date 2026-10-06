@@ -31,8 +31,9 @@ import Language.Marlowe.Core.V1.Semantics.Types (
   Party,
   Payee (Party),
   State (State, accounts, boundValues, choices, minTime),
-  Token (..),
   Value (AddValue, Constant),
+  ada,
+  mkRoleUtf8,
  )
 import Language.Marlowe.Util ()
 import PlutusLedgerApi.V2 (POSIXTime (..))
@@ -40,13 +41,10 @@ import PlutusLedgerApi.V2 (POSIXTime (..))
 import qualified PlutusTx.AssocMap as AM (Map, unsafeFromList)
 
 lender :: Party
-lender = "Lender"
+lender = mkRoleUtf8 "Lender"
 
 borrower :: Party
-borrower = "Borrower"
-
-ada :: Token
-ada = Token "" ""
+borrower = mkRoleUtf8 "Borrower"
 
 -- | The Zero-Coupon Bond contract.
 contract :: Contract
@@ -110,7 +108,7 @@ valids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment lender (Party borrower) (Token "" "") 100_000_000]
+        , txOutPayments = [Payment lender (Party borrower) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -136,7 +134,7 @@ valids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment lender (Party borrower) (Token "" "") 100_000_000, Payment borrower (Party lender) (Token "" "") 105_000_000]
+            [Payment lender (Party borrower) (ada) 100_000_000, Payment borrower (Party lender) (ada) 105_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -179,7 +177,7 @@ invalids =
       ]
     , TransactionOutput
         { txOutWarnings = []
-        , txOutPayments = [Payment lender (Party borrower) (Token "" "") 100_000_000]
+        , txOutPayments = [Payment lender (Party borrower) (ada) 100_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}
@@ -205,7 +203,7 @@ invalids =
     , TransactionOutput
         { txOutWarnings = []
         , txOutPayments =
-            [Payment lender (Party borrower) (Token "" "") 100_000_000, Payment borrower (Party lender) (Token "" "") 105_000_000]
+            [Payment lender (Party borrower) (ada) 100_000_000, Payment borrower (Party lender) (ada) 105_000_000]
         , txOutState =
             State
               { accounts = toAM $ Map{unMap = []}

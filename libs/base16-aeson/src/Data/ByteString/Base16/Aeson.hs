@@ -11,9 +11,10 @@ import Data.Aeson (FromJSON, ToJSON (toJSON))
 import Data.Aeson qualified as A
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as A
+import Data.Base16.Types (extractBase16)
 import Data.Bifunctor (first)
 import Data.ByteString qualified as BSS
-import Data.ByteString.Base16 (decodeBase16, encodeBase16)
+import Data.ByteString.Base16 (decodeBase16Untyped, encodeBase16)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Lazy qualified as BSL
 import Data.Text qualified as T
@@ -26,11 +27,13 @@ newtype EncodeBase16 = EncodeBase16 BSS.ByteString
 unBase16 (EncodeBase16 bs) = bs
 
 instance ToJSON EncodeBase16 where
-  toJSON (EncodeBase16 bs) = toJSON . encodeBase16 $ bs
+  toJSON (EncodeBase16 bs) = do
+    let text = extractBase16 . encodeBase16 $ bs
+    toJSON text
 
 instance FromJSON EncodeBase16 where
   parseJSON v = do
-    let base16Parser = either (fail . T.unpack) pure . decodeBase16 . TE.encodeUtf8
+    let base16Parser = either (fail . T.unpack) pure . decodeBase16Untyped . TE.encodeUtf8
     EncodeBase16 <$> Aeson.withText "ByteString" base16Parser v
 
 byteStringToJSON :: BSS.ByteString -> Aeson.Value

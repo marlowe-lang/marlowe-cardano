@@ -30,7 +30,7 @@ library
     , async
     , base >=4.9 && <5
     , bytestring
-    , cardano-api ^>=9.2
+    , cardano-api
     , containers
     , data-default
     , eventuo11y >=0.9 && <0.11
@@ -99,7 +99,7 @@ executable marlowe-oracle
     , base >=4.9 && <5
     , base16-aeson
     , bytestring
-    , cardano-api ^>=9.2
+    , cardano-api
     , eventuo11y >=0.9 && <0.11
     , eventuo11y-dsl ^>=0.2
     , eventuo11y-json ^>=0.3.0.3
@@ -111,7 +111,7 @@ executable marlowe-oracle
     , marlowe-runtime
     , mtl
     , optparse-applicative
-    , plutus-ledger-api ^>=1.31
+    , plutus-ledger-api
     , process
     , servant
     , servant-client

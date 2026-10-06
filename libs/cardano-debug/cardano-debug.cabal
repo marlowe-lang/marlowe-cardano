@@ -56,7 +56,7 @@ library
     , aeson
     , base >=4.9 && <5
     , bytestring
-    , cardano-api ^>=9.2
+    , cardano-api
     , cardano-ledger-core
     , cardano-ledger-shelley
     , containers

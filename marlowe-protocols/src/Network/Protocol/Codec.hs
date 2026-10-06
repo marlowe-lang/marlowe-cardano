@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -15,8 +16,8 @@ import Network.TypedProtocol (Message, Protocol)
 import Network.TypedProtocol.Codec
 
 class (Protocol ps) => BinaryMessage ps where
-  putMessage :: PeerHasAgency pr (st :: ps) -> Message ps st st' -> Put
-  getMessage :: PeerHasAgency pr (st :: ps) -> Get (SomeMessage st)
+  putMessage :: (ActiveState (st :: ps)) => Message ps st st' -> Put
+  getMessage :: (ActiveState (st :: ps)) => StateToken st -> Get (SomeMessage st)
 
 data DeserializeError = DeserializeError
   { message :: !String
@@ -28,12 +29,13 @@ data DeserializeError = DeserializeError
 instance Exception DeserializeError
 
 binaryCodec :: (Applicative m, BinaryMessage ps) => Codec ps DeserializeError m LBS.ByteString
-binaryCodec = Codec (encodePut . putMessage) (decodeGet . getMessage)
+binaryCodec = Codec (runPut . putMessage) (decodeGet . getMessage)
 
 encodePut :: (a -> Put) -> a -> LBS.ByteString
 encodePut = fmap runPut
 
-decodeGet :: (Applicative m) => Get a -> m (DecodeStep LBS.ByteString DeserializeError m a)
+decodeGet
+  :: (Applicative m) => Get (SomeMessage st) -> m (DecodeStep LBS.ByteString DeserializeError m (SomeMessage st))
 decodeGet = go . runGetIncremental
   where
     go =

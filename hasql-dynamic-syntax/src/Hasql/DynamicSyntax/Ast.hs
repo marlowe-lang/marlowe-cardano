@@ -16,6 +16,7 @@ module Hasql.DynamicSyntax.Ast where
 
 import Data.Aeson (Value)
 import Data.ByteString (ByteString)
+import Data.IP (IPRange)
 import Data.Int (Int16, Int32, Int64)
 import Data.Kind (Type)
 import Data.List.NonEmpty (NonEmpty)
@@ -230,7 +231,7 @@ type family SqlToHask (t :: Type) :: Type where
   SqlToHask SqlTimez = (TimeOfDay, TimeZone)
   SqlToHask SqlInterval = DiffTime
   SqlToHask SqlUUID = UUID
-  SqlToHask SqlInet = NetAddr IP
+  SqlToHask SqlInet = IPRange
   SqlToHask SqlJson = Value
   SqlToHask SqlJsonb = Value
   SqlToHask (SqlArray (ColumnType t)) = Vector (ColumnToHask t)

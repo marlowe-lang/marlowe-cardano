@@ -9,7 +9,9 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns -fno-warn-name-shadowing -fno-warn-unused-do-bind #-}
 
 -- | Shared functions for Marlowe testing.
@@ -75,6 +77,12 @@ import Language.Marlowe.Core.V1.Semantics.Types (
   Token (..),
   Value (..),
   ValueId (..),
+  mkChoiceIdUtf8,
+  mkRoleUtf8,
+  mkTokenNameUtf8,
+  unsafeMkCurrencySymbolHex,
+  unsafeMkTokenNameHex,
+  pattern RoleUtf8,
  )
 import Language.Marlowe.Extended.V1 (ada)
 import Language.Marlowe.Util (merkleizedCase)
@@ -109,9 +117,9 @@ partyGen =
 -- | Shrink a generated party.
 shrinkParty :: Party -> [Party]
 shrinkParty party = case party of
-  Address _ _ -> [Role "alice", Role "bob"]
-  Role "bob" -> [Role "alice"]
-  Role "alice" -> []
+  Address _ _ -> [mkRoleUtf8 "alice", mkRoleUtf8 "bob"]
+  RoleUtf8 "bob" -> [mkRoleUtf8 "alice"]
+  RoleUtf8 "alice" -> []
   _ -> []
 
 -- | Generate a payee at random.
@@ -131,14 +139,18 @@ shrinkPayee (Party party) = [Party x | x <- shrinkParty party]
 tokenGen :: Gen Token
 tokenGen =
   oneof
-    [ return $ Token "" ""
-    , return $ Token "424954" "434f494e"
+    [ return $ ada
+    , return $
+        Token
+          (unsafeMkCurrencySymbolHex "424954")
+          (unsafeMkTokenNameHex "434f494e")
     ]
 
 -- | Shrink a generated token.
 shrinkToken :: Token -> [Token]
-shrinkToken (Token "" "") = []
-shrinkToken (Token _ _) = [Token "" ""]
+shrinkToken token
+  | token == ada = []
+  | otherwise = [ada]
 
 -- | Generate at random an integer with one of a few values.
 simpleIntegerGen :: Gen Integer
@@ -588,10 +600,10 @@ alicePk = fromString "addr_test1vrssw4edcts00kk6lp7p5n64666m23tpprqaarmdwkaq69gf
 pangramContract :: Contract
 pangramContract =
   let aliceAcc = alicePk
-      bobRole = Role "Bob"
+      bobRole = mkRoleUtf8 "bob"
       constant = Constant 100
-      choiceId = ChoiceId "choice" alicePk
-      token = Token "10" "name"
+      choiceId = mkChoiceIdUtf8 "choice" alicePk
+      token = Token (unsafeMkCurrencySymbolHex "10") (mkTokenNameUtf8 "name")
       valueExpr = AddValue constant (SubValue constant (NegValue constant))
    in Assert TrueObs $
         When

@@ -46,8 +46,7 @@ library
     , aeson
     , base >=4.9 && <5
     , cardano-api
-    , plutus-tx ^>=1.31
-    , time
+    , plutus-tx
 
   ghc-options:      -fprint-potential-instances
 

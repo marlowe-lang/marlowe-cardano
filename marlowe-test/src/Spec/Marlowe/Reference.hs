@@ -31,20 +31,19 @@ module Spec.Marlowe.Reference (
 ) where
 
 import Control.Monad (forM)
-import Control.Monad.Except (ExceptT (..), lift, throwError)
+import Control.Monad.Except (ExceptT (..), throwError)
+import Control.Monad.Trans.Class (lift)
 import Data.Aeson (FromJSON, ToJSON, eitherDecodeFileStrict, encodeFile)
 import Data.Bifunctor (first)
 import Data.List (isSuffixOf)
 import GHC.Generics (Generic)
 import Language.Marlowe.Core.V1.Semantics (TransactionInput, TransactionOutput (..), computeTransaction)
-import Language.Marlowe.Core.V1.Semantics.Types (Contract, Party (Role), State (..), Token (..))
+import Language.Marlowe.Core.V1.Semantics.Types (Contract, State (..), ada, mkRoleByteString)
 import Language.Marlowe.FindInputs (getAllInputs)
 import Paths_marlowe_test (getDataDir)
 import PlutusLedgerApi.V2 (POSIXTime)
-import Spec.Marlowe.Semantics.Golden (GoldenTransaction)
 import System.Directory (listDirectory)
 import System.FilePath ((</>))
-import Test.Tasty.QuickCheck (Gen, elements)
 
 import Language.Marlowe.Analysis.FSSemantics (SlotLength (..))
 import qualified PlutusTx.AssocMap as AM (empty, singleton)
@@ -148,7 +147,7 @@ makeState
   :: POSIXTime
   -> State
 makeState minTime =
-  let accounts = AM.singleton (Role "", Token "" "") 30_000_000 -- Note that 30 ada exceeds min-UTxO for current protocol parameters.
+  let accounts = AM.singleton (mkRoleByteString "", ada) 30_000_000 -- Note that 30 ada exceeds min-UTxO for current protocol parameters.
       choices = AM.empty
       boundValues = AM.empty
    in State{..}

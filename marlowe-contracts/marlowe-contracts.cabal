@@ -78,8 +78,8 @@ library
     , ilist
     , marlowe-cardano
     , marlowe-object
-    , plutus-ledger-api ^>=1.31
-    , plutus-tx ^>=1.31
+    , plutus-ledger-api
+    , plutus-tx
     , split
     , text
     , time

@@ -23,18 +23,20 @@ module Cardano.Debug (
 import Prelude
 
 import Cardano.Api as Api
-import Cardano.Api.Byron (KeyWitness (ByronKeyWitness))
-import Cardano.Api.Ledger (EraCrypto, ShelleyTxCert (..))
-import Cardano.Api.Shelley (
+import Cardano.Api.Address (
   Address (ShelleyAddress),
   KeyWitness (ShelleyBootstrapWitness, ShelleyKeyWitness),
-  ShelleyLedgerEra,
   StakeAddress (..),
   StakePoolParameters (..),
   fromShelleyPaymentCredential,
   fromShelleyPoolParams,
   fromShelleyStakeReference,
   toShelleyStakeCredential,
+ )
+import Cardano.Api.Byron (KeyWitness (ByronKeyWitness))
+import Cardano.Api.Ledger (
+  ShelleyLedgerEra,
+  ShelleyTxCert (..),
  )
 import Cardano.Ledger.Coin qualified as Coin
 import Cardano.Ledger.Crypto qualified as Crypto
@@ -172,9 +174,9 @@ friendlyWithdrawals TxWithdrawalsNone = Null
 friendlyWithdrawals (TxWithdrawals _ withdrawals) =
   array
     [ object $
-      "address" .= serialiseAddress addr
-        : "amount" .= friendlyCoinLovelace amount
-        : friendlyStakeAddress addr
+        "address" .= serialiseAddress addr
+          : "amount" .= friendlyCoinLovelace amount
+          : friendlyStakeAddress addr
     | (addr, amount, _) <- withdrawals
     ]
 
@@ -234,9 +236,9 @@ friendlyUpdateProposal = \case
       [ "epoch" .= epoch
       , "updates"
           .= [ object
-              [ "genesis key hash" .= serialiseToRawBytesHexText genesisKeyHash
-              , "update" .= friendlyProtocolParametersUpdate parameterUpdate
-              ]
+                 [ "genesis key hash" .= serialiseToRawBytesHexText genesisKeyHash
+                 , "update" .= friendlyProtocolParametersUpdate parameterUpdate
+                 ]
              | (genesisKeyHash, parameterUpdate) <- Map.assocs parameterUpdates
              ]
       ]
@@ -323,8 +325,7 @@ friendlyCertificates = \case
   TxCertificates ShelleyBasedEraConway cs _ -> array $ map friendlyCertificate cs
 
 friendlyCertificate
-  :: (EraCrypto (ShelleyLedgerEra era) ~ Crypto.StandardCrypto)
-  => Certificate era
+  :: Certificate era
   -> Aeson.Value
 friendlyCertificate =
   object . (: []) . \case
@@ -355,9 +356,9 @@ friendlyMirTarget = \case
   StakeAddressesMIR addresses ->
     "target stake addresses"
       .= [ object
-          [ friendlyStakeCredential credential
-          , "amount" .= friendlyCoinLovelace (Coin.addDeltaCoin (Coin.Coin 0) lovelace)
-          ]
+             [ friendlyStakeCredential credential
+             , "amount" .= friendlyCoinLovelace (Coin.addDeltaCoin (Coin.Coin 0) lovelace)
+             ]
          | (credential, lovelace) <- Map.toList addresses
          ]
   SendToOppositePotMIR amount -> "send to reserves" .= friendlyCoinLovelace amount
@@ -438,9 +439,9 @@ friendlyValue :: Api.Value -> Aeson.Value
 friendlyValue v =
   object
     [ case bundle of
-      ValueNestedBundleAda q -> "lovelace" .= q
-      ValueNestedBundle policy assets ->
-        Aeson.fromText (friendlyPolicyId policy) .= friendlyAssets assets
+        ValueNestedBundleAda q -> "lovelace" .= q
+        ValueNestedBundle policy assets ->
+          Aeson.fromText (friendlyPolicyId policy) .= friendlyAssets assets
     | bundle <- bundles
     ]
   where
