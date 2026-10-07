@@ -54,7 +54,7 @@ def main(path):
     if unused:
         print(f"unused defs: {sorted(unused)}")
 
-    sys.exit(1 if missing || unused else 0)
+    sys.exit(1 if (missing or unused) else 0)
 
 
 if __name__ == "__main__":
