@@ -35,7 +35,8 @@ import Data.Map.NonEmpty qualified as NEMap
 import Data.Maybe (isJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.Set (Set)
-import Data.Set qualified as Set
+import qualified Data.Set as Set
+import Data.String (fromString)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
@@ -50,6 +51,7 @@ import Language.Marlowe.Runtime.ChainSync.Api (paymentCredential, fromCardanoScr
 import Language.Marlowe.Runtime.ChainSync.Api qualified as Core
 import Language.Marlowe.Runtime.Contract.Store qualified as ContractStore
 import Language.Marlowe.Runtime.Contract.Store qualified as Store
+import Language.Marlowe.Runtime.Contract.Store.File qualified as StoreFile
 import Language.Marlowe.Runtime.Contract.Store.Memory qualified as StoreMemory
 import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1), Transaction(Transaction, transactionId))
 import Language.Marlowe.Runtime.Core.Api qualified as Core
@@ -96,16 +98,18 @@ import Marlowe.Runtime.Server.Contrib.Servant.Err500 (err500, err500JSON)
 import Marlowe.Runtime.Server.Contrib.Servant.ResponseRewriterMiddleware as ResponseRewriterMiddleware
 import Network.HTTP.Types qualified as H
 import Network.Wai qualified as Wai
+import Network.Wai.Handler.Warp (HostPreference)
 import Network.Wai.Handler.Warp qualified as Wai
 import Network.Wai.Logger qualified as Wai
 import Network.Wai.Middleware.Cors ( CorsResourcePolicy (corsRequestHeaders), cors, simpleCorsResourcePolicy,)
-import Options.Applicative ( Parser, ParserInfo, execParser, fullDesc, header, help, helper, info, infoOption, long, metavar, option, progDesc, short, ReadM, asum, flag', eitherReader, strOption, auto, value, optional)
+import Options.Applicative ( Parser, ParserInfo, execParser, fullDesc, header, help, helper, info, infoOption, long, metavar, option, progDesc, short, ReadM, asum, flag', eitherReader, strOption, auto, value, optional, showDefault)
 import Paths_marlowe_runtime (version)
 import Servant ( Application, ServerError (..), hoistServer, serveWithContext, Handler (Handler), ErrorFormatter, ErrorFormatters, bodyParserErrorFormatter, urlParseErrorFormatter, headerParseErrorFormatter, defaultErrorFormatters, err400, Context(EmptyContext, (:.)))
 import Servant.Pipes ()
 import Servant.Server.Internal.ServerError (responseServerError)
 import System.Environment.Blank (getEnv)
 import System.Exit (die)
+import System.FilePath ((</>))
 import Text.Read qualified as T
 import UnliftIO (bracket)
 import UnliftIO.STM qualified
@@ -123,9 +127,23 @@ data Options = Options
   { databaseUri :: Hasql.Settings
   , logLevel :: LogLevel
   , networkId :: C.NetworkId
+  , host :: String
   , port :: Port
   , scriptRegistry :: Maybe FilePath
+  , storeConfig :: StoreConfig
   }
+
+-- | Configuration of the contract store backend.
+data StoreConfig
+  = -- | Persist contracts to the file system at the given directory.
+    FileStoreConfig
+      { fileStoreDir :: FilePath
+      , fileStoreMaxContractAgeSeconds :: Integer
+      , fileStoreMaxStoreSizeBytes :: Integer
+      }
+  | -- | In-memory contract store. Intended only for debug/devel
+    -- environments; contract data does not persist across restarts.
+    InMemoryStoreConfig
 
 decodeFileStrict
   :: A.FromJSON a
@@ -176,6 +194,18 @@ portParser = option
     <> metavar "PORT"
     <> value (Port 8090)
   )
+
+hostParser :: Parser String
+hostParser =
+  strOption
+    ( long "host"
+        <> short 'h'
+        <> metavar "HOST_NAME"
+        <> help
+            "The host name to bind the HTTP server to. Defaults to 0.0.0.0 (all interfaces). Use this only when you specifically need to constrain the bind -- for access control, use the host firewall."
+        <> value "0.0.0.0"
+        <> showDefault
+    )
 
 databaseUriParser :: Parser Hasql.Settings
 databaseUriParser = do
@@ -325,12 +355,22 @@ mkApplyInputs (networkId, systemStart, protocolParams) fetchEraHistory getContra
 
 type LedgerInfo = (C.NetworkId, C.SystemStart, L.PParams (C.ShelleyLedgerEra C.ConwayEra))
 
-mkServerMStore :: ServerM (ContractStore.ContractStore ServerM)
-mkServerMStore = do
+mkServerMStore :: StoreConfig -> ServerM (ContractStore.ContractStore ServerM)
+mkServerMStore InMemoryStoreConfig = do
   let liftStage :: forall a. UnliftIO.STM.STM a -> ServerM a
       liftStage = liftIO . UnliftIO.STM.atomically
   stmStore <- liftIO $ UnliftIO.STM.atomically StoreMemory.createContractStoreInMemory
   pure $ Store.hoistContractStore liftStage stmStore
+mkServerMStore FileStoreConfig{..} = do
+  store <- liftIO $ StoreFile.createContractStore
+    StoreFile.ContractStoreOptions
+      { contractStoreDirectory = fileStoreDir
+      , contractStoreStagingDirectory = fileStoreDir </> "staging"
+      , lockingMicrosecondsBetweenRetries = 500_000
+      , minContractAge = fromIntegral fileStoreMaxContractAgeSeconds
+      , maxStoreSize = fileStoreMaxStoreSizeBytes
+      }
+  pure $ Store.hoistContractStore liftIO store
 
 mkWithBundleImporter
   :: (MonadUnliftIO m, MonadLog m)
@@ -407,9 +447,10 @@ mkServerDependencies
   -> LedgerInfo
   -> GetAllScripts
   -> GetCurrentScripts
+  -> StoreConfig
   -> ServerM (ServerDependencies ServerM)
-mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts = do
-  contractStore <- mkServerMStore
+mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts storeConfig = do
+  contractStore <- mkServerMStore storeConfig
   let
     dbQueries :: DatabaseQueries ServerM
     dbQueries =
@@ -513,6 +554,7 @@ runApp opts = do
   Wai.withStdoutLogger \waiLogger -> do
     let
       Port port = opts.port
+      host = opts.host
       dbQueries :: DatabaseQueries IO
       dbQueries =
         hoistDatabaseQueries
@@ -547,8 +589,9 @@ runApp opts = do
       waiSettings =
         Wai.setOnExceptionResponse handleException $
           Wai.setPort port $
-            Wai.setTimeout 600 $
-              Wai.setLogger waiLogger Wai.defaultSettings
+            Wai.setHost (fromString host :: HostPreference) $
+              Wai.setTimeout 600 $
+                Wai.setLogger waiLogger Wai.defaultSettings
 
       api :: Proxy RuntimeAPIWithOpenAPI
       api = Proxy
@@ -570,7 +613,7 @@ runApp opts = do
           , "scriptHashes" .= scriptHashes
           ]
 
-      dependencies <- runServerMExtract undefined (mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts)
+      dependencies <- runServerMExtract undefined (mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts opts.storeConfig)
 
       Wai.runSettings waiSettings $
         ResponseRewriterMiddleware.mkMiddleware errorRewriter $
@@ -606,6 +649,56 @@ scriptRegistryParser =
         <> metavar "SCRIPT_REGISTRY"
     )
 
+storeDirParser :: Parser FilePath
+storeDirParser =
+  strOption
+    ( long "store-dir"
+        <> short 's'
+        <> metavar "DIR"
+        <> help
+            "Directory used to persist the contract store. Enables the file-system backed contract store. Requires --max-contract-age / --max-store-size to also be valid for this backend. Mutually exclusive with --in-memory-store."
+    )
+
+maxContractAgeParser :: Parser Integer
+maxContractAgeParser =
+  option auto
+    ( long "max-contract-age"
+        <> metavar "SECONDS"
+        <> help
+            "The maximum age, in seconds, a contract in the store may reach before it becomes eligible for garbage collection. Only meaningful with --store-dir."
+        <> value (24 * 60 * 60)
+        <> showDefault
+    )
+
+maxStoreSizeParser :: Parser Integer
+maxStoreSizeParser =
+  option auto
+    ( long "max-store-size"
+        <> metavar "BYTES"
+        <> help
+            "The maximum allowed size of the contract store, in bytes. Only meaningful with --store-dir."
+        <> value (32 * 1024 * 1024 * 1024)
+        <> showDefault
+    )
+
+inMemoryStoreParser :: Parser StoreConfig
+inMemoryStoreParser =
+  flag' InMemoryStoreConfig
+    ( long "in-memory-store"
+        <> help
+            "Use a non-persistent in-memory contract store. Intended only for debug/devel environments; contract data does not survive restarts. Mutually exclusive with --store-dir."
+    )
+
+fileStoreParser :: Parser StoreConfig
+fileStoreParser =
+  FileStoreConfig
+    <$> storeDirParser
+    <*> maxContractAgeParser
+    <*> maxStoreSizeParser
+
+storeConfigParser :: Parser StoreConfig
+storeConfigParser = fileStoreParser <|> inMemoryStoreParser
+
 mkParser :: IO (Parser (IO ()))
 mkParser = do
   networkIdParser <- mkNetworkIdParser
@@ -614,8 +707,10 @@ mkParser = do
       <$> databaseUriParser
       <*> logLevelParser
       <*> networkIdParser
+      <*> hostParser
       <*> portParser
       <*> optional scriptRegistryParser
+      <*> storeConfigParser
 
     versionOption =
       infoOption ("marlowe-runtime-server " <> showVersion version) $

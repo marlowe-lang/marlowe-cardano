@@ -106,6 +106,7 @@ library
     , insert-ordered-containers
     , lens
     , lens-aeson
+    , lock-file
     , log-base
     , marlowe-indexer:db
     , marlowe-object
@@ -156,6 +157,7 @@ library
   exposed-modules:
     Language.Marlowe.Runtime.Contract.Api
     Language.Marlowe.Runtime.Contract.Store
+    Language.Marlowe.Runtime.Contract.Store.File
     Language.Marlowe.Runtime.Contract.Store.Memory
     Language.Marlowe.Runtime.Query
     Language.Marlowe.Runtime.Query.Database
@@ -263,6 +265,7 @@ executable server
     , deepseq
     , errors
     , exceptions
+    , filepath
     , foldl
     , hashable
     , hasql
@@ -418,12 +421,25 @@ test-suite test
   other-modules:
     -- Language.Marlowe.Runtime.Transaction.BuildConstraintsSpec
     -- Language.Marlowe.Runtime.Transaction.BuildConstraintsSpec.PropertyBased
+    Language.Marlowe.Runtime.Contract.StoreSpec
     Language.Marlowe.Runtime.Web.Contract.APISpec
   build-depends:
     , aeson
     , base
+    , base16
+    , bytestring
     , cardano-api
+    , containers
+    , directory
+    , filepath
     , hspec
     , hspec-core
+    , marlowe-object
+    , marlowe-plutus ^>=0.3
     , marlowe-runtime:{gen, marlowe-runtime}
+    , marlowe-transactions
+    , plutus-ledger-api
     , QuickCheck
+    , temporary
+    , text
+    , unliftio

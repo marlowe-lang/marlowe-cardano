@@ -36,6 +36,7 @@
       : "''${MARLOWE_SCRIPT_SUITE_FILE:?}"
       : "''${MARLOWE_RUNTIME_PORT:?}"
       : "''${MARLOWE_RUNTIME_HOST:?}"
+      : "''${MARLOWE_RUNTIME_CONTRACT_STORE_DIR:?}"
     '';
   };
   marlowe-db = writeShellApplication {
@@ -85,7 +86,7 @@
         --required-signer "$FAUCET_SKEY_FILE" \
         --change-address "$(cat "$FAUCET_ADDR_FILE")" \
         --permanently-without-staking \
-        --out-tx-file publish-tx.json \
+        --out-tx-file "$MARLOWE_SCRIPT_SUITE_DIR/publish-tx.json" \
         --message-format json \
         --release-name devel \
         --script-suite-file "$MARLOWE_SCRIPT_SUITE_FILE" \
@@ -109,12 +110,13 @@
   marlowe-runtime = writeShellApplication {
     name = "marlowe-runtime";
     text = ''
-      # --host "''${MARLOWE_RUNTIME_HOST}"
       args=(
         --database-uri "postgresql://localhost:''${PGPORT:-15432}/marlowe"
         --testnet-magic "''${CARDANO_NODE_NETWORK_ID}"
         --script-registry "''${MARLOWE_SCRIPT_REGISTRY}"
+        --host "''${MARLOWE_RUNTIME_HOST}"
         --port "''${MARLOWE_RUNTIME_PORT}"
+        --store-dir "''${MARLOWE_RUNTIME_CONTRACT_STORE_DIR}"
         --verbose
       )
       exec cabal run marlowe-runtime:server -- "''${args[@]}"

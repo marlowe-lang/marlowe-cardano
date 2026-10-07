@@ -719,7 +719,7 @@ fromCoreContractHash :: BuiltinByteString -> ContractHash
 fromCoreContractHash = ContractHash . PV2.fromBuiltin
 
 newtype ContractHash = ContractHash {unContractHash :: ByteString}
-  deriving newtype (Eq, Ord, Binary)
+  deriving newtype (Eq, Ord, Binary, Hashable)
   deriving (Show, ToJSON, FromJSON) via EncodeBase16
 
 instance Variations ContractHash where

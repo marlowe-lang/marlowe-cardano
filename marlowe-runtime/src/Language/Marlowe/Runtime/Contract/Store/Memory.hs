@@ -102,13 +102,21 @@ createContractStoreInMemory = do
           }
 
     getContract :: TVar (Map ContractHash Contract) -> ContractHash -> STM (Maybe (ContractWithAdjacency 'V1))
-    getContract store = runMaybeT . go
+    getContract store = \hash ->
+      if hash == closeHash
+        then
+          pure $
+            Just
+              ContractWithAdjacency
+                { contract = Close
+                , contractHash = closeHash
+                , adjacency = Set.empty
+                , closure = Set.singleton closeHash
+                }
+        else runMaybeT (go hash)
       where
         go hash = do
-          traceM $ "FETCHING CONTRACT: " <> show hash
           contract <- MaybeT $ Map.lookup hash <$> readTVar store
-          traceM "FETCHED CONTRACT"
-          traceM $ show contract
           adjacentContracts <- fmap Set.fromList $ traverse go $ Set.toList $ computeAdjacency contract
           pure
             ContractWithAdjacency
@@ -126,6 +134,10 @@ computeAdjacency = foldMap getHash . extractAll
     getHash = \case
       MerkleizedCase _ hash -> Set.singleton $ ContractHash $ PV2.fromBuiltin hash
       _ -> mempty
+
+-- | Static hash for the close contract.
+closeHash :: ContractHash
+closeHash = ContractHash $ PV2.fromBuiltin $ dataHash Close
 
 merkleizeInputsDefault
   :: (Monad m)

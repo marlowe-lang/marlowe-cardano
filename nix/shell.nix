@@ -138,8 +138,11 @@ let
         (jail.combinators.try-fwd-env "MARLOWE_SCRIPT_REGISTRY")
         (jail.combinators.try-fwd-env "MARLOWE_RUNTIME_PORT")
         (jail.combinators.try-fwd-env "MARLOWE_RUNTIME_HOST")
+        (jail.combinators.try-fwd-env "MARLOWE_RUNTIME_CONTRACT_STORE_DIR")
+
         # we pass only the information about the running dev env
         (jail.combinators.try-fwd-env "PROCESS_COMPOSE_DEV_ENV_YAML")
+        (jail.combinators.try-fwd-env "PC_PORT_NUM")
       ];
 
     extraReadwriteDirs = [
@@ -299,6 +302,7 @@ let
       export MARLOWE_SCRIPT_SUITE_FILE="$TESTNET_DIR/marlowe-script-suite.json"
       export MARLOWE_RUNTIME_PORT="8090"
       export MARLOWE_RUNTIME_HOST="127.0.0.1"
+      export MARLOWE_RUNTIME_CONTRACT_STORE_DIR="$RUN_DIR/marlowe-runtime-contract-store"
 
       export PROCESS_COMPOSE_TESTNET_YAML=${process-compose-testnet-yaml}
       export PROCESS_COMPOSE_POSTGRES_YAML=${process-compose-postgres-yaml}
