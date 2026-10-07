@@ -33,7 +33,6 @@ module Language.Marlowe.Runtime.Web.Server.Monad (
   runEff3,
   runEff4,
   runServer,
-  runServerMExtract,
 ) where
 
 import qualified Language.Marlowe.Runtime.Web.Contract.API as Web
@@ -108,18 +107,6 @@ newtype ServerM a = ServerM {runServerM :: LogT (ReaderT (ServerDependencies Ser
 runServer :: Logger -> LogLevel -> ServerDependencies ServerM -> ServerM a -> IO a
 runServer logger logLevel deps server =
   flip runReaderT deps $ runLogT "marlowe-runtime-server" logger logLevel $ runServerM do
-    server
-
--- | Run a `ServerM` action and extract the result. Used to bootstrap
--- construction of `ServerDependencies ServerM` from inside `IO`. The
--- `Logger` and `LogLevel` are placeholders; the actual server is started
--- later via `runServer` with the real logger.
-runServerMExtract
-  :: ServerDependencies ServerM
-  -> ServerM a
-  -> IO a
-runServerMExtract deps server =
-  flip runReaderT deps $ runLogT "marlowe-runtime-server" undefined undefined $ runServerM do
     server
 
 runEff0

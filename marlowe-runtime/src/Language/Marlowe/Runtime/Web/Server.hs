@@ -4,7 +4,6 @@ module Language.Marlowe.Runtime.Web.Server
   , ServerDependencies(..)
   , openApiServer
   , runServer
-  , runServerMExtract
   , server
   , serverWithOpenApi
   ) where
@@ -17,7 +16,7 @@ import qualified Data.Text.Encoding as T
 import qualified Paths_marlowe_runtime
 import Data.OpenApi.Internal as OpenApi
 import Language.Marlowe.Runtime.Web.API (RuntimeAPI)
-import Language.Marlowe.Runtime.Web.Server.Monad (ServerM, runServer, runServerMExtract, ServerDependencies(..))
+import Language.Marlowe.Runtime.Web.Server.Monad (ServerM, runServer, ServerDependencies(..))
 import Language.Marlowe.Runtime.Web.Adapter.Servant ()
 import Language.Marlowe.Runtime.Web.Adapter.Servant.Html (Html(..), HTML)
 

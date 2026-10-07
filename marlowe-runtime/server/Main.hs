@@ -45,9 +45,8 @@ import Data.Version (showVersion)
 import Hasql.Connection.Settings qualified as Hasql
 import Hasql.Pool qualified as Pool
 import Hasql.Pool.Config qualified as Hasql
-import Language.Marlowe.Runtime.Cardano.AUTxO (AUTxO(AUTxO))
-import Language.Marlowe.Runtime.Cardano.Api (fromCardanoAddressInEra, toCardanoScriptHash, fromCardanoTxIn, fromCardanoTxOutCtxUTxO)
-import Language.Marlowe.Runtime.ChainSync.Api (paymentCredential, fromCardanoScriptHash, SlotNo(SlotNo), NodeTip(NodeTip), ChainTip(ChainTip), BlockHeader(BlockHeader))
+import Language.Marlowe.Runtime.Cardano.Api (fromCardanoAddressInEra, toCardanoScriptHash)
+import Language.Marlowe.Runtime.ChainSync.Api (paymentCredential, SlotNo(SlotNo), NodeTip(NodeTip), ChainTip(ChainTip), BlockHeader(BlockHeader))
 import Language.Marlowe.Runtime.ChainSync.Api qualified as Core
 import Language.Marlowe.Runtime.Contract.Store qualified as ContractStore
 import Language.Marlowe.Runtime.Contract.Store qualified as Store
@@ -55,7 +54,7 @@ import Language.Marlowe.Runtime.Contract.Store.File qualified as StoreFile
 import Language.Marlowe.Runtime.Contract.Store.Memory qualified as StoreMemory
 import Language.Marlowe.Runtime.Core.Api (MarloweVersion(MarloweV1), Transaction(Transaction, transactionId))
 import Language.Marlowe.Runtime.Core.Api qualified as Core
-import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts(..), ReferenceScriptUtxo(..), ScriptDetails(..), ScriptInPlutus, ScriptRegistry, fromCardanoScriptThrowing)
+import Language.Marlowe.Runtime.Core.ScriptRegistry (MarloweScripts(..), ScriptDetails(..), ScriptRegistry)
 import Language.Marlowe.Runtime.Core.ScriptRegistry qualified as ScriptRegistry
 import Language.Marlowe.Runtime.Query
     ( SomeContractState(SomeContractState),
@@ -80,7 +79,7 @@ import Language.Marlowe.Runtime.Transaction.Constraints (MarloweContext(MarloweC
 import Language.Marlowe.Runtime.Transaction.Constraints qualified as Constraints
 import Language.Marlowe.Runtime.Web.Contract.Source.Server (fromSourceId, toSourceId)
 import Language.Marlowe.Runtime.Web.Core.Object.Schema ()
-import Language.Marlowe.Runtime.Web.Server (runServer, runServerMExtract, serverWithOpenApi, ServerDependencies(..), RuntimeAPIWithOpenAPI)
+import Language.Marlowe.Runtime.Web.Server (runServer, serverWithOpenApi, ServerDependencies(..), RuntimeAPIWithOpenAPI)
 import Language.Marlowe.Runtime.Web.Server.Monad
     ( ServerM,
       InitContract,
@@ -133,17 +132,13 @@ data Options = Options
   , storeConfig :: StoreConfig
   }
 
--- | Configuration of the contract store backend.
 data StoreConfig
-  = -- | Persist contracts to the file system at the given directory.
-    FileStoreConfig
+  = FileStoreConfig
       { fileStoreDir :: FilePath
       , fileStoreMaxContractAgeSeconds :: Integer
       , fileStoreMaxStoreSizeBytes :: Integer
       }
-  | -- | In-memory contract store. Intended only for debug/devel
-    -- environments; contract data does not persist across restarts.
-    InMemoryStoreConfig
+  | InMemoryStoreConfig
 
 decodeFileStrict
   :: A.FromJSON a
@@ -355,14 +350,14 @@ mkApplyInputs (networkId, systemStart, protocolParams) fetchEraHistory getContra
 
 type LedgerInfo = (C.NetworkId, C.SystemStart, L.PParams (C.ShelleyLedgerEra C.ConwayEra))
 
-mkServerMStore :: StoreConfig -> ServerM (ContractStore.ContractStore ServerM)
+mkServerMStore :: StoreConfig -> IO (ContractStore.ContractStore ServerM)
 mkServerMStore InMemoryStoreConfig = do
   let liftStage :: forall a. UnliftIO.STM.STM a -> ServerM a
-      liftStage = liftIO . UnliftIO.STM.atomically
-  stmStore <- liftIO $ UnliftIO.STM.atomically StoreMemory.createContractStoreInMemory
+      liftStage = UnliftIO.STM.atomically
+  stmStore <- UnliftIO.STM.atomically StoreMemory.createContractStoreInMemory
   pure $ Store.hoistContractStore liftStage stmStore
 mkServerMStore FileStoreConfig{..} = do
-  store <- liftIO $ StoreFile.createContractStore
+  store <- StoreFile.createContractStore
     StoreFile.ContractStoreOptions
       { contractStoreDirectory = fileStoreDir
       , contractStoreStagingDirectory = fileStoreDir </> "staging"
@@ -448,7 +443,7 @@ mkServerDependencies
   -> GetAllScripts
   -> GetCurrentScripts
   -> StoreConfig
-  -> ServerM (ServerDependencies ServerM)
+  -> IO (ServerDependencies ServerM)
 mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts storeConfig = do
   contractStore <- mkServerMStore storeConfig
   let
@@ -558,7 +553,7 @@ runApp opts = do
       dbQueries :: DatabaseQueries IO
       dbQueries =
         hoistDatabaseQueries
-          (either (throwIO) pure <=< Pool.use pool)
+          (either throwIO pure <=< Pool.use pool)
           databaseQueries
     ledgerInfo <- liftIO $ queryLedgerInfo dbQueries opts.networkId
 
@@ -613,15 +608,14 @@ runApp opts = do
           , "scriptHashes" .= scriptHashes
           ]
 
-      dependencies <- runServerMExtract undefined (mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts opts.storeConfig)
-
+      dependencies <- mkServerDependencies pool ledgerInfo getAllScripts resolvedCurrentScripts opts.storeConfig
       Wai.runSettings waiSettings $
         ResponseRewriterMiddleware.mkMiddleware errorRewriter $
           serverMiddleware debugInfoHttpResponse appLogger opts.logLevel $
             serveWithContext api (customFormatters :. EmptyContext) $
               hoistServer
                 api
-                (Handler . ExceptT . try . runServer appLogger opts.logLevel dependencies)
+                ( Handler . ExceptT . try . runServer appLogger opts.logLevel dependencies)
                 serverWithOpenApi
 
 customErrorFormatter :: ErrorFormatter
@@ -831,12 +825,10 @@ mkLoadMarloweContext networkId getContractState (GetAllScripts getAllScripts) de
             Just (Core.ScriptCredential hash) -> pure hash
             _ -> throwE $ T.MarloweAddressNotScriptAddress address
           let
-            matchesScriptHash MarloweScripts{..} = marloweScript.scriptHash == desiredMarloweScriptHash
-            -- A set of marlowe scripts information which we
-            -- lookup by marlowe validator hash and then
-            -- by the specific field.
             scripts :: Set MarloweScripts
             scripts = getAllScripts actualVersion
+
+            matchesScriptHash MarloweScripts{..} = marloweScript.scriptHash == desiredMarloweScriptHash
 
           marloweScripts <- except
             . note (T.MarloweScriptNotPublished desiredMarloweScriptHash)
@@ -869,69 +861,4 @@ mkLoadMarloweContext networkId getContractState (GetAllScripts getAllScripts) de
             , marloweScriptUTxO
             , payoutScriptUTxO
             }
-
-data PublishingInfo era = PublishingInfo
-  { marlowe :: AUTxO era
-  , payout :: AUTxO era
-  , openRole :: AUTxO era
-  }
-
-instance A.ToJSON (AUTxO era) => A.ToJSON (PublishingInfo era) where
-  toJSON (PublishingInfo{..}) = A.object
-    [ "marlowe" .= marlowe
-    , "payout" .= payout
-    , "openRole" .= openRole
-    ]
-
-instance A.FromJSON (AUTxO era) => A.FromJSON (PublishingInfo era) where
-  parseJSON = A.withObject "PublishingInfo" $ \o -> do
-    marlowe <- o A..: "marlowe"
-    payout <- o A..: "payout"
-    openRole <- o A..: "openRole"
-    pure PublishingInfo{..}
-
-calcReferenceScriptHash
-  :: AUTxO era
-  -> Maybe Core.ScriptHash
-calcReferenceScriptHash (AUTxO (_, C.TxOut _ _ _ C.ReferenceScriptNone)) = Nothing
-calcReferenceScriptHash (AUTxO (_, C.TxOut _ _ _ (C.ReferenceScript _ scriptInAnyLang))) = do
-  case scriptInAnyLang of
-    C.ScriptInAnyLang _lang script -> do
-      pure . fromCardanoScriptHash . C.hashScript $ script
-
-fromCardanoReferenceScript
-  :: C.ReferenceScript era
-  -> Maybe ScriptInPlutus
-fromCardanoReferenceScript C.ReferenceScriptNone = Nothing
-fromCardanoReferenceScript (C.ReferenceScript _ script) =
-      Just . fromCardanoScriptThrowing $ script
-
-referenceScriptUTxOFromAUTxO
-  :: forall era
-   . C.IsCardanoEra era
-  => AUTxO era
-  -> Maybe ReferenceScriptUtxo
-referenceScriptUTxOFromAUTxO (AUTxO (txIn, txOutOrig)) = do
-  let
-    txOutRef = fromCardanoTxIn txIn
-  script <- fromCardanoReferenceScript $ case txOutOrig of
-    C.TxOut _ _ _ refScript -> refScript
-  txOut <- fromCardanoTxOutCtxUTxO C.cardanoEra txOutOrig
-  pure ReferenceScriptUtxo{..}
-
-marloweScriptsFromPublishingInfo
-  :: C.NetworkId
-  -> PublishingInfo C.ConwayEra
-  -> Maybe MarloweScripts
-marloweScriptsFromPublishingInfo networkId PublishingInfo{..} = do
-  marloweScriptUTxO <- referenceScriptUTxOFromAUTxO marlowe
-  payoutScriptUTxO <- referenceScriptUTxOFromAUTxO payout
-  pure $ MarloweScripts
-    { description = Nothing
-    , marloweScript = (ScriptRegistry.mkScriptDetails marloweScriptUTxO.script){scriptUTxOs = Map.singleton networkId marloweScriptUTxO}
-    , marloweVersion = Core.SomeMarloweVersion MarloweV1
-    , openRolesScript = Nothing
-    , payoutScript = (ScriptRegistry.mkScriptDetails payoutScriptUTxO.script){scriptUTxOs = Map.singleton networkId payoutScriptUTxO}
-    }
-
 
