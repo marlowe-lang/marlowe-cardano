@@ -47,6 +47,7 @@ import UnliftIO.Directory (
   removeFile,
   removePathForcibly,
  )
+import Control.DeepSeq (force)
 
 -- | Options to configure a file-based contract store.
 data ContractStoreOptions = ContractStoreOptions
@@ -56,7 +57,7 @@ data ContractStoreOptions = ContractStoreOptions
   -- ^ The directory in which to create staging areas.
   , lockingMicrosecondsBetweenRetries :: Word64
   , maxContractAge :: NominalDiffTime
-  -- ^ The minimum age of a contract before it is allowed to be deleted.
+  -- ^ Maximum time to retain a contract file. Files at least this old may be deleted.
   , maxStoreSize :: Integer
   -- ^ The maximum size, in bytes, of the contract store.
   }
@@ -93,7 +94,9 @@ createContractStore ContractStoreOptions{..} = do
               c
               state
               input
-      , setGCRoots = atomically . writeTVar gcRootsVar . Just
+      , setGCRoots = \roots -> do
+          roots' <- liftIO $ evaluate $ force roots
+          atomically $ writeTVar gcRootsVar $ Just roots'
       }
   where
     lockingParameters =

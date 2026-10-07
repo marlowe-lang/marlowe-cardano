@@ -1,8 +1,8 @@
 module Language.Marlowe.Runtime.Contract.Store where
 
+import Control.DeepSeq (NFData)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (ExceptT (..), runExceptT, throwE)
-import Control.DeepSeq (NFData)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Binary (Binary)
 import Data.Foldable (find)
@@ -16,18 +16,10 @@ import Debug.Trace (traceM)
 import GHC.Generics (Generic)
 import Language.Marlowe.Object.Link (LinkError (TypeMismatch), linkBundle')
 import Language.Marlowe.Object.Link qualified as O
-import Language.Marlowe.Object.Types
-  ( ContractHash (ContractHash)
-  , Label
-  , ObjectBundle (ObjectBundle)
-  , LabelledObject (LabelledObject)
-  , ObjectType (ContractType)
-  , pattern SomeObjectType
-  )
+import Language.Marlowe.Object.Types ( ContractHash (ContractHash) , Label , ObjectBundle (ObjectBundle) , LabelledObject (LabelledObject) , ObjectType (ContractType) , pattern SomeObjectType)
 import Language.Marlowe.Object.Types qualified as O
 import Language.Marlowe.Runtime.Contract.Api (MerkleizeInputsError)
-import Language.Marlowe.Runtime.Core.Api
-  (ContractWithAdjacency, MarloweVersionTag (V1))
+import Language.Marlowe.Runtime.Core.Api (ContractWithAdjacency, MarloweVersionTag (V1))
 import Marlowe.Plutus.Semantics (TransactionInput)
 import Marlowe.Plutus.Semantics.Types (Action, Contract, State)
 import Marlowe.Plutus.Semantics.Types qualified as Core
@@ -35,6 +27,20 @@ import Pipes (Pipe, await, yield, void)
 import PlutusLedgerApi.V2 qualified as PV2
 import PlutusTx.Builtins.Internal (BuiltinByteString (..))
 
+-- | A temporary area for contracts not yet in the store.
+--
+-- The area is single-use. 'commit' and 'discard' both close it.
+-- 'stageContract', 'flush', 'commit', and 'doesContractExist' throw if it is already closed.
+-- 'discard' does not: it removes the staging directory on the first call and does nothing after that
+-- so it is safe to use in a clean up handler after a finished and successful 'commit'
+--
+-- Acquire it with 'bracket' and release it with 'discard', including after 'commit':
+--
+-- @
+-- bracket (createContractStagingArea store) discard \\area -> do
+--   stageContract area contract
+--   commit area
+-- @
 data ContractStore m = ContractStore
   { createContractStagingArea :: m (ContractStagingArea m)
   , getContract :: ContractHash -> m (Maybe (ContractWithAdjacency 'V1))
@@ -53,6 +59,7 @@ hoistContractStore f ContractStore{..} =
     , getContract = f . getContract
     , merkleizeInputs = (fmap . fmap) f . merkleizeInputs
     , setGCRoots = f . setGCRoots
+
     }
 
 data ContractStagingArea m = ContractStagingArea

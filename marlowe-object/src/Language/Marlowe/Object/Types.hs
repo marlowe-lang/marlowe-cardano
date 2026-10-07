@@ -1,10 +1,3 @@
-{--
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ExplicitNamespaces #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE PatternSynonyms #-}
---}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Contains the core type definitions for Marlowe Object bundles. An object bundle is an ordered collection of objects
@@ -19,51 +12,44 @@
 -- This module defines the types, several useful instances for them, optics, and conversion functions for core terms.
 module Language.Marlowe.Object.Types where
 
-import Cardano.Api (
-  Address,
-  AsType (..),
-  SerialiseAsRawBytes (serialiseToRawBytes),
-  deserialiseFromBech32,
-  deserialiseFromRawBytes,
-  serialiseToBech32,
- )
+import Cardano.Api ( Address, AsType (..), SerialiseAsRawBytes (serialiseToRawBytes), deserialiseFromBech32, deserialiseFromRawBytes, serialiseToBech32,)
+import Cardano.Api.Address (ShelleyAddr)
 import Control.Applicative (empty)
+import Control.DeepSeq (NFData)
 import Control.Lens (Lens', Plated (..), Prism', makeLensesFor, makePrisms, prism', traversal)
 import Control.Monad (join)
 import Data.Aeson hiding (Object, String, Value)
-import qualified Data.Aeson as A hiding (Object)
 import Data.Aeson.Applicative (parseObject)
 import Data.Aeson.Types (parseFail, toJSONKeyText)
 import Data.Binary (Binary (..), getWord8, putWord8)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16.Aeson (EncodeBase16(..))
-import qualified Data.ByteString.Char8 as BS8
-
 import Data.Foldable (asum)
 import Data.Function (on)
 import Data.Hashable (Hashable)
 import Data.List (intercalate)
-import qualified Data.List.NonEmpty as LNE
 import Data.Maybe (isJust)
 import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import Data.Time (UTCTime, nominalDiffTimeToSeconds, secondsToNominalDiffTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime, utcTimeToPOSIXSeconds)
 import Data.Type.Equality (TestEquality (..), type (:~:) (Refl))
+import Data.Variations (Variations(..), varyAp)
 import GHC.Base (Any)
 import GHC.Generics (Generic)
 import GHC.Read (Read (..), lexP)
 import GHC.Show (showSpace)
-import qualified Marlowe.Plutus.Semantics.Types as Core
 import Marlowe.Plutus.Semantics.Types.Address (serialiseAddressBech32)
-import qualified Marlowe.Plutus.Semantics.Types.Address as Core
 import PlutusLedgerApi.V2 (BuiltinByteString, POSIXTime (..))
-import qualified PlutusLedgerApi.V2 as PV2
 import Text.Read (Lexeme (..), ReadPrec, parens, prec, step)
 import Unsafe.Coerce (unsafeCoerce)
-import Data.Variations (Variations(..), varyAp)
-import Cardano.Api.Address (ShelleyAddr)
+import qualified Data.Aeson as A hiding (Object)
+import qualified Data.ByteString.Char8 as BS8
+import qualified Data.List.NonEmpty as LNE
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Marlowe.Plutus.Semantics.Types as Core
+import qualified Marlowe.Plutus.Semantics.Types.Address as Core
+import qualified PlutusLedgerApi.V2 as PV2
 
 -- | A newtype wrapper for a ByteString which is parsed and rendered as an ascii string.
 newtype Verbatim = Verbatim {unVerbatim :: ByteString}
@@ -719,7 +705,7 @@ fromCoreContractHash :: BuiltinByteString -> ContractHash
 fromCoreContractHash = ContractHash . PV2.fromBuiltin
 
 newtype ContractHash = ContractHash {unContractHash :: ByteString}
-  deriving newtype (Eq, Ord, Binary, Hashable)
+  deriving newtype (Eq, Ord, Binary, Hashable, NFData)
   deriving (Show, ToJSON, FromJSON) via EncodeBase16
 
 instance Variations ContractHash where
