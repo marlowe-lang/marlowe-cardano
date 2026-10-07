@@ -68,7 +68,7 @@ withFileStore act =
           { contractStoreDirectory = tmpDir </> "store"
           , contractStoreStagingDirectory = tmpDir </> "staging"
           , lockingMicrosecondsBetweenRetries = 500_000
-          , minContractAge = 0
+          , maxContractAge = 0
           , maxStoreSize = 1024 * 1024 * 1024 * 1024
           }
     act store
@@ -170,7 +170,7 @@ fileSpec = do
               { contractStoreDirectory = tmpDir </> "store"
               , contractStoreStagingDirectory = tmpDir </> "staging"
               , lockingMicrosecondsBetweenRetries = 500_000
-              , minContractAge = 0
+              , maxContractAge = 0
               , maxStoreSize = 1024 * 1024 * 1024 * 1024
               }
         withStaging store $ \staging -> do
@@ -189,7 +189,7 @@ fileSpec = do
               { contractStoreDirectory = tmpDir </> "store"
               , contractStoreStagingDirectory = tmpDir </> "staging"
               , lockingMicrosecondsBetweenRetries = 500_000
-              , minContractAge = 0
+              , maxContractAge = 0
               , maxStoreSize = 1024 * 1024 * 1024 * 1024
               }
         withStaging store $ \staging -> do
@@ -202,7 +202,7 @@ fileSpec = do
             { contractStoreDirectory = tmpDir </> "store"
             , contractStoreStagingDirectory = tmpDir </> "staging"
             , lockingMicrosecondsBetweenRetries = 500_000
-            , minContractAge = 0
+            , maxContractAge = 0
             , maxStoreSize = 1024 * 1024 * 1024 * 1024
             }
       result <- getContract store2 hash

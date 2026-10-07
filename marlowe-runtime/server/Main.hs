@@ -367,7 +367,7 @@ mkServerMStore FileStoreConfig{..} = do
       { contractStoreDirectory = fileStoreDir
       , contractStoreStagingDirectory = fileStoreDir </> "staging"
       , lockingMicrosecondsBetweenRetries = 500_000
-      , minContractAge = fromIntegral fileStoreMaxContractAgeSeconds
+      , maxContractAge = fromIntegral fileStoreMaxContractAgeSeconds
       , maxStoreSize = fileStoreMaxStoreSizeBytes
       }
   pure $ Store.hoistContractStore liftIO store

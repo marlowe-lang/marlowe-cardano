@@ -55,7 +55,7 @@ data ContractStoreOptions = ContractStoreOptions
   , contractStoreStagingDirectory :: FilePath
   -- ^ The directory in which to create staging areas.
   , lockingMicrosecondsBetweenRetries :: Word64
-  , minContractAge :: NominalDiffTime
+  , maxContractAge :: NominalDiffTime
   -- ^ The minimum age of a contract before it is allowed to be deleted.
   , maxStoreSize :: Integer
   -- ^ The maximum size, in bytes, of the contract store.
@@ -125,7 +125,7 @@ createContractStore ContractStoreOptions{..} = do
           fileHash <- MaybeT $ pure $ either (const Nothing) (Just . ContractHash) $ decodeBase16Untyped $ encodeUtf8 $ T.pack $ takeBaseName path
           lastModified <- getModificationTime path
           now <- liftIO getCurrentTime
-          guard $ now `diffUTCTime` lastModified >= minContractAge
+          guard $ now `diffUTCTime` lastModified >= maxContractAge
           guard $ not $ Set.member fileHash liveContracts
           fileSize <- liftIO $ getFileSize path
           liftIO $ removeFile path
