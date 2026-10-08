@@ -3,12 +3,24 @@
 { lib, pkgs, config, ... }:
 let
   cfg = config.services.marlowe-runtime;
-  inherit (lib) mkEnableOption mkOption mkIf types escapeShellArgs optionals;
+  inherit (lib) mkEnableOption mkOption mkIf types escapeShellArgs optionals literalExpression;
 
   networkArgs =
     if cfg.networkMagic == null
     then [ "--mainnet" ]
     else [ "--testnet-magic" (toString cfg.networkMagic) ];
+
+  storeArgs =
+    if cfg.store.backend == "in-memory" then
+      [ "--in-memory-store" ]
+    else
+      [ "--store-dir" cfg.store.directory ]
+      ++ optionals (cfg.store.maxContractAge != null) [
+        "--max-contract-age" (toString cfg.store.maxContractAge)
+      ]
+      ++ optionals (cfg.store.maxStoreSize != null) [
+        "--max-store-size" (toString cfg.store.maxStoreSize)
+      ];
 in
 {
   options.services.marlowe-runtime = {
@@ -40,14 +52,72 @@ in
       type = types.nullOr types.path;
       default = null;
     };
+    store = {
+      backend = mkOption {
+        type = types.enum [ "filesystem" "in-memory" ];
+        default = "filesystem";
+        description = ''
+          Contract store backend.
+          `"in-memory"` is non-persistent and intended only for debug or
+          development environments — contract data does not survive
+          restarts. `"filesystem"` persists contracts under
+          `store.directory`.
+        '';
+      };
+      directory = mkOption {
+        type = types.path;
+        default = "/var/lib/marlowe-runtime/store";
+        defaultText = literalExpression "\"/var/lib/marlowe-runtime/store\"";
+        description = ''
+          Directory used to persist the contract store. Only meaningful
+          with `store.backend = "filesystem"` — its value is ignored
+          when using the "in-memory" backend. Created automatically with
+          ownership matching the `marlowe-runtime` user and mode `0750`.
+        '';
+      };
+      maxContractAge = mkOption {
+        type = types.nullOr types.ints.unsigned;
+        default = null;
+        description = ''
+          Maximum age, in seconds, a contract may remain in the store
+          before becoming eligible for garbage collection. Only
+          meaningful with `store.backend = "filesystem"`. If `null`,
+          the server default is used.
+        '';
+      };
+      maxStoreSize = mkOption {
+        type = types.nullOr types.ints.unsigned;
+        default = null;
+        description = ''
+          Maximum allowed size of the contract store, in bytes. Only
+          meaningful with `store.backend = "filesystem"`. If `null`,
+          the server default is used.
+        '';
+      };
+    };
   };
 
   config = mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.store.backend == "filesystem" || (cfg.store.maxContractAge == null && cfg.store.maxStoreSize == null);
+        message = ''
+          services.marlowe-runtime.store.maxContractAge and store.maxStoreSize
+          are only meaningful with store.backend = "filesystem"; leave them
+          unset (or set to null) when using the "in-memory" backend.
+        '';
+      }
+    ];
+
     users.users.marlowe-runtime = {
       isSystemUser = true;
       group = "marlowe-runtime";
     };
     users.groups.marlowe-runtime = { };
+
+    systemd.tmpfiles.rules = mkIf (cfg.store.backend == "filesystem") [
+      "d ${toString cfg.store.directory} 0750 marlowe-runtime marlowe-runtime - -"
+    ];
 
     networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [ cfg.port ];
 
@@ -72,6 +142,7 @@ in
           ++ optionals (cfg.scriptRegistry != null) [
             "--script-registry" (toString cfg.scriptRegistry)
           ]
+          ++ storeArgs
         );
       };
     };

@@ -1,5 +1,5 @@
 import type { AddressBech32 } from '@konduit/konduit-consumer/cardano';
-import type { IChoice, IDeposit, NormalInput } from '@marlowe-lang/language/v1';
+import type { INotify, NormalInput } from '@marlowe-lang/language/v1';
 import * as marloweRuntimeCli from '../../marloweRuntimeCli.js';
 import * as cardanoCli from '../../cardanoCli.js';
 import { unwrapOrPanic, unwrapOrPanicWith } from '@konduit/konduit-consumer/neverthrow';
@@ -49,7 +49,14 @@ const POLL_EVERY_MS = 5_000;
 const addressOf = (p: { address: AddressBech32 } | { role_token: string }): AddressBech32 | null =>
   'address' in p ? p.address : null;
 
-const isApplicableFor = (next: Next, party: Wallet, kind: 'deposit' | 'choice'): boolean => {
+const isApplicableFor = (next: Next, party: Wallet | null, kind: 'deposit' | 'choice' | 'notify'): boolean => {
+  if (kind === 'notify') {
+    // Notify is a global action with no associated party.
+    return next.applicable_inputs.notify !== undefined && next.applicable_inputs.notify !== null;
+  }
+  if (party === null) {
+    return false;
+  }
   const partyAddr = party.addr;
   if (kind === 'deposit') {
     return next.applicable_inputs.deposits.some(
@@ -153,19 +160,21 @@ const toIsoUtc = (ms: bigint): string => new Date(Number(ms)).toISOString();
 // timeout and trip the validator.
 export const waitForNext = (opts: {
   contractId: ContractId;
-  party: Wallet;
-  kind: 'deposit' | 'choice';
+  party: Wallet | null;
+  kind: 'deposit' | 'choice' | 'notify';
   logLabel: string;
   runtime: MarloweRuntimeConfig;
 }): ResultAsync<Next, unknown> => {
   const runNextWithDerivedRange = async (): Promise<Next> => {
+    // For notify, the runtime's /next does not need a party filter.
+    const parties = opts.party !== null ? [opts.party.addr] : [];
     const timeoutMs = await getCurrentWhenTimeoutMs(opts.contractId, opts.runtime);
     if (timeoutMs === null) {
       // Contract has no active When (e.g. closed) or runtime unreachable.
       // Fall back to the default wall-clock range so we still poll.
       return unwrapOrPanicWith(
         await toAsync(
-          marloweRuntimeCli.runNext(opts.contractId, [opts.party.addr], opts.runtime, {}, null, true),
+          marloweRuntimeCli.runNext(opts.contractId, parties, opts.runtime, {}, null, true),
         ),
         (err): string => `Failed to query runtime /next (no timeout): ${jsonStringify(err as Json)}`,
       );
@@ -175,7 +184,7 @@ export const waitForNext = (opts: {
       await toAsync(
         marloweRuntimeCli.runNext(
           opts.contractId,
-          [opts.party.addr],
+          parties,
           opts.runtime,
           { validityStart: toIsoUtc(fromMs), validityEnd: toIsoUtc(toMs) },
           null,
@@ -192,7 +201,7 @@ export const waitForNext = (opts: {
       const ready = isApplicableFor(next, opts.party, opts.kind);
       // Log a fuller snapshot every 5th attempt to help debug cases where
       // the runtime sees the contract but never reports the expected input.
-      if (!ready && attempt % 5 === 0) {
+      if (!ready && attempt % 5 === 0 && opts.party !== null) {
         logRuntimeSnapshot(opts.logLabel, opts.contractId, opts.party, opts.runtime);
       }
       attempt += 1;
@@ -235,27 +244,29 @@ export const initBetContract = (opts: {
     );
 };
 
-// Submits a deposit input on behalf of `party`, then waits for the runtime
-// to advance to the next step (`nextParty`'s input is now applicable).
+// Submits a `NormalInput` (deposit or choice) on behalf of `party` and waits
+// for the runtime's chain indexer to acknowledge the new contract state.
 //
-// The `IDeposit` is built from the `Bet` contract via
-// {@link Bet.mkFirstDepositInput} / {@link Bet.mkSecondDepositInput}; the
-// e2e helper only orchestrates signing/submission/waiting.
-export const applyDeposit = (opts: {
+// The input is built from the `Bet` contract via
+// {@link Bet.mkFirstDepositInput} / {@link Bet.mkSecondDepositInput} /
+// {@link Bet.mkOracleChoiceInput}; the e2e helper only orchestrates
+// signing/submission/waiting. The wait-for-`next`-input / wait-for-close
+// gating lives at the call sites — see `run` below for the typical
+// deposit-then-choice lifecycle.
+export const applyInput = (opts: {
   contractId: ContractId;
-  input: IDeposit;
+  input: NormalInput;
   party: Wallet;
-  nextParty: { wallet: Wallet, kind: 'deposit' | 'choice' };
   logLabel: string;
   runtime: MarloweRuntimeConfig;
 }): ResultAsync<ContractId, unknown> => {
-  const { contractId, input, party, nextParty, logLabel, runtime } = opts;
-  const marloweInput: NormalInput = input;
+  const { contractId, input, party, logLabel, runtime } = opts;
+  console.log(`[${logLabel}] applyInput: party=${party.addr} input=${jsonStringify(input as Json)}`);
   // The CLI writes the unsigned tx into `outputDir`; if we don't pass one
   // it defaults to `./out` and fails if that directory doesn't exist.
   const outputDir = `${nodeFs.mkdtempSync(`${nodeOs.tmpdir()}/marlowe-apply-`)}`;
   return toAsync(
-    marloweRuntimeCli.runApplyInputs([marloweInput], contractId, party.addr, runtime, { outputDir }, null, true),
+    marloweRuntimeCli.runApplyInputs([input], contractId, party.addr, runtime, { outputDir }, null, true),
   )
     .andThen((response: ApplyInputsResponse) =>
       cardanoCli.signTxEnvelope(party.skeyFile, response.tx, true).map(signed => ({
@@ -263,52 +274,35 @@ export const applyDeposit = (opts: {
         txEnvelope: signed,
       })),
     )
-    .andThen(({ txEnvelope }) => cardanoCli.submitTxEnvelope(txEnvelope, true).map(() => contractId))
-    .andThen(contractIdAfter =>
-      // Wait for the runtime to catch up and report `nextParty`'s input as
-      // applicable before returning.
-      waitForNext({ contractId: contractIdAfter, party: nextParty.wallet, kind: nextParty.kind, logLabel, runtime })
-        .map(() => contractIdAfter),
+    .andThen(({ txEnvelope, contractId: newContractId }) =>
+      cardanoCli.submitTxEnvelope(txEnvelope, true).map(() => newContractId),
     );
 };
 
-// Submits the oracle's choice and waits for the contract to close
-// (state and currentContract both null).
-//
-// The `IChoice` is built from the `Bet` contract via
-// {@link Bet.mkOracleChoiceInput}; the e2e helper only orchestrates
-// signing/submission/waiting.
-export const applyChoice = (opts: {
+// The `INotify` constant from the language module is the literal string
+// `"input_notify"`. Re-exported here so the bet-with-delay scenario
+// doesn't need to import the language module just for one input type.
+export const NOTIFY_INPUT: INotify = "input_notify";
+
+// Waits for the contract to close (state and currentContract both null).
+// Used at the end of a bet lifecycle after the oracle submits a choice.
+export const waitForContractClose = (opts: {
   contractId: ContractId;
-  input: IChoice;
-  party: Wallet;
+  logLabel: string;
   runtime: MarloweRuntimeConfig;
 }): ResultAsync<ContractState, unknown> => {
-  const { contractId, input, party, runtime } = opts;
-  const marloweInput: NormalInput = input;
-  const outputDir = `${nodeFs.mkdtempSync(`${nodeOs.tmpdir()}/marlowe-apply-`)}`;
-  return toAsync(
-    marloweRuntimeCli.runApplyInputs([marloweInput], contractId, party.addr, runtime, { outputDir }, null, true),
-  )
-    .andThen((response: ApplyInputsResponse) =>
-      cardanoCli.signTxEnvelope(party.skeyFile, response.tx, true).map(signed => ({
-        contractId: response.contractId,
-        txEnvelope: signed,
-      })),
-    )
-    .andThen(({ txEnvelope }) => cardanoCli.submitTxEnvelope(txEnvelope, true).map(() => contractId))
-    .andThen(contractIdAfter =>
-      waitPatientlyForResultAsync(
-        () => toAsync(marloweRuntimeCli.runGet(contractIdAfter, runtime, {}, null, true)),
-        (state: ContractState) =>
-          state.contractId === contractIdAfter &&
-          // The settlement branch always reaches close (which nulls both
-          // fields), so "closed" is a reliable success predicate.
-          state.state === null &&
-          state.currentContract === null,
-        { timeoutMs: POLL_TIMEOUT_MS, everyMs: POLL_EVERY_MS },
-      ),
-    );
+  const { contractId, logLabel, runtime } = opts;
+  console.log(`[${logLabel}] waitForContractClose: contractId=${contractId}`);
+  return waitPatientlyForResultAsync(
+    () => toAsync(marloweRuntimeCli.runGet(contractId, runtime, {}, null, true)),
+    (state: ContractState) =>
+      state.contractId === contractId &&
+      // The settlement branch always reaches close (which nulls both
+      // fields), so "closed" is a reliable success predicate.
+      state.state === null &&
+      state.currentContract === null,
+    { timeoutMs: POLL_TIMEOUT_MS, everyMs: POLL_EVERY_MS },
+  );
 };
 
 // Orchestrates a full bet lifecycle:
@@ -348,32 +342,56 @@ export const run = async (opts: RunOpts): Promise<void> => {
       runtime,
     })
     .andThen(contractId =>
-      applyDeposit({
+      applyInput({
         contractId,
         input: Bet.mkFirstDepositInput(contract),
         party: party1,
-        nextParty: { wallet: party2, kind: 'deposit' },
         logLabel: 'after-party1-deposit',
         runtime,
-      }).map(() => contractId),
+      })
+      .andThen(contractIdAfter =>
+        waitForNext({
+          contractId: contractIdAfter,
+          party: party2,
+          kind: 'deposit',
+          logLabel: 'after-party1-deposit',
+          runtime,
+        }).map(() => contractIdAfter),
+      ),
     )
     .andThen(contractId =>
-      applyDeposit({
+      applyInput({
         contractId,
         input: Bet.mkSecondDepositInput(contract),
         party: party2,
-        nextParty: { wallet: oracle, kind: 'choice' },
         logLabel: 'after-party2-deposit',
         runtime,
-      }).map(() => contractId),
+      })
+      .andThen(contractIdAfter =>
+        waitForNext({
+          contractId: contractIdAfter,
+          party: oracle,
+          kind: 'choice',
+          logLabel: 'after-party2-deposit',
+          runtime,
+        }).map(() => contractIdAfter),
+      ),
     )
     .andThen(contractId =>
-      applyChoice({
+      applyInput({
         contractId,
         input: Bet.mkOracleChoiceInput(contract, winningChoice),
         party: oracle,
+        logLabel: 'after-oracle-choice',
         runtime,
-      }),
+      })
+      .andThen(contractIdAfter =>
+        waitForContractClose({
+          contractId: contractIdAfter,
+          logLabel: 'after-oracle-choice',
+          runtime,
+        }),
+      ),
     );
 
   result.match(

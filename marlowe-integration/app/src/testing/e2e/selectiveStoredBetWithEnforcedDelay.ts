@@ -6,11 +6,12 @@ import { stringify as jsonStringify } from "@konduit/codec/json";
 import { Bet, WinningChoice } from '../contracts/bet.js';
 import {
   applyInput,
+  NOTIFY_INPUT,
   waitForContractClose,
   waitForNext,
 } from './bet.js';
 import { findFirstNonMerkleizedCase } from '../store/selectiveMerkleization.js';
-import type { Choice as ChoiceAction, Contract } from '@marlowe-lang/language/v1';
+import { Choice as ChoiceAction, Contract } from '@marlowe-lang/language/v1';
 import type { Wallet } from '../../cardano.js';
 import type { ContractSourceId, ContractId } from '@marlowe-lang/runtime/client';
 import type { MarloweRuntimeConfig } from '../../marloweRuntimeCli.js';
@@ -145,11 +146,11 @@ const waitForRuntimeContractAvailable = async (
     attempt += 1;
     const res = marloweRuntimeCli.runGet(contractId, runtime, {}, null, true);
     const ok = res.isOk();
-    console.log(`[ssb] waitForRuntimeContractAvailable attempt=${attempt} contractId=${contractId} ok=${ok} elapsedMs=${Date.now() - start}`);
+    console.log(`[ssbwd] waitForRuntimeContractAvailable attempt=${attempt} contractId=${contractId} ok=${ok} elapsedMs=${Date.now() - start}`);
     if (ok) return;
     if (Date.now() - start > timeoutMs) {
       throw new Error(
-        `[ssb] runtime never acknowledged contractId=${contractId} after ${timeoutMs}ms`,
+        `[ssbwd] runtime never acknowledged contractId=${contractId} after ${timeoutMs}ms`,
       );
     }
     await new Promise<void>((resolve) => setTimeout(resolve, everyMs));
@@ -166,7 +167,7 @@ const initBetContractFromSource = async (opts: {
   runtime: MarloweRuntimeConfig;
 }): Promise<ContractId> => {
   const { contractSourceId, faucet, party1, tempDir, runtime } = opts;
-  console.log(`[ssb] init-step-1: ask runtime to build init tx from source ${contractSourceId}`);
+  console.log(`[ssbwd] init-step-1: ask runtime to build init tx from source ${contractSourceId}`);
   const initResponse = unwrapOrPanicWith(
     marloweRuntimeCli.runInitBySource(
       contractSourceId,
@@ -176,55 +177,65 @@ const initBetContractFromSource = async (opts: {
       null,
       true,
     ),
-    (err): string => `[ssb] init-step-1 failed: ${jsonStringify(err as Json)}`,
+    (err): string => `[ssbwd] init-step-1 failed: ${jsonStringify(err as Json)}`,
   );
   const contractId = initResponse.contractId;
-  console.log(`[ssb] init-step-2: runtime returned contractId=${contractId}`);
+  console.log(`[ssbwd] init-step-2: runtime returned contractId=${contractId}`);
 
   const signedTx = unwrapOrPanicWith(
     cardanoCli.signTxEnvelope(faucet.skeyFile, initResponse.tx, true),
-    (err): string => `[ssb] init-step-2 sign failed: ${jsonStringify(err as Json)}`,
+    (err): string => `[ssbwd] init-step-2 sign failed: ${jsonStringify(err as Json)}`,
   );
-  console.log(`[ssb] init-step-3: submit init tx envelope`);
+  console.log(`[ssbwd] init-step-3: submit init tx envelope`);
   const submitResult = await cardanoCli.submitTxEnvelope(signedTx, true);
   const submitOk = submitResult.isOk();
   const initTxId = submitOk ? submitResult._unsafeUnwrap() : null;
-  console.log(`[ssb] init-step-3 result: ok=${submitOk} txId=${initTxId}`);
+  console.log(`[ssbwd] init-step-3 result: ok=${submitOk} txId=${initTxId}`);
   if (!submitOk) {
     throw new Error(
-      `[ssb] init-step-3 submit failed: ${jsonStringify(submitResult._unsafeUnwrapErr() as Json)}`,
+      `[ssbwd] init-step-3 submit failed: ${jsonStringify(submitResult._unsafeUnwrapErr() as Json)}`,
     );
   }
 
-  console.log(`[ssb] init-step-4: wait for runtime to acknowledge contractId=${contractId}`);
+  console.log(`[ssbwd] init-step-4: wait for runtime to acknowledge contractId=${contractId}`);
   await waitForRuntimeContractAvailable(contractId, runtime);
 
-  console.log(`[ssb] init-step-5: waitForNext (party1 deposit applicable)`);
+  console.log(`[ssbwd] init-step-5: waitForNext (party1 deposit applicable)`);
   const nextResult = await waitForNext({
     contractId,
     party: party1,
     kind: 'deposit',
-    logLabel: 'after-selective-stored-init',
+    logLabel: 'after-selective-stored-bet-with-delay-init',
     runtime,
   });
   const nextOk = nextResult.isOk();
-  console.log(`[ssb] init-step-5 result: ok=${nextOk}`);
+  console.log(`[ssbwd] init-step-5 result: ok=${nextOk}`);
   if (!nextOk) {
     throw new Error(
-      `[ssb] init-step-5 waitForNext failed: ${jsonStringify(nextResult._unsafeUnwrapErr() as Json)}`,
+      `[ssbwd] init-step-5 waitForNext failed: ${jsonStringify(nextResult._unsafeUnwrapErr() as Json)}`,
     );
   }
   return contractId;
 };
 
-// E2E flow of the bet contract over a selectively merkleized source:
-//   1. build the bet contract with the real wallet addresses
-//   2. locate its `Choice` case so we can ask the runtime to keep it inline
-//   3. upload the bundle with `preserveActions = [preservedAction]`
-//   4. assert the source is selectively merkleized (preserved case matches)
+// E2E flow of the bet contract over a selectively merkleized source
+// when the bet is built with `delayOracleChoiceOnChain=true`:
+//
+//   1. build the bet contract (with delay) using the real wallet addresses
+//   2. locate the bet's `Choice` case so we can ask the runtime to keep
+//      it inline during merkleization. The `Notify` case added by the
+//      delay stays merkleized on purpose — it gets resolved by the
+//      runtime through the store.
+//   3. upload the bundle with `preserveActions = [preservedChoice]`
+//   4. assert the source is selectively merkleized (a preserved case is
+//      present and matches the action we asked for)
 //   5. init the contract by source id and wait for party1's deposit
 //   6. apply party1's deposit, then party2's, then the oracle's choice
-//   7. assert the source is still selectively merkleized after the lifecycle
+//   7. wait for the post-choice `Notify` to become applicable and apply it
+//      — this is the additional step introduced by the delay; it has
+//      to be served from the merkleized continuation
+//   8. wait for the contract to close
+//   9. assert the source is still selectively merkleized after the lifecycle
 //
 // The deposit/choice inputs are built from the `Bet` contract via the
 // helpers in {@link Bet} (see `../contracts/bet.ts`).
@@ -237,46 +248,58 @@ export const run = async (opts: RunOpts): Promise<void> => {
     ),
     `Failed to compute contract timeout: now + 6 hours`,
   ));
-  // 1) Build the contract with the real wallet addresses.
+  // 1) Build the contract with the real wallet addresses and the
+  //    on-chain oracle-choice delay.
   const contract = Bet(
     amount,
     oracleFee,
     party1.addr,
     party2.addr,
     oracle.addr,
-    timeout
+    timeout,
+    true
   );
 
-  // 2) Locate the Choice case we want to keep inline during merkleization.
-  const preservedAction = findChoiceAction(contract);
-  if (!preservedAction) {
+  // 2) Locate the Choice case we want to keep inline during
+  //    merkleization. The Notify case (introduced by
+  //    `delayOracleChoiceOnChain=true`) stays merkleized on purpose:
+  //    the point of this scenario is to exercise the bet with the
+  //    on-chain delay, where the post-settlement notify lives in a
+  //    merkleized continuation and is applied via the runtime's
+  //    follow-the-hash mechanism.
+  const preservedChoice = findChoiceAction(contract);
+  if (!preservedChoice) {
     throw new Error('Expected to find a Choice action in the bet contract to preserve');
   }
 
-  // 3) Upload with selective merkleization (preserve the Choice action).
+  // 3) Upload with selective merkleization (preserve only the Choice).
   const bundle = [{ label: 'main', type: 'contract', value: contract }];
   const uploaded = unwrapOrPanicWith(
     marloweRuntimeCli.runUploadContractSource(
       bundle,
       'main',
       runtime,
-      { preserveActions: [preservedAction] },
+      { preserveActions: [preservedChoice] },
       null,
       true,
     ),
-    (err): string => `Failed to upload selectively merkleized bet bundle: ${jsonStringify(err as Json)}`,
+    (err): string => `Failed to upload selectively merkleized bet-with-delay bundle: ${jsonStringify(err as Json)}`,
   );
   if (!uploaded.contractSourceId || uploaded.contractSourceId.length !== 64) {
     throw new Error(`Expected a 64-hex-char contractSourceId, got: ${uploaded.contractSourceId}`);
   }
 
-  // 4) Confirm the source is selectively merkleized: the preserved case
-  //    must be present inline, and it must match the action we asked for.
+  // 4) Confirm the source is selectively merkleized: at least one
+  //    preserved case is present inline, and it matches the first
+  //    action we asked the runtime to keep. (The pre-lifecycle
+  //    assertion is intentionally narrow: by contract the runtime
+  //    picks the first preserved action it sees when traversing
+  //    depth-first, and the bet guarantees the Choice is hit first.)
   assertSelectivelyMerkleized(
     uploaded.contractSourceId,
     'after-upload',
     runtime,
-    preservedAction,
+    preservedChoice,
   );
 
   // 5) Init from source and wait for the runtime to catch up.
@@ -288,77 +311,100 @@ export const run = async (opts: RunOpts): Promise<void> => {
     runtime,
   });
 
-  // 6) Full lifecycle: party1 deposit → party2 deposit → oracle choice → close.
-  console.log(`[ssb] lifecycle-step-1: party1 deposit`);
+  // 6) + 7) Full lifecycle: party1 deposit → party2 deposit → oracle
+  // choice → notify (the new step) → close.
+  console.log(`[ssbwd] lifecycle-step-1: party1 deposit`);
   const result = await applyInput({
       contractId,
       input: Bet.mkFirstDepositInput(contract),
       party: party1,
-      logLabel: 'selective-after-party1-deposit',
+      logLabel: 'selective-bet-with-delay-after-party1-deposit',
       runtime,
     })
     .andThen(contractIdAfter => {
-      console.log(`[ssb] lifecycle-step-1b: waitForNext (party2 deposit applicable)`);
+      console.log(`[ssbwd] lifecycle-step-1b: waitForNext (party2 deposit applicable)`);
       return waitForNext({
         contractId: contractIdAfter,
         party: party2,
         kind: 'deposit',
-        logLabel: 'selective-after-party1-deposit',
+        logLabel: 'selective-bet-with-delay-after-party1-deposit',
         runtime,
       }).map(() => contractIdAfter);
     })
     .andThen(contractIdAfter => {
-      console.log(`[ssb] lifecycle-step-2: party2 deposit`);
+      console.log(`[ssbwd] lifecycle-step-2: party2 deposit`);
       return applyInput({
         contractId: contractIdAfter,
         input: Bet.mkSecondDepositInput(contract),
         party: party2,
-        logLabel: 'selective-after-party2-deposit',
+        logLabel: 'selective-bet-with-delay-after-party2-deposit',
         runtime,
       }).andThen(contractIdAfter2 => {
-        console.log(`[ssb] lifecycle-step-2b: waitForNext (oracle choice applicable)`);
+        console.log(`[ssbwd] lifecycle-step-2b: waitForNext (oracle choice applicable)`);
         return waitForNext({
           contractId: contractIdAfter2,
           party: oracle,
           kind: 'choice',
-          logLabel: 'selective-after-party2-deposit',
+          logLabel: 'selective-bet-with-delay-after-party2-deposit',
           runtime,
         }).map(() => contractIdAfter2);
       });
     })
     .andThen(contractIdAfter => {
-      console.log(`[ssb] lifecycle-step-3: oracle choice`);
+      console.log(`[ssbwd] lifecycle-step-3: oracle choice`);
       return applyInput({
         contractId: contractIdAfter,
         input: Bet.mkOracleChoiceInput(contract, winningChoice),
         party: oracle,
-        logLabel: 'selective-after-oracle-choice',
+        logLabel: 'selective-bet-with-delay-after-oracle-choice',
         runtime,
       }).andThen(contractIdAfter2 => {
-        console.log(`[ssb] lifecycle-step-3b: waitForContractClose`);
+        console.log(`[ssbwd] lifecycle-step-3b: waitForNext (notify applicable)`);
+        return waitForNext({
+          contractId: contractIdAfter2,
+          party: null,
+          kind: 'notify',
+          logLabel: 'selective-bet-with-delay-after-oracle-choice',
+          runtime,
+        }).map(() => contractIdAfter2);
+      });
+    })
+    .andThen(contractIdAfter => {
+      console.log(`[ssbwd] lifecycle-step-4: notify (the on-chain delay step)`);
+      // Notify has no associated party, so we use the oracle wallet
+      // for the user-wallet-address + signing — the notify itself is
+      // a global action that any wallet can submit.
+      return applyInput({
+        contractId: contractIdAfter,
+        input: NOTIFY_INPUT,
+        party: oracle,
+        logLabel: 'selective-bet-with-delay-after-notify',
+        runtime,
+      }).andThen(contractIdAfter2 => {
+        console.log(`[ssbwd] lifecycle-step-4b: waitForContractClose`);
         return waitForContractClose({
           contractId: contractIdAfter2,
-          logLabel: 'selective-after-oracle-choice',
+          logLabel: 'selective-bet-with-delay-after-notify',
           runtime,
         });
       });
     });
 
   result.match(
-    (finalState) => { console.log("selectiveStoredBet: final state:", finalState); },
+    (finalState) => { console.log("selectiveStoredBetWithEnforcedDelay: final state:", finalState); },
     (error: unknown) => {
       if (typeof error === "object" && error !== null && "stderr" in error) {
         console.error((error as { stderr: unknown }).stderr);
       } else {
         console.error(error);
       }
-      throw new Error(`Selective stored bet run failed: ${jsonStringify(error as Json)}`);
+      throw new Error(`Selective stored bet-with-delay run failed: ${jsonStringify(error as Json)}`);
     },
   );
 
-  // 7) Final check: the contract source is still selectively merkleized
-  //    after the lifecycle. The source itself is static in the store; this
-  //    just guards against regressions in the upload path.
+  // 8) Final check: the contract source is still selectively merkleized
+  //    after the lifecycle. The source itself is static in the store;
+  //    this just guards against regressions in the upload path.
   assertSelectivelyMerkleized(
     uploaded.contractSourceId,
     'after-lifecycle',

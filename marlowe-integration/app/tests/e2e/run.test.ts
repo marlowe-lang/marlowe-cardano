@@ -8,6 +8,7 @@ import * as storeClose from '../../src/testing/store/close.js';
 import * as storeFullMerkleization from '../../src/testing/store/fullMerkleization.js';
 import * as storeSelectiveMerkleization from '../../src/testing/store/selectiveMerkleization.js';
 import * as selectiveStoredBet from '../../src/testing/e2e/selectiveStoredBet.js';
+import * as selectiveStoredBetWithEnforcedDelay from '../../src/testing/e2e/selectiveStoredBetWithEnforcedDelay.js';
 import * as fs from 'node:fs'
 import { AddressBech32, NetworkMagicNumber } from '@konduit/konduit-consumer/cardano';
 import { unwrapOrPanicWith } from '@konduit/konduit-consumer/neverthrow';
@@ -200,5 +201,22 @@ test('Store: selectively merkleized bet e2e flow (upload with preserveActions, i
     faucet,
     winningChoice: 'no-winners',
     tempDir: selectiveStoredBetDir,
+  });
+})
+
+test('Store: selectively merkleized bet-with-delay e2e flow (upload preserving Choice only, Notify stays merkleized, init by id, deposit/choice/notify/close)', { tags: ['lifecycle', 'marlowe-runtime-cli'], timeout: 300000, }, async () => {
+  const faucet: Wallet = { addr: ctx.env.faucetAddr, skeyFile: ctx.env.faucetSkeyFile };
+  const selectiveStoredBetWithDelayDir = `${ctx.tempDir}/selective-stored-bet-with-delay` as Path;
+  if (!fs.existsSync(selectiveStoredBetWithDelayDir)) fs.mkdirSync(selectiveStoredBetWithDelayDir, { recursive: true });
+  await selectiveStoredBetWithEnforcedDelay.run({
+    runtime: ctx.env.marloweRuntimeConfig,
+    amount: 5_000_000n,
+    oracleFee: 100_000n,
+    party1: ctx.party1,
+    party2: ctx.party2,
+    oracle: ctx.oracle,
+    faucet,
+    winningChoice: 'no-winners',
+    tempDir: selectiveStoredBetWithDelayDir,
   });
 })

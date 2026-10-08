@@ -102,6 +102,7 @@ nixpkgs.lib.nixosSystem {
         openFirewall = true;
         port = 8090;
         database.uri = ''postgresql://marlowe-runtime@/${dbName}'';
+        store.backend = "filesystem";
       };
 
       services.marlowe-indexer = {

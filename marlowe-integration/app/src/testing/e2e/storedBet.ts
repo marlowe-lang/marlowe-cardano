@@ -5,8 +5,8 @@ import type { Json } from "@konduit/codec/json";
 import { stringify as jsonStringify } from "@konduit/codec/json";
 import { Bet, WinningChoice } from '../contracts/bet.js';
 import {
-  applyDeposit,
-  applyChoice,
+  applyInput,
+  waitForContractClose,
   waitForNext,
 } from './bet.js';
 import type { Wallet } from '../../cardano.js';
@@ -102,28 +102,56 @@ export const run = async (opts: RunOpts & { tempDir: string }): Promise<void> =>
     tempDir,
     runtime,
   });
-  const result = await applyDeposit({
+  const result = await applyInput({
       contractId: contractId,
       input: Bet.mkFirstDepositInput(contract),
       party: party1,
-      nextParty: { wallet: party2, kind: 'deposit' },
       logLabel: 'after-party1-deposit',
       runtime,
     })
-    .andThen(() => applyDeposit({
-      contractId: contractId,
-      input: Bet.mkSecondDepositInput(contract),
-      party: party2,
-      nextParty: { wallet: oracle, kind: 'choice' },
-      logLabel: 'after-party2-deposit',
-      runtime,
-    }))
-    .andThen(() => applyChoice({
-      contractId: contractId,
-      input: Bet.mkOracleChoiceInput(contract, winningChoice),
-      party: oracle,
-      runtime,
-    }));
+    .andThen(contractIdAfter =>
+      waitForNext({
+        contractId: contractIdAfter,
+        party: party2,
+        kind: 'deposit',
+        logLabel: 'after-party1-deposit',
+        runtime,
+      }).map(() => contractIdAfter),
+    )
+    .andThen(contractIdAfter =>
+      applyInput({
+        contractId: contractIdAfter,
+        input: Bet.mkSecondDepositInput(contract),
+        party: party2,
+        logLabel: 'after-party2-deposit',
+        runtime,
+      })
+      .andThen(contractIdAfter2 =>
+        waitForNext({
+          contractId: contractIdAfter2,
+          party: oracle,
+          kind: 'choice',
+          logLabel: 'after-party2-deposit',
+          runtime,
+        }).map(() => contractIdAfter2),
+      ),
+    )
+    .andThen(contractIdAfter =>
+      applyInput({
+        contractId: contractIdAfter,
+        input: Bet.mkOracleChoiceInput(contract, winningChoice),
+        party: oracle,
+        logLabel: 'after-oracle-choice',
+        runtime,
+      })
+      .andThen(contractIdAfter2 =>
+        waitForContractClose({
+          contractId: contractIdAfter2,
+          logLabel: 'after-oracle-choice',
+          runtime,
+        }),
+      ),
+    );
 
   result.match(
     (finalState) => { console.log("stored-bet: final state:", finalState); },

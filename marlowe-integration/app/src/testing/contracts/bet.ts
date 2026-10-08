@@ -12,6 +12,7 @@ import {
   IDeposit,
   If,
   lovelace,
+  Notify,
   Party,
   Pay,
   PayeeParty,
@@ -106,7 +107,8 @@ export function Bet(
   party1_: AddressBech32 | Party,
   party2_: AddressBech32 | Party,
   oracle_: AddressBech32 | Party,
-  timeout: Timeout
+  timeout: Timeout,
+  delayOracleChoiceOnChain: boolean = false,
 ): Bet {
   let isParty = (party: AddressBech32 | Party): party is Party => typeof party !== "string";
   let mkParty = (addr: AddressBech32 | Party): Party => isParty(addr) ? addr : Party(Address(addr));
@@ -119,13 +121,37 @@ export function Bet(
 
   const choiceValue = ChoiceValue(ChoiceId(CHOICE_NAME, oracle));
 
+  // Optionally preserve the oracle's choice on-chain.
+  //
+  // In a more realistic setup we would skip this action and solely
+  // rely on the well adjusted timeout so the consumers can
+  // be sure that information is available on-chain for a particular
+  // time window.
+  //
+  // Please check https://github.com/marlowe-lang/marlowe-oracle-protocol
+  // for more details about this pattern.
+  const closingContract = (() => {
+    if (delayOracleChoiceOnChain) {
+      return WhenAction(
+        Notify(true),
+        timeout,
+        // After Notify
+        Close(),
+        // After timeout
+        Close()
+      );
+    } else {
+      return Close();
+    }
+  })();
+
   const payLoserStakeToWinner = (winner: Party, loser: Party): Contract =>
     Pay(
       betAmount,
       lovelace,
       loser,
       PayeeParty(winner),
-      Close(),
+      closingContract
     );
 
   return WhenAction(
@@ -148,7 +174,7 @@ export function Bet(
                 ValueEQ(choiceValue, Constant(TEAM_2_WINS)),
                 payLoserStakeToWinner(party2, party1),
                 // Tie
-                Close(),
+                closingContract
               ),
             )
           )
@@ -176,7 +202,8 @@ export namespace Bet {
                           const party1 = party1Deposit.party;
                           const party2 = party2Deposit.party;
                           const oracle = oracleChoice.for_choice.choice_owner;
-                          return { party1, party2, oracle, fee1, fee2, amount, timeout };
+                          const delayOracleChoiceOnChain = !Contract.isClose(party1WinsPayment.then);
+                          return { party1, party2, oracle, fee1, fee2, amount, timeout, delayOracleChoiceOnChain };
                         })
                       )
                     )
@@ -186,14 +213,15 @@ export namespace Bet {
             )
           )
         )
-      ).andThen(({ party1, party2, oracle, fee1, fee2, amount, timeout }) => {
+      ).andThen(({ party1, party2, oracle, fee1, fee2, amount, timeout, delayOracleChoiceOnChain }) => {
         const reconstructedBet = Bet(
           amount,
           fee1 + fee2,
           party1,
           party2,
           oracle,
-          timeout
+          timeout,
+          delayOracleChoiceOnChain
         );
         if (!Contract.areEqual(contract, reconstructedBet)) {
           return err(`Contract is not a valid Bet: ${stringify(contract)}`);
